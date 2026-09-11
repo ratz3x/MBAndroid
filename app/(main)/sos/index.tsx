@@ -70,58 +70,6 @@ const EMERGENCY_CONTACTS = [
   },
 ];
 
-// ── Bengkel Rekanan & Towing Spesialis Mercedes-Benz ──────────
-const WORKSHOPS = [
-  {
-    name: 'Karya Bintang Mandiri (KBM) Motor',
-    region: 'Jabodetabek',
-    kota: 'Jakarta Selatan',
-    phone: '081288881240',
-    desc: 'Spesialis mesin, elektrikal & transmisi Mercedes-Benz (W124, W210, W211, W204, W205, W212, W221)',
-    is24h: true,
-  },
-  {
-    name: 'Star Auto Service BSD',
-    region: 'Jabodetabek',
-    kota: 'Tangerang Selatan',
-    phone: '081399990190',
-    desc: 'Scan Star Diagnosis, servis berkala, suspensi udara (Airmatic) & kaki-kaki Mercy',
-    is24h: false,
-  },
-  {
-    name: 'Garasi Bintang Bandung',
-    region: 'Jawa Barat',
-    kota: 'Bandung',
-    phone: '081220008899',
-    desc: 'Spesialis Mercedes-Benz klasik & modern, towing gendong flatdeck 24 jam Bandung - Cipularang',
-    is24h: true,
-  },
-  {
-    name: 'Solo Star Motor',
-    region: 'Jateng & DIY',
-    kota: 'Solo / Surakarta',
-    phone: '081226001234',
-    desc: 'Bengkel rujukan MBC Solo Raya & Jalur Tol Trans Jawa (Solo - Kertosono)',
-    is24h: true,
-  },
-  {
-    name: 'Bintang Timur Motor',
-    region: 'Jawa Timur & Bali',
-    kota: 'Surabaya',
-    phone: '081133334567',
-    desc: 'Spesialis Mercy Jawa Timur, towing hidrolik flatbed Surabaya - Malang - Banyuwangi',
-    is24h: true,
-  },
-  {
-    name: 'Sumatera Star Rescue (Jambi & Palembang)',
-    region: 'Sumatera',
-    kota: 'Jambi / Palembang',
-    phone: '082129709595',
-    desc: 'Penanganan touring lintas Sumatera, derek towing flatdeck & mekanik keliling',
-    is24h: true,
-  },
-];
-
 // ── Quick Troubleshooting Tips ───────────────────────────────
 const QUICK_TIPS = [
   {
@@ -156,8 +104,7 @@ export default function SOSScreen() {
   const [locationName, setLocationName] = useState<string>('');
   const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [loadingGps, setLoadingGps] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<'sos' | 'contacts' | 'workshops' | 'tips'>('sos');
-  const [selectedRegion, setSelectedRegion] = useState<string>('Semua');
+  const [activeTab, setActiveTab] = useState<'sos' | 'contacts' | 'tips'>('sos');
 
   // Load fallback local storage
   useEffect(() => {
@@ -348,10 +295,6 @@ export default function SOSScreen() {
     }
   };
 
-  const filteredWorkshops = WORKSHOPS.filter(
-    (w) => selectedRegion === 'Semua' || w.region === selectedRegion
-  );
-
   return (
     <SafeAreaView style={CommonStyles.safeArea} edges={['top']}>
       {/* Top Header */}
@@ -382,7 +325,6 @@ export default function SOSScreen() {
         {[
           { key: 'sos', label: '🚨 Sinyal SOS' },
           { key: 'contacts', label: '📞 Kontak Darurat' },
-          { key: 'workshops', label: '🔧 Bengkel & Derek' },
           { key: 'tips', label: '💡 Panduan Cepat' },
         ].map((tab) => {
           const isActive = activeTab === tab.key;
@@ -596,68 +538,7 @@ export default function SOSScreen() {
           </View>
         )}
 
-        {/* TAB 3: BENGKEL REKANAN & DEREK */}
-        {activeTab === 'workshops' && (
-          <View>
-            <Text style={styles.sectionHeaderTitle}>Bengkel Rekanan & Towing Flatdeck</Text>
-            <Text style={styles.sectionHeaderSubtitle}>
-              Daftar bengkel spesialis Mercedes-Benz terpercaya dan jasa derek gendong rekanan komunitas.
-            </Text>
-
-            {/* Region Filter */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.regionScroll}>
-              {['Semua', 'Jabodetabek', 'Jawa Barat', 'Jateng & DIY', 'Jawa Timur & Bali', 'Sumatera'].map(
-                (reg) => {
-                  const isSel = selectedRegion === reg;
-                  return (
-                    <Pressable
-                      key={reg}
-                      onPress={() => setSelectedRegion(reg)}
-                      style={[styles.regionPill, isSel && styles.regionPillActive]}
-                    >
-                      <Text style={[styles.regionPillText, isSel && styles.regionPillTextActive]}>
-                        {reg}
-                      </Text>
-                    </Pressable>
-                  );
-                }
-              )}
-            </ScrollView>
-
-            {/* Workshop Cards */}
-            <View style={styles.workshopsList}>
-              {filteredWorkshops.map((w) => (
-                <LuxuryCard key={w.name} variant="default" style={styles.workshopCard}>
-                  <View style={styles.workshopHeader}>
-                    <View style={{ flex: 1 }}>
-                      <View style={styles.workshopBadgeRow}>
-                        <Text style={styles.workshopRegionBadge}>{w.region}</Text>
-                        {w.is24h && <Text style={styles.workshop24Badge}>24 JAM DEREK</Text>}
-                      </View>
-                      <Text style={styles.workshopName}>{w.name}</Text>
-                      <View style={styles.workshopCityRow}>
-                        <Ionicons name="location-outline" size={13} color={Colors.text.tertiary} />
-                        <Text style={styles.workshopCity}>{w.kota}</Text>
-                      </View>
-                    </View>
-
-                    <Pressable
-                      onPress={() => handleCall(w.phone)}
-                      style={styles.workshopCallBtn}
-                    >
-                      <Ionicons name="call" size={16} color="#000" />
-                      <Text style={styles.workshopCallBtnText}>Hubungi</Text>
-                    </Pressable>
-                  </View>
-
-                  <Text style={styles.workshopDesc}>{w.desc}</Text>
-                </LuxuryCard>
-              ))}
-            </View>
-          </View>
-        )}
-
-        {/* TAB 4: PANDUAN CEPAT DARURAT */}
+        {/* TAB 3: PANDUAN CEPAT DARURAT */}
         {activeTab === 'tips' && (
           <View>
             <Text style={styles.sectionHeaderTitle}>Panduan Darurat Mercedes-Benz</Text>
@@ -1110,104 +991,6 @@ const styles = StyleSheet.create({
   },
   callBtnText: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#000',
-  },
-
-  // Workshops Tab
-  regionScroll: {
-    flexDirection: 'row',
-    marginBottom: Spacing.base,
-  },
-  regionPill: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: Radius.full,
-    backgroundColor: '#17181F',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    marginRight: 8,
-  },
-  regionPillActive: {
-    backgroundColor: Colors.brand.gold,
-    borderColor: Colors.brand.gold,
-  },
-  regionPillText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: Colors.text.secondary,
-  },
-  regionPillTextActive: {
-    color: '#000',
-    fontWeight: '700',
-  },
-  workshopsList: {
-    gap: 12,
-  },
-  workshopCard: {
-    padding: Spacing.base,
-  },
-  workshopHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: 10,
-    marginBottom: 8,
-  },
-  workshopBadgeRow: {
-    flexDirection: 'row',
-    gap: 6,
-    marginBottom: 4,
-  },
-  workshopRegionBadge: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: Colors.brand.gold,
-    backgroundColor: 'rgba(197, 160, 89, 0.12)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  workshop24Badge: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: '#EF4444',
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  workshopName: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: Colors.text.primary,
-  },
-  workshopCityRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 2,
-  },
-  workshopCity: {
-    fontSize: 11,
-    color: Colors.text.tertiary,
-  },
-  workshopDesc: {
-    fontSize: 11,
-    color: Colors.text.secondary,
-    lineHeight: 16,
-  },
-  workshopCallBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.brand.gold,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: Radius.full,
-    gap: 4,
-  },
-  workshopCallBtnText: {
-    fontSize: 11,
     fontWeight: '700',
     color: '#000',
   },
