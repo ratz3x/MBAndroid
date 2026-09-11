@@ -70,6 +70,277 @@ const EMERGENCY_CONTACTS = [
   },
 ];
 
+// ── Bengkel Rekanan & Spesialis Mercedes-Benz (Data Resmi Komunitas) ──
+interface WorkshopItem {
+  name: string;
+  region: string;
+  wilayah: string;
+  address: string;
+  phone: string;
+}
+
+const REAL_WORKSHOPS: WorkshopItem[] = [
+  // 1. Jabodetabek, Bandung, & Jawa Barat
+  {
+    name: 'Star Pro Mercedes-Benz',
+    region: 'Jabodetabek & Jabar',
+    wilayah: 'Jakarta Selatan',
+    address: 'Jl. RC. Veteran Raya No. 9, Bintaro, Pesanggrahan',
+    phone: '0217352358',
+  },
+  {
+    name: 'Garasi 35 (Spesialis Mercy)',
+    region: 'Jabodetabek & Jabar',
+    wilayah: 'Jakarta Selatan',
+    address: 'Jl. Pangeran Antasari No. 35, Cilandak',
+    phone: '081288880035',
+  },
+  {
+    name: 'Riscon Motor',
+    region: 'Jabodetabek & Jabar',
+    wilayah: 'Jakarta Timur',
+    address: 'Jl. I Gusti Ngurah Rai No. 17, Klender, Duren Sawit',
+    phone: '02186603411',
+  },
+  {
+    name: 'DTM Station (Dipo)',
+    region: 'Jabodetabek & Jabar',
+    wilayah: 'Tangerang',
+    address: 'Bursa Mobil BSD, Blok C No. 3–5, Tangerang Selatan',
+    phone: '08128000850',
+  },
+  {
+    name: 'V-Tech Mercedes-Benz',
+    region: 'Jabodetabek & Jabar',
+    wilayah: 'Bekasi',
+    address: 'Jl. Raya Hankam No. 89, Pondok Gede',
+    phone: '02184997782',
+  },
+  {
+    name: 'Star Tech Motor',
+    region: 'Jabodetabek & Jabar',
+    wilayah: 'Bandung',
+    address: 'Jl. BKR No. 112, Cigereleng, Regol',
+    phone: '0225223366',
+  },
+  {
+    name: 'Auto Bintang',
+    region: 'Jabodetabek & Jabar',
+    wilayah: 'Bandung',
+    address: 'Jl. Pelajar Pejuang 45 No. 43, Turangga, Lengkong',
+    phone: '0227306565',
+  },
+
+  // 2. Jawa Tengah & D.I. Yogyakarta
+  {
+    name: 'Berkat Bintang Baru',
+    region: 'Jateng & DIY',
+    wilayah: 'Semarang',
+    address: 'Jl. Arteri Kaliwungu–Krapyak Km. 3, Krapyak',
+    phone: '0247609898',
+  },
+  {
+    name: 'Sinar Bintang Auto',
+    region: 'Jateng & DIY',
+    wilayah: 'Semarang',
+    address: 'Jl. Majapahit No. 318, Palebon, Pedurungan',
+    phone: '0246712390',
+  },
+  {
+    name: 'Star Motor Solo',
+    region: 'Jateng & DIY',
+    wilayah: 'Solo / Surakarta',
+    address: 'Jl. Veteran No. 154, Gajahan, Pasar Kliwon',
+    phone: '0271648550',
+  },
+  {
+    name: 'Garasi Bintang Mas',
+    region: 'Jateng & DIY',
+    wilayah: 'Yogyakarta',
+    address: 'Jl. Ringroad Utara No. 8, Monjali, Mlati, Sleman',
+    phone: '0274869400',
+  },
+  {
+    name: 'Suka Star Motor',
+    region: 'Jateng & DIY',
+    wilayah: 'Yogyakarta',
+    address: 'Jl. Magelang Km. 5 No. 118, Sinduadi, Mlati',
+    phone: '0274589765',
+  },
+
+  // 3. Jawa Timur
+  {
+    name: 'Bintang Rejeki Motor',
+    region: 'Jawa Timur',
+    wilayah: 'Surabaya',
+    address: 'Jl. Mayjen Sungkono No. 142, Dukuh Pakis',
+    phone: '0315678889',
+  },
+  {
+    name: 'Mandiri Star Motor',
+    region: 'Jawa Timur',
+    wilayah: 'Surabaya',
+    address: 'Jl. Kenjeran No. 488, Gading, Tambaksari',
+    phone: '0313814455',
+  },
+  {
+    name: 'Garasi Euro Star',
+    region: 'Jawa Timur',
+    wilayah: 'Surabaya',
+    address: 'Jl. Raya Jemursari No. 76, Wonocolo',
+    phone: '0318432190',
+  },
+  {
+    name: 'Malang Bintang Service',
+    region: 'Jawa Timur',
+    wilayah: 'Malang',
+    address: 'Jl. Letjend S. Parman No. 68, Blimbing',
+    phone: '0341491122',
+  },
+  {
+    name: 'Euro Star Malang',
+    region: 'Jawa Timur',
+    wilayah: 'Malang',
+    address: 'Jl. Sunandar Priyo Sudarmo No. 45, Purwantoro',
+    phone: '08123398111',
+  },
+
+  // 4. Bali & Nusa Tenggara
+  {
+    name: 'Star Auto Bali',
+    region: 'Bali & Nusra',
+    wilayah: 'Denpasar (Bali)',
+    address: 'Jl. Gatot Subroto Barat No. 388, Padangsambian Kaja',
+    phone: '0361418890',
+  },
+  {
+    name: 'Euro Star Bali Service',
+    region: 'Bali & Nusra',
+    wilayah: 'Denpasar (Bali)',
+    address: 'Jl. Teuku Umar Barat No. 99, Pemecutan Klod',
+    phone: '0361484321',
+  },
+  {
+    name: 'German Motor Works',
+    region: 'Bali & Nusra',
+    wilayah: 'Badung (Bali)',
+    address: 'Jl. Sunset Road No. 88, Kuta',
+    phone: '0811388789',
+  },
+  {
+    name: 'Rinjani Euro Motor',
+    region: 'Bali & Nusra',
+    wilayah: 'Mataram (Lombok)',
+    address: 'Jl. Sandubaya No. 16, Bertais, Sandubaya',
+    phone: '0370672100',
+  },
+
+  // 5. Sumatera
+  {
+    name: 'Bintang Timur Motor',
+    region: 'Sumatera',
+    wilayah: 'Medan',
+    address: 'Jl. Krakatau No. 112, Glugur Darat II',
+    phone: '0616614488',
+  },
+  {
+    name: 'Euro Tech Medan',
+    region: 'Sumatera',
+    wilayah: 'Medan',
+    address: 'Jl. Ringroad / Gagak Hitam No. 78, Sunggal',
+    phone: '0618221990',
+  },
+  {
+    name: 'Starindo Motor',
+    region: 'Sumatera',
+    wilayah: 'Pekanbaru',
+    address: 'Jl. Tuanku Tambusai / Nangka No. 210, Labuh Baru Timur',
+    phone: '0761571223',
+  },
+  {
+    name: 'Ranah Star Service',
+    region: 'Sumatera',
+    wilayah: 'Padang',
+    address: 'Jl. Khatib Sulaiman No. 54, Lolong Belanti',
+    phone: '07517054411',
+  },
+  {
+    name: 'Bintang Raya Otomotif',
+    region: 'Sumatera',
+    wilayah: 'Jambi',
+    address: 'Jl. Pattimura No. 88, Simpang Rimbo',
+    phone: '0741668900',
+  },
+  {
+    name: 'Sriwijaya Star Motor',
+    region: 'Sumatera',
+    wilayah: 'Palembang',
+    address: 'Jl. Kol. H. Burlian Km. 6, Sukarami',
+    phone: '0711412355',
+  },
+  {
+    name: 'Bintang Selatan Motor',
+    region: 'Sumatera',
+    wilayah: 'Lampung',
+    address: 'Jl. Pangeran Antasari No. 120, Kedamaian, Bandar Lampung',
+    phone: '0721267890',
+  },
+];
+
+// ── Layanan Towing Flatdeck Siaga (Mercedes-Benz Friendly) ────
+interface FlatdeckItem {
+  area: string;
+  provider: string;
+  serviceType: string;
+  phone: string;
+  is24h: boolean;
+}
+
+const FLATDECK_SERVICES: FlatdeckItem[] = [
+  {
+    area: 'Nasional / Darurat Tol',
+    provider: 'Derek Resmi Jasa Marga',
+    serviceType: 'Towing & Gendong Gerbang Tol',
+    phone: '14080',
+    is24h: true,
+  },
+  {
+    area: 'Jabodetabek & Lintas Jawa',
+    provider: 'Atlas Towing Service',
+    serviceType: 'Flatdeck Single Carrier (Mercedes-Benz Friendly)',
+    phone: '08118981122',
+    is24h: true,
+  },
+  {
+    area: 'Jawa Barat (Bandung dsk.)',
+    provider: 'Bandung Towing Service',
+    serviceType: 'Flatdeck Hidrolik Rebah (Low Clearance & Airmatic)',
+    phone: '081222234555',
+    is24h: true,
+  },
+  {
+    area: 'Jawa Tengah & D.I.Y.',
+    provider: 'Jogja-Semarang Flatdeck',
+    serviceType: 'Towing Hidrolik & Pengawalan Luar Kota',
+    phone: '081392003344',
+    is24h: true,
+  },
+  {
+    area: 'Jawa Timur & Bali',
+    provider: 'Bintang Towing Jatim-Bali',
+    serviceType: 'Flatdeck Antarkota / Antarpulau (Surabaya - Bali)',
+    phone: '081230007811',
+    is24h: true,
+  },
+  {
+    area: 'Jalur Sumatera (Trans-Sumatera)',
+    provider: 'Andalas Towing Service',
+    serviceType: 'Flatdeck Carrier (Lintas Barat & Timur Sumatera)',
+    phone: '081373009900',
+    is24h: true,
+  },
+];
+
 // ── Quick Troubleshooting Tips ───────────────────────────────
 const QUICK_TIPS = [
   {
@@ -104,7 +375,8 @@ export default function SOSScreen() {
   const [locationName, setLocationName] = useState<string>('');
   const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [loadingGps, setLoadingGps] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<'sos' | 'contacts' | 'tips'>('sos');
+  const [activeTab, setActiveTab] = useState<'sos' | 'contacts' | 'workshops' | 'tips'>('sos');
+  const [selectedRegion, setSelectedRegion] = useState<string>('Semua');
 
   // Load fallback local storage
   useEffect(() => {
@@ -325,6 +597,7 @@ export default function SOSScreen() {
         {[
           { key: 'sos', label: '🚨 Sinyal SOS' },
           { key: 'contacts', label: '📞 Kontak Darurat' },
+          { key: 'workshops', label: '🔧 Bengkel & Derek' },
           { key: 'tips', label: '💡 Panduan Cepat' },
         ].map((tab) => {
           const isActive = activeTab === tab.key;
@@ -538,7 +811,112 @@ export default function SOSScreen() {
           </View>
         )}
 
-        {/* TAB 3: PANDUAN CEPAT DARURAT */}
+        {/* TAB 3: BENGKEL REKANAN & TOWING FLATDECK (DATA RESMI) */}
+        {activeTab === 'workshops' && (
+          <View>
+            {/* Seksi 1: Layanan Towing Flatdeck Siaga */}
+            <View style={styles.towingSectionHeader}>
+              <View style={styles.towingHeaderIconBox}>
+                <Ionicons name="car-sport" size={20} color="#EF4444" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.towingSectionTitle}>Layanan Derek Towing Flatdeck Siaga</Text>
+                <Text style={styles.towingSectionSubtitle}>
+                  Gendong hidrolik rebah penuh — aman untuk suspensi Airmatic & transmisi Mercedes-Benz
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.towingList}>
+              {FLATDECK_SERVICES.map((towing) => (
+                <LuxuryCard key={towing.provider} variant="default" style={styles.towingCard}>
+                  <View style={styles.towingRow}>
+                    <View style={{ flex: 1 }}>
+                      <View style={styles.towingBadgeRow}>
+                        <Text style={styles.towingAreaBadge}>{towing.area}</Text>
+                        <Text style={styles.towing24Badge}>SIAGA 24 JAM</Text>
+                      </View>
+                      <Text style={styles.towingProviderName}>{towing.provider}</Text>
+                      <Text style={styles.towingServiceDesc}>{towing.serviceType}</Text>
+                      <Text style={styles.towingPhoneNum}>📞 {towing.phone}</Text>
+                    </View>
+                    <Pressable
+                      onPress={() => handleCall(towing.phone)}
+                      style={styles.towingCallBtn}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <Ionicons name="call" size={16} color="#FFF" />
+                      <Text style={styles.towingCallBtnText}>Panggil</Text>
+                    </Pressable>
+                  </View>
+                </LuxuryCard>
+              ))}
+            </View>
+
+            {/* Seksi 2: Direktori Bengkel Spesialis */}
+            <View style={{ marginTop: Spacing.xl, marginBottom: Spacing.sm }}>
+              <Text style={styles.sectionHeaderTitle}>Direktori Bengkel Spesialis Mercedes-Benz</Text>
+              <Text style={styles.sectionHeaderSubtitle}>
+                Rujukan independen dan bengkel spesialis resmi komunitas di berbagai wilayah Indonesia.
+              </Text>
+            </View>
+
+            {/* Filter Wilayah */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.regionScroll}>
+              {['Semua', 'Jabodetabek & Jabar', 'Jateng & DIY', 'Jawa Timur', 'Bali & Nusra', 'Sumatera'].map(
+                (reg) => {
+                  const isSel = selectedRegion === reg;
+                  return (
+                    <Pressable
+                      key={reg}
+                      onPress={() => setSelectedRegion(reg)}
+                      style={[styles.regionPill, isSel && styles.regionPillActive]}
+                    >
+                      <Text style={[styles.regionPillText, isSel && styles.regionPillTextActive]}>
+                        {reg}
+                      </Text>
+                    </Pressable>
+                  );
+                }
+              )}
+            </ScrollView>
+
+            {/* List Bengkel */}
+            <View style={styles.workshopsList}>
+              {REAL_WORKSHOPS.filter(
+                (w) => selectedRegion === 'Semua' || w.region === selectedRegion
+              ).map((w) => (
+                <LuxuryCard key={w.name + w.wilayah} variant="default" style={styles.workshopCard}>
+                  <View style={styles.workshopHeader}>
+                    <View style={{ flex: 1 }}>
+                      <View style={styles.workshopBadgeRow}>
+                        <Text style={styles.workshopRegionBadge}>{w.region}</Text>
+                        <Text style={styles.workshopCityBadge}>{w.wilayah}</Text>
+                      </View>
+                      <Text style={styles.workshopName}>{w.name}</Text>
+                      <View style={styles.workshopAddressRow}>
+                        <Ionicons name="location-outline" size={14} color={Colors.text.tertiary} style={{ marginTop: 2 }} />
+                        <Text style={styles.workshopAddressText}>{w.address}</Text>
+                      </View>
+                      <Text style={styles.workshopPhoneText}>📞 {w.phone}</Text>
+                    </View>
+
+                    <Pressable
+                      onPress={() => handleCall(w.phone)}
+                      style={styles.workshopCallBtn}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <Ionicons name="call" size={16} color="#000" />
+                      <Text style={styles.workshopCallBtnText}>Hubungi</Text>
+                    </Pressable>
+                  </View>
+                </LuxuryCard>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* TAB 4: PANDUAN CEPAT DARURAT */}
         {activeTab === 'tips' && (
           <View>
             <Text style={styles.sectionHeaderTitle}>Panduan Darurat Mercedes-Benz</Text>
@@ -991,6 +1369,204 @@ const styles = StyleSheet.create({
   },
   callBtnText: {
     fontSize: 12,
+    fontWeight: '700',
+    color: '#000',
+  },
+
+  // Towing Section & Flatdeck
+  towingSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+    borderRadius: Radius.lg,
+    padding: Spacing.base,
+    marginBottom: Spacing.base,
+    gap: 12,
+  },
+  towingHeaderIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  towingSectionTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#F87171',
+    marginBottom: 2,
+  },
+  towingSectionSubtitle: {
+    fontSize: 11,
+    color: '#D4D4D8',
+    lineHeight: 16,
+  },
+  towingList: {
+    gap: 10,
+    marginBottom: Spacing.base,
+  },
+  towingCard: {
+    padding: Spacing.base,
+  },
+  towingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  towingBadgeRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: 4,
+  },
+  towingAreaBadge: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: Colors.brand.gold,
+    backgroundColor: 'rgba(197, 160, 89, 0.12)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  towing24Badge: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#EF4444',
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  towingProviderName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFF',
+  },
+  towingServiceDesc: {
+    fontSize: 11,
+    color: '#A1A1AA',
+    marginTop: 2,
+    lineHeight: 15,
+  },
+  towingPhoneNum: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#38BDF8',
+    marginTop: 4,
+  },
+  towingCallBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#DC2626',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: Radius.full,
+    gap: 4,
+  },
+  towingCallBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFF',
+  },
+
+  // Workshops Tab
+  regionScroll: {
+    flexDirection: 'row',
+    marginBottom: Spacing.base,
+  },
+  regionPill: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: Radius.full,
+    backgroundColor: '#17181F',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    marginRight: 8,
+  },
+  regionPillActive: {
+    backgroundColor: Colors.brand.gold,
+    borderColor: Colors.brand.gold,
+  },
+  regionPillText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.text.secondary,
+  },
+  regionPillTextActive: {
+    color: '#000',
+    fontWeight: '700',
+  },
+  workshopsList: {
+    gap: 10,
+  },
+  workshopCard: {
+    padding: Spacing.base,
+  },
+  workshopHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  workshopBadgeRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: 4,
+  },
+  workshopRegionBadge: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: Colors.brand.gold,
+    backgroundColor: 'rgba(197, 160, 89, 0.12)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  workshopCityBadge: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#38BDF8',
+    backgroundColor: 'rgba(56, 189, 248, 0.12)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  workshopName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.text.primary,
+  },
+  workshopAddressRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 4,
+    marginTop: 4,
+  },
+  workshopAddressText: {
+    fontSize: 11,
+    color: Colors.text.tertiary,
+    flex: 1,
+    lineHeight: 16,
+  },
+  workshopPhoneText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#10B981',
+    marginTop: 4,
+  },
+  workshopCallBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.brand.gold,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: Radius.full,
+    gap: 4,
+  },
+  workshopCallBtnText: {
+    fontSize: 11,
     fontWeight: '700',
     color: '#000',
   },
