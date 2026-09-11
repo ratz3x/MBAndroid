@@ -33,6 +33,7 @@ const EMERGENCY_TYPES = [
   { id: 'transmisi', label: 'Transmisi / Kelistrikan', icon: 'hardware-chip-outline' },
   { id: 'laka', label: 'Kecelakaan / Laka Lantas', icon: 'warning-outline' },
   { id: 'medis', label: 'Bantuan Medis Darurat', icon: 'medkit-outline' },
+  { id: 'kejahatan', label: 'Kejahatan di Jalan Raya', icon: 'shield-outline' },
 ] as const;
 
 // ── National Emergency Numbers ───────────────────────────────
