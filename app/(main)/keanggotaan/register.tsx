@@ -265,8 +265,8 @@ export default function KeanggotaanRegisterScreen() {
       if (isEditMode && existingMember) {
         // Mode Edit: Update record existing
         let updatedMemberNumber = existingMember.member_number;
-        const newProvCode = selectedProvince?.kode;
-        if (existingMember.member_number && newProvCode) {
+        const newProvCode = selectedProvince?.kode || 'JKT';
+        if (existingMember.member_number) {
           const parts = existingMember.member_number.split('-');
           if (parts.length >= 4) {
             parts[1] = newProvCode;
@@ -275,6 +275,10 @@ export default function KeanggotaanRegisterScreen() {
             parts[1] = newProvCode;
             updatedMemberNumber = parts.join('-');
           }
+        } else {
+          // Jika sebelumnya belum terbit nomor KTA, generate nomor KTA resmi
+          const currentYear = new Date().getFullYear();
+          updatedMemberNumber = `MBINA-${newProvCode}-${currentYear}-${nextSeq}`;
         }
 
         const updatePayload: any = {
@@ -289,11 +293,27 @@ export default function KeanggotaanRegisterScreen() {
           updatePayload.member_number = updatedMemberNumber;
         }
 
-        const { error } = await (supabase.from('members') as any)
+        // 1. Coba update berdasarkan profile_id
+        let { error } = await (supabase.from('members') as any)
           .update(updatePayload)
-          .eq('id', existingMember.id);
+          .eq('profile_id', user.id);
 
-        if (error) throw error;
+        // 2. Jika gagal atau data awalnya disimpan di cache lokal, jalankan upsert
+        if (error || !existingMember.id || String(existingMember.id).startsWith('local-')) {
+          console.warn('[Register] Update via profile_id failed, attempting upsert fallback...', error);
+          const upsertPayload = {
+            profile_id: user.id,
+            status: existingMember.status || 'active',
+            is_approved: existingMember.is_approved ?? true,
+            join_date: existingMember.join_date || new Date().toISOString().split('T')[0],
+            ...updatePayload,
+          };
+          const { error: upsertErr } = await (supabase.from('members') as any)
+            .upsert(upsertPayload, { onConflict: 'profile_id' });
+          if (!upsertErr) {
+            error = null;
+          }
+        }
 
         const updatedLocal = {
           ...existingMember,
