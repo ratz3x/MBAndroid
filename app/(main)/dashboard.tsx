@@ -70,6 +70,18 @@ export default function DashboardScreen() {
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
 
   useEffect(() => {
+    // 1. Jika akun SUDAH memiliki nomor KTA atau berstatus aktif, modal TIDAK BOLEH muncul
+    if (
+      activeMember?.member_number ||
+      activeMember?.status === 'active' ||
+      activeMember?.is_approved
+    ) {
+      setShowWelcomeModal(false);
+      return;
+    }
+
+    // 2. Hanya cek dan tampilkan modal jika proses pengecekan data profil/member selesai
+    //    dan akun memang benar-benar belum memiliki data pendaftaran sama sekali
     if (!loading && !activeMember && user?.id) {
       const checkModal = async () => {
         try {

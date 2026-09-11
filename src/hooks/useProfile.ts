@@ -27,11 +27,14 @@ interface UseProfileReturn {
 export function useProfile(profileId: string | undefined): UseProfileReturn {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [member, setMember] = useState<Member | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
-    if (!profileId) return;
+    if (!profileId) {
+      setLoading(false);
+      return;
+    }
 
     if (profileId === KOP_USER_ID) {
       setProfile(KOP_PROFILE);
