@@ -21,6 +21,7 @@ import * as Linking from 'expo-linking';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../../../src/context/AuthContext';
 import { useProfile } from '../../../src/hooks/useProfile';
+import { supabase } from '../../../src/services/supabase';
 import { Colors, Typography, Spacing, Radius, CommonStyles } from '../../../src/constants/theme';
 import { LuxuryCard } from '../../../src/components/ui/LuxuryCard';
 
@@ -205,8 +206,49 @@ export default function SOSScreen() {
     });
   };
 
-  // Dispatch SOS WhatsApp
-  const handleSendSOS = () => {
+  // Active SOS Alert State (for the user's ongoing rescue status)
+  const [activeSOSId, setActiveSOSId] = useState<string | null>(null);
+  const [activeSOSData, setActiveSOSData] = useState<any>(null);
+  const [dispatching, setDispatching] = useState<boolean>(false);
+
+  // Check ongoing SOS alert from local storage or DB
+  const checkActiveSOS = useCallback(async () => {
+    try {
+      const stored = await AsyncStorage.getItem('@mbclub_my_active_sos');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        setActiveSOSId(parsed.id || null);
+        setActiveSOSData(parsed);
+
+        // Refresh status from Supabase if table exists
+        if (parsed.id) {
+          try {
+            const { data } = await (supabase.from('sos_alerts') as any)
+              .select('*')
+              .eq('id', parsed.id)
+              .maybeSingle();
+            if (data) {
+              if (data.status === 'resolved' || data.status === 'cancelled') {
+                await AsyncStorage.removeItem('@mbclub_my_active_sos');
+                setActiveSOSId(null);
+                setActiveSOSData(null);
+              } else {
+                setActiveSOSData(data);
+              }
+            }
+          } catch {}
+        }
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    checkActiveSOS();
+  }, [checkActiveSOS]);
+
+  // Dispatch SOS WhatsApp & Log to Supabase sos_alerts table
+  const handleSendSOS = async () => {
+    setDispatching(true);
     const currentEmergency = EMERGENCY_TYPES.find((t) => t.id === selectedType);
     const memberName = authProfile?.full_name || 'Member MBCI';
     const memberNo = activeMember?.member_number || 'KTA Belum Diterbitkan';
@@ -231,12 +273,79 @@ export default function SOSScreen() {
       (mapsLink ? `*Titik GPS Maps:* ${mapsLink}\n\n` : '\n') +
       `_Mohon bantuan rescue team, towing flatdeck, atau chapter MBCI terdekat!_`;
 
+    const emergencyPayload = {
+      profile_id: user?.id || null,
+      member_id: activeMember?.id || null,
+      full_name: memberName,
+      member_number: memberNo,
+      chapter: chapter,
+      car_model: activeMember?.car_model ? `Mercedes-Benz ${activeMember.car_model}` : null,
+      car_plate: activeMember?.car_plate || null,
+      phone: phone,
+      emergency_type: currentEmergency?.label || selectedType,
+      latitude: gpsCoords?.lat || null,
+      longitude: gpsCoords?.lng || null,
+      location_notes: locationName.trim() || null,
+      notes: customNotes.trim() || null,
+      status: 'pending' as const,
+      created_at: new Date().toISOString(),
+    };
+
+    let insertedId = 'local_' + Date.now();
+
+    // 1. Insert into Supabase sos_alerts table (wrapped in try/catch)
+    try {
+      const { data, error } = await (supabase.from('sos_alerts') as any)
+        .insert(emergencyPayload)
+        .select()
+        .single();
+      if (!error && data?.id) {
+        insertedId = data.id;
+      }
+    } catch (dbErr) {
+      console.warn('[SOS] Logging to sos_alerts skipped/pending table setup:', dbErr);
+    }
+
+    // 2. Save active SOS in local cache
+    const activeRecord = { ...emergencyPayload, id: insertedId };
+    try {
+      await AsyncStorage.setItem('@mbclub_my_active_sos', JSON.stringify(activeRecord));
+      setActiveSOSId(insertedId);
+      setActiveSOSData(activeRecord);
+    } catch {}
+
+    setDispatching(false);
+
+    // 3. Open WhatsApp hotline
     const rescueWA = '6282129709595'; // Hotline Rescue MBCI
     const waUrl = `https://wa.me/${rescueWA}?text=${encodeURIComponent(message)}`;
 
     Linking.openURL(waUrl).catch(() => {
       Alert.alert('Gagal Membuka WhatsApp', 'Silakan hubungi Hotline Rescue langsung via telepon: 0821-2970-9595');
     });
+  };
+
+  // User cancels or resolves their own active SOS
+  const handleResolveMySOS = async () => {
+    try {
+      if (activeSOSId && !activeSOSId.startsWith('local_')) {
+        await (supabase.from('sos_alerts') as any)
+          .update({
+            status: 'resolved',
+            resolved_at: new Date().toISOString(),
+          })
+          .eq('id', activeSOSId);
+      }
+      await AsyncStorage.removeItem('@mbclub_my_active_sos');
+      setActiveSOSId(null);
+      setActiveSOSData(null);
+      Alert.alert('Status Diperbarui', 'Sinyal darurat telah ditandai Selesai. Tetap aman di jalan!');
+    } catch (e: any) {
+      Alert.alert('Info', 'Sinyal darurat lokal telah ditutup.');
+      await AsyncStorage.removeItem('@mbclub_my_active_sos');
+      setActiveSOSId(null);
+      setActiveSOSData(null);
+    }
   };
 
   const filteredWorkshops = WORKSHOPS.filter(
@@ -295,6 +404,45 @@ export default function SOSScreen() {
         {/* TAB 1: SINYAL SOS DISPATCH */}
         {activeTab === 'sos' && (
           <View>
+            {/* Ongoing Active SOS Banner */}
+            {activeSOSData && (
+              <View style={styles.activeRescueBanner}>
+                <View style={styles.activeRescueHeader}>
+                  <View style={styles.activeRescueBadge}>
+                    <View style={styles.activeRescueDot} />
+                    <Text style={styles.activeRescueBadgeText}>
+                      STATUS: {activeSOSData.status === 'in_progress' ? 'SEDANG DITANGANI RESCUE' : 'SINYAL TERKIRIM'}
+                    </Text>
+                  </View>
+                  <Text style={styles.activeRescueTime}>
+                    {new Date(activeSOSData.created_at || Date.now()).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB
+                  </Text>
+                </View>
+                <Text style={styles.activeRescueTitle}>
+                  {activeSOSData.emergency_type || 'Kendala Darurat'}
+                </Text>
+                {activeSOSData.location_notes ? (
+                  <Text style={styles.activeRescueLoc}>📍 {activeSOSData.location_notes}</Text>
+                ) : null}
+                <View style={styles.activeRescueActionRow}>
+                  <Pressable
+                    onPress={handleSendSOS}
+                    style={styles.activeRescueResendBtn}
+                  >
+                    <Ionicons name="logo-whatsapp" size={14} color="#FFF" />
+                    <Text style={styles.activeRescueResendText}>Hubungi Rescue Lagi</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={handleResolveMySOS}
+                    style={styles.activeRescueResolveBtn}
+                  >
+                    <Ionicons name="checkmark-done" size={14} color="#10B981" />
+                    <Text style={styles.activeRescueResolveText}>Selesai / Aman</Text>
+                  </Pressable>
+                </View>
+              </View>
+            )}
+
             {/* Alert Banner */}
             <View style={styles.heroAlertBox}>
               <View style={styles.heroIconBox}>
@@ -616,6 +764,95 @@ const styles = StyleSheet.create({
 
   content: {
     padding: Spacing.base,
+  },
+
+  // Active Ongoing Rescue Banner
+  activeRescueBanner: {
+    backgroundColor: '#1E1416',
+    borderRadius: Radius.lg,
+    borderWidth: 1.5,
+    borderColor: '#EF4444',
+    padding: Spacing.base,
+    marginBottom: Spacing.lg,
+  },
+  activeRescueHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  activeRescueBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(239, 68, 68, 0.25)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    gap: 6,
+  },
+  activeRescueDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#EF4444',
+  },
+  activeRescueBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#F87171',
+    letterSpacing: 0.5,
+  },
+  activeRescueTime: {
+    fontSize: 11,
+    color: '#A1A1AA',
+  },
+  activeRescueTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFF',
+    marginBottom: 4,
+  },
+  activeRescueLoc: {
+    fontSize: 12,
+    color: '#D4D4D8',
+    marginBottom: 10,
+  },
+  activeRescueActionRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 6,
+  },
+  activeRescueResendBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#25D366',
+    paddingVertical: 8,
+    borderRadius: Radius.md,
+    gap: 6,
+  },
+  activeRescueResendText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFF',
+  },
+  activeRescueResolveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    borderWidth: 1,
+    borderColor: '#10B981',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: Radius.md,
+    gap: 6,
+  },
+  activeRescueResolveText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#10B981',
   },
 
   // Hero Alert

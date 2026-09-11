@@ -210,6 +210,31 @@ export interface KoperasiBalance {
   updated_at: string;
 }
 
+// ── Table: sos_alerts ─────────────────────────────────────────
+export type SOSStatus = 'pending' | 'in_progress' | 'resolved' | 'cancelled';
+
+export interface SOSAlert {
+  id: string;
+  profile_id: string | null;
+  member_id: string | null;
+  full_name: string | null;
+  member_number: string | null;
+  chapter: string | null;
+  car_model: string | null;
+  car_plate: string | null;
+  phone: string | null;
+  emergency_type: string;
+  latitude: number | null;
+  longitude: number | null;
+  location_notes: string | null;
+  notes: string | null;
+  status: SOSStatus;
+  resolved_by: string | null;
+  resolved_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 // ── Database Schema Type (for Supabase client typing) ─────────
 export interface Database {
   public: {

@@ -14,6 +14,7 @@ import {
   Modal,
   ActivityIndicator,
   Platform,
+  Linking,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -24,7 +25,7 @@ import { SponsorService, type SponsorItem } from '../../../src/services/sponsorS
 import { StatsWidget } from '../../../src/components/dashboard/StatsWidget';
 import { SectionHeader } from '../../../src/components/ui/SectionHeader';
 import { Spacing, CommonStyles } from '../../../src/constants/theme';
-import type { Member } from '../../../src/types/database.types';
+import type { Member, SOSAlert } from '../../../src/types/database.types';
 import { formatDate } from '../../../src/utils/helpers';
 
 export default function AdminDashboardScreen() {
@@ -32,7 +33,8 @@ export default function AdminDashboardScreen() {
   const [pendingMembers, setPendingMembers] = useState<Member[]>([]);
   const [pendingSponsors, setPendingSponsors] = useState<SponsorItem[]>([]);
   const [draftEvents, setDraftEvents] = useState<any[]>([]);
-  const [stats, setStats] = useState({ total: 0, active: 0, pending: 0, events: 0 });
+  const [activeAlerts, setActiveAlerts] = useState<SOSAlert[]>([]);
+  const [stats, setStats] = useState({ total: 0, active: 0, pending: 0, events: 0, sos: 0 });
   const [loading, setLoading] = useState(false);
 
   // In-app Action Modal state (Web & Native compatible)
@@ -55,6 +57,18 @@ export default function AdminDashboardScreen() {
   const fetchData = async () => {
     setLoading(true);
     try {
+      // Safely fetch active SOS alerts
+      let alertsData: SOSAlert[] = [];
+      try {
+        const { data: alerts } = await (supabase.from('sos_alerts') as any)
+          .select('*')
+          .in('status', ['pending', 'in_progress'])
+          .order('created_at', { ascending: false });
+        if (alerts) alertsData = alerts;
+      } catch (err) {
+        // Table may not exist yet if user hasn't run the migration
+      }
+
       const [{ count: total }, { count: active }, { count: pending }, { data: pendingList }, draftList, upcomingEvents, allSponsors] =
         await Promise.all([
           supabase.from('members').select('*', { count: 'exact', head: true }),
@@ -70,14 +84,53 @@ export default function AdminDashboardScreen() {
           eventService.getEvents({ status: 'upcoming' }),
           SponsorService.getSponsors(),
         ]);
-      setStats({ total: total ?? 0, active: active ?? 0, pending: pending ?? 0, events: upcomingEvents.length });
+      setStats({
+        total: total ?? 0,
+        active: active ?? 0,
+        pending: pending ?? 0,
+        events: upcomingEvents.length,
+        sos: alertsData.length,
+      });
       setPendingMembers((pendingList as any) ?? []);
+      setActiveAlerts(alertsData);
       setPendingSponsors(allSponsors.filter((s) => s.pending_renewal));
       setDraftEvents(draftList);
     } catch (err: any) {
       console.warn('Error loading admin data:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // SOS status transition handlers
+  const handleUpdateSOSStatus = async (alertId: string, newStatus: 'in_progress' | 'resolved' | 'cancelled') => {
+    try {
+      setProcessing(true);
+      const updatePayload: any = {
+        status: newStatus,
+        updated_at: new Date().toISOString(),
+      };
+      if (newStatus === 'resolved') {
+        updatePayload.resolved_at = new Date().toISOString();
+      }
+
+      const { error } = await (supabase.from('sos_alerts') as any)
+        .update(updatePayload)
+        .eq('id', alertId);
+
+      if (error) throw error;
+
+      const statusLabels = {
+        in_progress: 'Sedang Ditangani',
+        resolved: 'Telah Diselesaikan',
+        cancelled: 'Dibatalkan',
+      };
+      setToastMessage(`Status SOS berhasil diubah ke: ${statusLabels[newStatus]}!`);
+      await fetchData();
+    } catch (err: any) {
+      Alert.alert('Gagal Mengubah Status', err.message || 'Gagal menghubungi database.');
+    } finally {
+      setProcessing(false);
     }
   };
 
@@ -296,17 +349,134 @@ export default function AdminDashboardScreen() {
         )}
 
         {/* 1. Statistik Anggota (Platinum Accent Line + Monochrome 4 Grid) */}
-        <SectionHeader title="Statistik Anggota" accentColor="#A1A1AA" />
+        <SectionHeader title="Statistik Ringkasan" accentColor="#A1A1AA" />
         <StatsWidget
           stats={[
             { label: 'Total Anggota', value: stats.total, icon: 'people-outline' },
             { label: 'Anggota Aktif', value: stats.active, icon: 'checkmark-circle-outline', trend: 'up' },
             { label: 'Menunggu Approval', value: stats.pending, icon: 'hourglass-outline' },
-            { label: 'Event Mendatang', value: stats.events, icon: 'calendar-outline' },
+            { label: 'SOS Darurat Aktif', value: stats.sos, icon: 'alert-circle-outline', trend: stats.sos > 0 ? 'up' : undefined },
           ]}
         />
 
-        {/* 2. Antrean Pendaftaran (Platinum Accent Line + Refactored Cards) */}
+        {/* 2. PUSAT MONITORING SOS RESCUE (Prioritas Tertinggi) */}
+        {activeAlerts.length > 0 && (
+          <View style={{ marginTop: Spacing.xl }}>
+            <View style={styles.sosSectionHeaderRow}>
+              <View style={styles.sosLiveDot} />
+              <Text style={styles.sosSectionTitle}>Panggilan SOS Darurat Aktif</Text>
+              <View style={styles.sosCountPill}>
+                <Text style={styles.sosCountText}>{activeAlerts.length} MENUNGGU RESCUE</Text>
+              </View>
+            </View>
+
+            {activeAlerts.map((alert) => {
+              const mapsUrl = alert.latitude && alert.longitude
+                ? `https://maps.google.com/?q=${alert.latitude},${alert.longitude}`
+                : null;
+              return (
+                <View key={alert.id} style={styles.sosAlertCard}>
+                  <View style={styles.sosAlertHeader}>
+                    <View style={styles.sosIconBox}>
+                      <Ionicons name="warning" size={20} color="#EF4444" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <View style={styles.sosStatusBadgeRow}>
+                        <View
+                          style={[
+                            styles.sosStatusBadge,
+                            alert.status === 'in_progress' ? styles.sosStatusBadgeProgress : styles.sosStatusBadgePending,
+                          ]}
+                        >
+                          <Text style={styles.sosStatusBadgeText}>
+                            {alert.status === 'in_progress' ? 'SEDANG DITANGANI' : 'SINYAL DARURAT BARU'}
+                          </Text>
+                        </View>
+                        <Text style={styles.sosTimeText}>
+                          {new Date(alert.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB
+                        </Text>
+                      </View>
+                      <Text style={styles.sosMemberName}>{alert.full_name || 'Member'}</Text>
+                      <Text style={styles.sosChapterText}>
+                        {alert.chapter ? `Chapter: ${alert.chapter}` : ''} {alert.member_number ? `• No. KTA: ${alert.member_number}` : ''}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.sosDetailBox}>
+                    <View style={styles.sosDetailRow}>
+                      <Text style={styles.sosDetailLabel}>Kendala:</Text>
+                      <Text style={styles.sosDetailValueBold}>{alert.emergency_type}</Text>
+                    </View>
+                    {(alert.car_model || alert.car_plate) && (
+                      <View style={styles.sosDetailRow}>
+                        <Text style={styles.sosDetailLabel}>Kendaraan:</Text>
+                        <Text style={styles.sosDetailValue}>
+                          {alert.car_model || 'Mercedes-Benz'} ({alert.car_plate || '-'})
+                        </Text>
+                      </View>
+                    )}
+                    {alert.location_notes ? (
+                      <View style={styles.sosDetailRow}>
+                        <Text style={styles.sosDetailLabel}>Lokasi:</Text>
+                        <Text style={styles.sosDetailValue}>{alert.location_notes}</Text>
+                      </View>
+                    ) : null}
+                    {alert.notes ? (
+                      <View style={styles.sosDetailRow}>
+                        <Text style={styles.sosDetailLabel}>Catatan:</Text>
+                        <Text style={styles.sosDetailValue}>{alert.notes}</Text>
+                      </View>
+                    ) : null}
+                  </View>
+
+                  {/* Actions: Call, Maps, Status Update */}
+                  <View style={styles.sosActionRow}>
+                    {alert.phone && (
+                      <Pressable
+                        onPress={() => Linking.openURL(`tel:${alert.phone}`)}
+                        style={styles.sosCallBtn}
+                      >
+                        <Ionicons name="call" size={14} color="#FFF" />
+                        <Text style={styles.sosCallBtnText}>Telepon Member</Text>
+                      </Pressable>
+                    )}
+                    {mapsUrl && (
+                      <Pressable
+                        onPress={() => Linking.openURL(mapsUrl)}
+                        style={styles.sosMapsBtn}
+                      >
+                        <Ionicons name="map-outline" size={14} color="#38BDF8" />
+                        <Text style={styles.sosMapsBtnText}>Buka GPS</Text>
+                      </Pressable>
+                    )}
+                    {alert.status === 'pending' ? (
+                      <Pressable
+                        onPress={() => handleUpdateSOSStatus(alert.id, 'in_progress')}
+                        disabled={processing}
+                        style={styles.sosProgressBtn}
+                      >
+                        <Ionicons name="hand-right-outline" size={14} color="#FBBF24" />
+                        <Text style={styles.sosProgressBtnText}>Tangani</Text>
+                      </Pressable>
+                    ) : (
+                      <Pressable
+                        onPress={() => handleUpdateSOSStatus(alert.id, 'resolved')}
+                        disabled={processing}
+                        style={styles.sosResolveBtn}
+                      >
+                        <Ionicons name="checkmark-done" size={14} color="#10B981" />
+                        <Text style={styles.sosResolveBtnText}>Selesai</Text>
+                      </Pressable>
+                    )}
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        )}
+
+        {/* 3. Antrean Pendaftaran (Platinum Accent Line + Refactored Cards) */}
         <View style={{ marginTop: Spacing.xl }}>
           <SectionHeader
             title="Antrean Pendaftaran"
@@ -704,6 +874,198 @@ const styles = StyleSheet.create({
     color: '#F4F4F5',
     fontWeight: '500',
     lineHeight: 18,
+  },
+
+  // SOS Section & Alerts
+  sosSectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: Spacing.sm,
+  },
+  sosLiveDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#EF4444',
+  },
+  sosSectionTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#F87171',
+    letterSpacing: 0.2,
+  },
+  sosCountPill: {
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.5)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    marginLeft: 'auto',
+  },
+  sosCountText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#EF4444',
+    letterSpacing: 0.5,
+  },
+  sosAlertCard: {
+    backgroundColor: '#1C1315',
+    borderWidth: 1.5,
+    borderColor: 'rgba(239, 68, 68, 0.6)',
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: Spacing.md,
+  },
+  sosAlertHeader: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'flex-start',
+  },
+  sosIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sosStatusBadgeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  sosStatusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  sosStatusBadgePending: {
+    backgroundColor: 'rgba(239, 68, 68, 0.3)',
+  },
+  sosStatusBadgeProgress: {
+    backgroundColor: 'rgba(251, 191, 36, 0.25)',
+  },
+  sosStatusBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#FFF',
+    letterSpacing: 0.5,
+  },
+  sosTimeText: {
+    fontSize: 11,
+    color: '#A1A1AA',
+  },
+  sosMemberName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFF',
+  },
+  sosChapterText: {
+    fontSize: 11,
+    color: '#A1A1AA',
+    marginTop: 2,
+  },
+  sosDetailBox: {
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    borderRadius: 10,
+    padding: 10,
+    marginVertical: 12,
+    gap: 6,
+  },
+  sosDetailRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  sosDetailLabel: {
+    fontSize: 12,
+    color: '#A1A1AA',
+    width: 75,
+  },
+  sosDetailValue: {
+    flex: 1,
+    fontSize: 12,
+    color: '#E4E4E7',
+  },
+  sosDetailValueBold: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#F87171',
+  },
+  sosActionRow: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  sosCallBtn: {
+    flex: 1,
+    minWidth: 120,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#16A34A',
+    paddingVertical: 8,
+    borderRadius: 10,
+    gap: 6,
+  },
+  sosCallBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFF',
+  },
+  sosMapsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(56, 189, 248, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.4)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    gap: 6,
+  },
+  sosMapsBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#38BDF8',
+  },
+  sosProgressBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(251, 191, 36, 0.15)',
+    borderWidth: 1,
+    borderColor: '#FBBF24',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    gap: 6,
+  },
+  sosProgressBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FBBF24',
+  },
+  sosResolveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    borderWidth: 1,
+    borderColor: '#10B981',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    gap: 6,
+  },
+  sosResolveBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#10B981',
   },
 
   // Empty Queue Card
