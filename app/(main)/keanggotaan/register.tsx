@@ -82,25 +82,47 @@ export default function KeanggotaanRegisterScreen() {
     async function checkExistingMember() {
       if (!user?.id) return;
       try {
+        let memData: any = null;
         const { data: mem } = await (supabase
           .from('members') as any)
           .select('*')
           .eq('profile_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
           .maybeSingle();
 
         if (mem) {
-          setExistingMember(mem);
+          memData = mem;
+        } else {
+          try {
+            const cached = await AsyncStorage.getItem('mb_local_member_' + user.id);
+            if (cached) memData = JSON.parse(cached);
+          } catch {}
+        }
+
+        if (memData) {
+          setExistingMember(memData);
           setIsEditMode(true);
-          setSavedMemberId(mem.member_number || '');
-          if (mem.car_model) setCarModel(mem.car_model);
-          if (mem.car_plate) setCarPlate(mem.car_plate);
-          if (mem.notes) setNotes(mem.notes);
-          if (mem.ktp_url) setPhotoUri(mem.ktp_url);
-          if (mem.chapter) {
+          setSavedMemberId(memData.member_number || '');
+          if (memData.car_model) setCarModel(memData.car_model);
+          if (memData.car_plate) setCarPlate(memData.car_plate);
+          if (memData.notes) setNotes(memData.notes);
+          if (memData.ktp_url) setPhotoUri(memData.ktp_url);
+          if (memData.chapter) {
             const match = CLUB_CHAPTERS.find(
-              (c) => c.nama.toLowerCase() === mem.chapter.toLowerCase()
+              (c) => c.nama.toLowerCase() === memData.chapter.toLowerCase()
             );
             if (match) setSelectedClub(match);
+          }
+          if (memData.member_number) {
+            const parts = memData.member_number.split('-');
+            if (parts.length >= 2) {
+              const provCode = parts[1];
+              const matchProv = PROVINCES.find(
+                (p) => p.kode.toUpperCase() === provCode.toUpperCase()
+              );
+              if (matchProv) setSelectedProvince(matchProv);
+            }
           }
         }
       } catch (err) {
@@ -126,9 +148,22 @@ export default function KeanggotaanRegisterScreen() {
     fetchSequence();
   }, []);
 
-  const computedMemberId = isEditMode && existingMember?.member_number
-    ? existingMember.member_number
-    : 'Diterbitkan Setelah Disetujui Admin';
+  const computedMemberId = React.useMemo(() => {
+    if (isEditMode && existingMember?.member_number) {
+      if (selectedProvince?.kode) {
+        const parts = existingMember.member_number.split('-');
+        if (parts.length >= 4) {
+          parts[1] = selectedProvince.kode;
+          return parts.join('-');
+        } else if (parts.length === 3) {
+          parts[1] = selectedProvince.kode;
+          return parts.join('-');
+        }
+      }
+      return existingMember.member_number;
+    }
+    return 'Diterbitkan Setelah Disetujui Admin';
+  }, [isEditMode, existingMember?.member_number, selectedProvince?.kode]);
 
   // Filtered master data
   const filteredProvinces = React.useMemo(() => {
@@ -229,32 +264,49 @@ export default function KeanggotaanRegisterScreen() {
 
       if (isEditMode && existingMember) {
         // Mode Edit: Update record existing
+        let updatedMemberNumber = existingMember.member_number;
+        const newProvCode = selectedProvince?.kode;
+        if (existingMember.member_number && newProvCode) {
+          const parts = existingMember.member_number.split('-');
+          if (parts.length >= 4) {
+            parts[1] = newProvCode;
+            updatedMemberNumber = parts.join('-');
+          } else if (parts.length === 3) {
+            parts[1] = newProvCode;
+            updatedMemberNumber = parts.join('-');
+          }
+        }
+
+        const updatePayload: any = {
+          chapter: selectedClub.nama,
+          car_brand: 'Mercedes-Benz',
+          car_model: carModel.trim(),
+          car_plate: carPlate.trim().toUpperCase(),
+          notes: notes || null,
+          ktp_url: photoUri || null,
+        };
+        if (updatedMemberNumber) {
+          updatePayload.member_number = updatedMemberNumber;
+        }
+
         const { error } = await (supabase.from('members') as any)
-          .update({
-            chapter: selectedClub.nama,
-            car_brand: 'Mercedes-Benz',
-            car_model: carModel.trim(),
-            car_plate: carPlate.trim().toUpperCase(),
-            notes: notes || null,
-            ktp_url: photoUri || null,
-          })
+          .update(updatePayload)
           .eq('id', existingMember.id);
 
         if (error) throw error;
 
+        const updatedLocal = {
+          ...existingMember,
+          ...updatePayload,
+          member_number: updatedMemberNumber || existingMember.member_number,
+        };
+
         try {
-          await AsyncStorage.setItem('mb_local_member_' + user.id, JSON.stringify({
-            ...existingMember,
-            chapter: selectedClub.nama,
-            car_brand: 'Mercedes-Benz',
-            car_model: carModel.trim(),
-            car_plate: carPlate.trim().toUpperCase(),
-            notes: notes || null,
-            ktp_url: photoUri || null,
-          }));
+          await AsyncStorage.setItem('mb_local_member_' + user.id, JSON.stringify(updatedLocal));
         } catch {}
 
-        setSavedMemberId(existingMember.member_number);
+        setExistingMember(updatedLocal);
+        setSavedMemberId(updatedMemberNumber || existingMember.member_number);
         setShowSuccessModal(true);
       } else {
         // Mode Registrasi Baru
@@ -642,7 +694,7 @@ export default function KeanggotaanRegisterScreen() {
 
             <Text style={styles.successStatusNote}>
               {isEditMode && savedMemberId
-                ? 'Data Anda sudah langsung aktif dan dapat dilihat pada kartu digital.'
+                ? 'Nomor KTA telah disesuaikan dengan kode provinsi domisili baru Anda. Nomor urut registrasi anggota tetap dipertahankan seumur hidup.'
                 : 'Sesuai aturan bisnis komunitas: Nomor Anggota resmi akan diterbitkan otomatis setelah disetujui admin.'}
             </Text>
 
