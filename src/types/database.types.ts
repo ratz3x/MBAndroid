@@ -235,6 +235,19 @@ export interface SOSAlert {
   updated_at: string;
 }
 
+// ── Table: sos_guides ─────────────────────────────────────────
+export interface SOSGuide {
+  id: string;
+  title: string;
+  category: string;
+  icon: string | null;
+  content: string;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 // ── Database Schema Type (for Supabase client typing) ─────────
 export interface Database {
   public: {

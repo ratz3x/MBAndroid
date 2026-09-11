@@ -461,9 +461,33 @@ export default function SOSScreen() {
     } catch {}
   }, []);
 
+  // SOS Guides (Roadside Quick Guide from Supabase with fallback)
+  const [dbGuides, setDbGuides] = useState<any[]>(QUICK_TIPS);
+  const [selectedGuideCategory, setSelectedGuideCategory] = useState<string>('Semua');
+
   useEffect(() => {
-    checkActiveSOS();
-  }, [checkActiveSOS]);
+    async function loadGuides() {
+      try {
+        const { data, error } = await (supabase.from('sos_guides') as any)
+          .select('*')
+          .eq('is_active', true)
+          .order('sort_order', { ascending: true });
+
+        if (!error && data && data.length > 0) {
+          setDbGuides(data);
+          await AsyncStorage.setItem('@mbclub_cached_guides', JSON.stringify(data));
+        } else {
+          // Check cached offline guides
+          const cached = await AsyncStorage.getItem('@mbclub_cached_guides');
+          if (cached) setDbGuides(JSON.parse(cached));
+        }
+      } catch {
+        const cached = await AsyncStorage.getItem('@mbclub_cached_guides');
+        if (cached) setDbGuides(JSON.parse(cached));
+      }
+    }
+    loadGuides();
+  }, []);
 
   // Dispatch SOS WhatsApp & Log to Supabase sos_alerts table
   const handleSendSOS = async () => {
@@ -921,21 +945,48 @@ export default function SOSScreen() {
           <View>
             <Text style={styles.sectionHeaderTitle}>Panduan Darurat Mercedes-Benz</Text>
             <Text style={styles.sectionHeaderSubtitle}>
-              Prosedur keselamatan dan tips penanganan awal saat mengalami kendala teknis di jalan raya.
+              Prosedur keselamatan dan tips penanganan awal teknis mobil Mercedes-Benz saat di jalan raya.
             </Text>
 
+            {/* Filter Kategori Panduan */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.regionScroll}>
+              {['Semua', 'Mesin', 'Elektrikal', 'Transmisi', 'Suspensi / Ban'].map((cat) => {
+                const isSel = selectedGuideCategory === cat;
+                return (
+                  <Pressable
+                    key={cat}
+                    onPress={() => setSelectedGuideCategory(cat)}
+                    style={[styles.regionPill, isSel && styles.regionPillActive]}
+                  >
+                    <Text style={[styles.regionPillText, isSel && styles.regionPillTextActive]}>
+                      {cat}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+
             <View style={styles.tipsList}>
-              {QUICK_TIPS.map((tip) => (
-                <LuxuryCard key={tip.title} variant="gold" style={styles.tipCard}>
-                  <View style={styles.tipHeader}>
-                    <View style={styles.tipIconRing}>
-                      <Ionicons name={tip.icon as any} size={20} color={Colors.brand.gold} />
+              {dbGuides
+                .filter((g) => selectedGuideCategory === 'Semua' || (g.category && g.category === selectedGuideCategory))
+                .map((tip) => (
+                  <LuxuryCard key={tip.id || tip.title} variant="gold" style={styles.tipCard}>
+                    <View style={styles.tipHeader}>
+                      <View style={styles.tipIconRing}>
+                        <Ionicons name={(tip.icon as any) || 'bulb-outline'} size={20} color={Colors.brand.gold} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        {tip.category && (
+                          <View style={styles.tipCategoryBadgeRow}>
+                            <Text style={styles.tipCategoryBadgeText}>{tip.category.toUpperCase()}</Text>
+                          </View>
+                        )}
+                        <Text style={styles.tipTitle}>{tip.title}</Text>
+                      </View>
                     </View>
-                    <Text style={styles.tipTitle}>{tip.title}</Text>
-                  </View>
-                  <Text style={styles.tipContent}>{tip.content}</Text>
-                </LuxuryCard>
-              ))}
+                    <Text style={styles.tipContent}>{tip.content}</Text>
+                  </LuxuryCard>
+                ))}
             </View>
           </View>
         )}
@@ -1591,6 +1642,15 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(197, 160, 89, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  tipCategoryBadgeRow: {
+    marginBottom: 4,
+  },
+  tipCategoryBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: Colors.brand.gold,
+    letterSpacing: 0.5,
   },
   tipTitle: {
     fontSize: 14,
