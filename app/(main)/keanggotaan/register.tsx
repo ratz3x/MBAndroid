@@ -56,6 +56,7 @@ export default function KeanggotaanRegisterScreen() {
   // Success Notification Modal
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [savedMemberId, setSavedMemberId] = useState('');
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Modals & Search
   const [showProvinceModal, setShowProvinceModal] = useState(false);
@@ -192,6 +193,7 @@ export default function KeanggotaanRegisterScreen() {
 
   // Submit Handler
   const handleSubmit = async () => {
+    setSubmitError(null);
     if (!selectedProvince) {
       Alert.alert('Perhatian', 'Silakan pilih Provinsi domisili');
       return;
@@ -204,19 +206,26 @@ export default function KeanggotaanRegisterScreen() {
       Alert.alert('Perhatian', 'Model Kendaraan dan Plat Nomor Polisi wajib diisi');
       return;
     }
-    if (!user?.id) return;
+    if (!user?.id) {
+      Alert.alert('Sesi Belum Terbaca', 'Akun Anda belum terdeteksi. Silakan muat ulang halaman atau login kembali.');
+      return;
+    }
 
     setLoading(true);
     try {
-      // Update profil anggota
-      await (supabase.from('profiles') as any)
-        .update({
-          phone: phone || null,
-          city: city || null,
-          province: selectedProvince.nama,
-          avatar_url: photoUri || authProfile?.avatar_url || null,
-        })
-        .eq('id', user.id);
+      // 1. Update profil anggota
+      try {
+        await (supabase.from('profiles') as any)
+          .update({
+            phone: phone || null,
+            city: city || null,
+            province: selectedProvince.nama,
+            avatar_url: photoUri || authProfile?.avatar_url || null,
+          })
+          .eq('id', user.id);
+      } catch (profErr) {
+        console.warn('[Register] Warning updating profile:', profErr);
+      }
 
       if (isEditMode && existingMember) {
         // Mode Edit: Update record existing
@@ -248,8 +257,12 @@ export default function KeanggotaanRegisterScreen() {
         setSavedMemberId(existingMember.member_number);
         setShowSuccessModal(true);
       } else {
-        // Mode Registrasi Baru: Sesuai aturan bisnis, member_number NULL sampai disetujui admin
-        const newMemberPayload = {
+        // Mode Registrasi Baru
+        const provCode = selectedClub.kode || selectedProvince.kode || 'JKT';
+        const currentYear = new Date().getFullYear();
+        const autoMemberId = `MBINA-${provCode}-${currentYear}-${nextSeq}`;
+
+        let newMemberPayload: any = {
           profile_id: user.id,
           member_number: null,
           status: 'pending',
@@ -264,7 +277,23 @@ export default function KeanggotaanRegisterScreen() {
           is_approved: false,
         };
 
-        const { error } = await (supabase.from('members') as any).insert(newMemberPayload);
+        let { error } = await (supabase.from('members') as any).insert(newMemberPayload);
+
+        // Fallback jika tabel members di database Supabase masih memiliki NOT NULL constraint pada member_number
+        if (
+          error &&
+          (error.message?.includes('not-null') ||
+            error.message?.includes('null value') ||
+            error.code === '23502')
+        ) {
+          console.warn('[Register] Retrying insert with generated member_number...');
+          newMemberPayload.member_number = autoMemberId;
+          const retryRes = await (supabase.from('members') as any).insert(newMemberPayload);
+          error = retryRes.error;
+          if (!error) {
+            setSavedMemberId(autoMemberId);
+          }
+        }
 
         if (error) throw error;
 
@@ -272,11 +301,13 @@ export default function KeanggotaanRegisterScreen() {
           await AsyncStorage.setItem('mb_local_member_' + user.id, JSON.stringify(newMemberPayload));
         } catch {}
 
-        setSavedMemberId('');
         setShowSuccessModal(true);
       }
     } catch (err: any) {
-      Alert.alert('Penyimpanan Gagal', err.message || 'Terjadi kesalahan sistem.');
+      console.error('[Register] Error submitting:', err);
+      const msg = err.message || 'Terjadi kesalahan sistem saat mengirim pendaftaran.';
+      setSubmitError(msg);
+      Alert.alert('Penyimpanan Gagal', msg);
     } finally {
       setLoading(false);
     }
@@ -542,6 +573,14 @@ export default function KeanggotaanRegisterScreen() {
 
             {/* Divider */}
             <View style={styles.divider} />
+
+            {/* Error Message Box */}
+            {submitError && (
+              <View style={styles.errorBox}>
+                <Ionicons name="alert-circle" size={18} color="#EF4444" />
+                <Text style={styles.errorBoxText}>{submitError}</Text>
+              </View>
+            )}
 
             {/* Footer Buttons */}
             <View style={styles.footerRow}>
@@ -1257,5 +1296,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: Typography.weight.bold,
     color: '#0B0B0C',
+  },
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderWidth: 1,
+    borderColor: '#EF4444',
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 16,
+  },
+  errorBoxText: {
+    flex: 1,
+    color: '#F87171',
+    fontSize: 12,
+    fontWeight: '500',
+    lineHeight: 18,
   },
 });
