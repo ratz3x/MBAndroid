@@ -39,6 +39,7 @@ const SHORTCUTS = [
   { icon: 'card-outline', label: 'Koperasi', route: '/(main)/koperasi' },
   { icon: 'ribbon-outline', label: 'Sponsor', route: '/(main)/sponsorship' },
   { icon: 'person-add-outline', label: 'Keanggotaan', route: '/(main)/keanggotaan' },
+  { icon: 'alert-circle-outline', label: 'SOS Rescue', route: '/(main)/sos' },
 ] as const;
 
 export default function DashboardScreen() {
@@ -175,34 +176,65 @@ export default function DashboardScreen() {
           </LuxuryCard>
         )}
 
+        {/* Emergency SOS Roadside Assistance Banner */}
+        <Pressable
+          onPress={() => router.push('/(main)/sos')}
+          style={styles.sosBanner}
+          android_ripple={{ color: 'rgba(239, 68, 68, 0.2)' }}
+        >
+          <View style={styles.sosBannerIconBox}>
+            <Ionicons name="warning" size={22} color="#EF4444" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <View style={styles.sosBadgeRow}>
+              <View style={styles.sosLiveDot} />
+              <Text style={styles.sosBadgeText}>BANTUAN DARURAT & RESCUE 24 JAM</Text>
+            </View>
+            <Text style={styles.sosBannerTitle}>SOS & Roadside Assistance</Text>
+            <Text style={styles.sosBannerSubtitle}>
+              Mogok mesin, derek tol 14080, overheat & towing flatdeck
+            </Text>
+          </View>
+          <View style={styles.sosArrowBox}>
+            <Ionicons name="chevron-forward" size={18} color="#EF4444" />
+          </View>
+        </Pressable>
+
         {/* Shortcut Menu Utama (Monochromatic Brushed Silver) */}
-        <View style={{ marginTop: Spacing['2xl'] }}>
+        <View style={{ marginTop: Spacing.xl }}>
           <SectionHeader title="Menu Utama" subtitle="Fitur & Layanan Aplikasi" />
         </View>
         <View style={styles.shortcutGrid}>
-          {SHORTCUTS.map((item) => (
-            <Pressable
-              key={item.label}
-              onPress={() => router.push(item.route as any)}
-              style={styles.shortcutItem}
-              android_ripple={{ color: 'rgba(255, 255, 255, 0.08)' }}
-            >
-              <View style={styles.shortcutIcon}>
-                {item.label === 'Koperasi' ? (
-                  <View style={{ width: 38, height: 38, borderRadius: 19, borderWidth: 1.5, borderColor: 'rgba(197,160,89,0.6)', overflow: 'hidden' }}>
-                    <Image
-                      source={KOPERASI_LOGO}
-                      style={{ width: 36, height: 36, borderRadius: 18 }}
-                      resizeMode="cover"
-                    />
-                  </View>
-                ) : (
-                  <Ionicons name={item.icon as any} size={22} color="#D4D4D8" />
-                )}
-              </View>
-              <Text style={styles.shortcutLabel}>{item.label}</Text>
-            </Pressable>
-          ))}
+          {SHORTCUTS.map((item) => {
+            const isSos = item.label === 'SOS Rescue';
+            return (
+              <Pressable
+                key={item.label}
+                onPress={() => router.push(item.route as any)}
+                style={styles.shortcutItem}
+                android_ripple={{ color: 'rgba(255, 255, 255, 0.08)' }}
+              >
+                <View style={[styles.shortcutIcon, isSos && styles.shortcutIconSos]}>
+                  {item.label === 'Koperasi' ? (
+                    <View style={{ width: 38, height: 38, borderRadius: 19, borderWidth: 1.5, borderColor: 'rgba(197,160,89,0.6)', overflow: 'hidden' }}>
+                      <Image
+                        source={KOPERASI_LOGO}
+                        style={{ width: 36, height: 36, borderRadius: 18 }}
+                        resizeMode="cover"
+                      />
+                    </View>
+                  ) : isSos ? (
+                    <Ionicons name="alert-circle" size={24} color="#EF4444" />
+                  ) : (
+                    <Ionicons name={item.icon as any} size={22} color="#D4D4D8" />
+                  )}
+                </View>
+                <Text style={[styles.shortcutLabel, isSos && styles.shortcutLabelSos]}>
+                  {item.label}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
 
         {/* Layanan & Aksi Eksklusif Anggota */}
@@ -575,6 +607,77 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#71717A',
     marginTop: 2,
+  },
+
+  // SOS Emergency Roadside Banner
+  sosBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(239, 68, 68, 0.35)',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginTop: Spacing.xl,
+    gap: 12,
+  },
+  sosBannerIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: 'rgba(239, 68, 68, 0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sosBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 3,
+  },
+  sosLiveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#EF4444',
+  },
+  sosBadgeText: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: '#F87171',
+    letterSpacing: 0.8,
+  },
+  sosBannerTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 0.2,
+  },
+  sosBannerSubtitle: {
+    fontSize: 11,
+    color: '#D4D4D8',
+    marginTop: 2,
+  },
+  sosArrowBox: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // SOS Shortcut overrides
+  shortcutIconSos: {
+    borderColor: 'rgba(239, 68, 68, 0.5)',
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+  },
+  shortcutLabelSos: {
+    color: '#F87171',
+    fontWeight: '700',
   },
 });
 
