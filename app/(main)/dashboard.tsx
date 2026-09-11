@@ -27,6 +27,7 @@ import { Colors, Typography, Spacing, Radius, CommonStyles } from '../../src/con
 import { formatChapter } from '../../src/utils/helpers';
 
 const KOPERASI_LOGO = require('../../assets/images/logo-koperasi.jpg');
+const MBCI_LOGO = require('../../assets/images/logo-mbci.jpg');
 
 // ── Shortcut Menu Configuration (Monochromatic Brushed Silver) ─────────
 const SHORTCUTS = [
@@ -275,10 +276,10 @@ export default function DashboardScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <View style={styles.modalIconRing}>
-              <Ionicons name="star" size={28} color={Colors.brand.gold} />
+              <Image source={MBCI_LOGO} style={styles.modalLogo} resizeMode="cover" />
             </View>
 
-            <Text style={styles.modalTitle}>Selamat Datang!</Text>
+            <Text style={styles.modalTitle}>Selamat Datang di Mercedes-Benz Club Indonesia!</Text>
             <Text style={styles.modalGreeting}>
               {authProfile?.full_name || user?.email}
             </Text>
@@ -437,15 +438,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalIconRing: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: 'rgba(197, 160, 89, 0.15)',
-    borderWidth: 1.5,
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    backgroundColor: '#000000',
+    borderWidth: 2,
     borderColor: Colors.brand.gold,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
+    overflow: 'hidden',
+    shadowColor: Colors.brand.gold,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  modalLogo: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
   },
   modalTitle: {
     fontSize: 20,
