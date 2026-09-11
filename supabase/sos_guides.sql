@@ -92,6 +92,58 @@ VALUES
 3. Injak pedal rem dan tekan tombol start untuk menghidupkan mesin meskipun baterai remote habis.',
     5,
     TRUE
+),
+(
+    'Ban Bocor / Prosedur Dongkrak & Baut Roda Mercy',
+    'Suspensi / Ban',
+    'disc-outline',
+    '1. Pastikan mobil di permukaan rata, aktifkan rem parkir (Electronic Parking Brake), dan pasang segitiga pengaman 30 meter di belakang mobil.
+2. Wajib gunakan titik tumpu dongkrak resmi (Jack Pad karet khusus Mercy) di bawah side skirt agar bodi tidak penyok.
+3. Kendorkan baut roda setengah putaran saat ban masih menempel tanah.
+4. Pasang ban cadangan space saver atau gunakan tire sealant kit + kompresor mini 12V bawaan Mercedes-Benz di bawah lantai bagasi.',
+    6,
+    TRUE
+),
+(
+    'Indikator Check Engine Menyala Kuning',
+    'Mesin',
+    'alert-circle-outline',
+    '1. Jika lampu Check Engine menyala diam (kuning solid) dan tidak ada getaran mesin hebat, mobil masih dapat dikemudikan dengan kecepatan rendah (di bawah 60 km/jam) menuju bengkel terdekat.
+2. Jika lampu Check Engine berkedip (flashing) atau mesin pincang (misfire), segera menepi dan matikan mesin untuk mencegah kerusakan katalis knalpot (Catalytic Converter) dan koil.
+3. Hubungi bengkel spesialis untuk pembacaan kode error menggunakan scanner Xentry / Star Diagnosis.',
+    7,
+    TRUE
+),
+(
+    'Rem Parkir Elektronik (EPB) Macet / Tidak Rilis',
+    'Elektrikal',
+    'hand-left-outline',
+    '1. Jika tombol rem parkir elektrik tidak mau rilis karena voltase aki drop, coba hidupkan mesin atau hubungkan jumper kabel untuk menyuplai daya ke modul EPB.
+2. Injak pedal rem dengan kuat, lalu tekan dan tahan tuas rem parkir ke bawah selama 5 detik.
+3. Pada beberapa model, buka penutup roda cadangan di bagasi dan gunakan kabel rilis darurat manual (Emergency Brake Release Tool) berwarna merah untuk melepaskan kaliper secara mekanis.',
+    8,
+    TRUE
+),
+(
+    'Transmisi Masuk Mode Pincang (Limp Home Mode)',
+    'Transmisi',
+    'hardware-chip-outline',
+    '1. Transmisi terkunci di gigi 2 atau 3 dan tidak mau oper gigi adalah sistem proteksi (Limp Mode) untuk melindungi girboks dari kerusakan fatal.
+2. Menepi ke tempat aman, pindahkan tuas ke P, matikan mesin, dan cabut kunci kontak.
+3. Tunggu sekitar 2-3 menit hingga seluruh modul komputer (TCU & ECU) memasuki mode sleep.
+4. Hidupkan kembali mesin. Jika Limp Mode hilang sementara, segera kemudikan santai ke bengkel spesialis.',
+    9,
+    TRUE
+),
+(
+    'Penanganan Terobos Banjir / Genangan Air Tinggi',
+    'Mesin',
+    'water-outline',
+    '1. Mercy memiliki posisi intake udara mesin yang relatif rendah di balik grill depan. Jangan memaksakan melintasi genangan air melebihi setengah velg roda.
+2. Jika mesin tiba-tiba mati saat menerjang banjir, JANGAN PERNAH MENCOBA START ULANG (bahaya Water Hammer yang membengkokkan setang piston).
+3. Pindahkan transmisi ke N (gunakan shift lock release jika perlu), dorong mobil ke tempat tinggi atau segera panggil towing flatdeck.',
+    10,
+    TRUE
 )
 ON CONFLICT DO NOTHING;
 
