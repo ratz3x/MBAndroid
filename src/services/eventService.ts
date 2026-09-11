@@ -55,11 +55,8 @@ export const eventService = {
 
     try {
       let query = (supabase.from('events') as any).select('*');
-      if (options.status) {
+      if (options.status && options.status !== 'draft') {
         query = query.eq('status', options.status);
-      } else {
-        // Default keamanan: kecualikan draft dari query publik
-        query = query.neq('status', 'draft');
       }
       if (options.chapter) {
         query = query.eq('chapter', options.chapter);
@@ -94,10 +91,11 @@ export const eventService = {
   },
 
   /**
-   * Ambil khusus event berstatus DRAFT
+   * Ambil khusus event berstatus DRAFT (disimpan lokal sebelum dipublikasikan)
    */
   async getDraftEvents(): Promise<Event[]> {
-    return this.getEvents({ status: 'draft' });
+    const localEvents = await this.getLocalEvents();
+    return localEvents.filter((ev) => ev.status === 'draft');
   },
 
   /**
