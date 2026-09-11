@@ -42,7 +42,7 @@ const SHORTCUTS = [
 
 export default function DashboardScreen() {
   const router = useRouter();
-  const { user, profile: authProfile, isAdmin } = useAuth();
+  const { user, profile: authProfile, isAdmin, signOut } = useAuth();
   const { profile, member, loading, refetch } = useProfile(user?.id);
   const [localMember, setLocalMember] = useState<any>(null);
 
@@ -125,6 +125,16 @@ export default function DashboardScreen() {
             )}
             <Pressable onPress={() => router.push('/(main)/profil')} style={styles.notifBtn}>
               <Ionicons name="notifications-outline" size={22} color={Colors.text.primary} />
+            </Pressable>
+            <Pressable
+              onPress={async () => {
+                await signOut();
+                router.replace('/(auth)/login');
+              }}
+              style={styles.logoutBtn}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="log-out-outline" size={20} color="#F87171" />
             </Pressable>
           </View>
         </View>
@@ -352,6 +362,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  logoutBtn: {
+    padding: Spacing.xs,
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.25)',
   },
 
   loadingCard: {

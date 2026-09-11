@@ -524,6 +524,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           provider: 'google',
           options: {
             redirectTo: typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8081',
+            queryParams: {
+              prompt: 'select_account',
+            },
           },
         });
         return { error };
@@ -534,6 +537,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           options: {
             redirectTo: redirectUrl,
             skipBrowserRedirect: true,
+            queryParams: {
+              prompt: 'select_account',
+            },
           },
         });
         if (error) return { error };

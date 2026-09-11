@@ -33,7 +33,7 @@ const serifFont = Platform.select({
 export default function LandingScreen() {
   const router = useRouter();
   const { width, height } = useWindowDimensions();
-  const { user, profile, isAdmin } = useAuth();
+  const { user, profile, isAdmin, signOut } = useAuth();
 
   const isDesktop = width >= 768;
 
@@ -69,15 +69,27 @@ export default function LandingScreen() {
           </View>
           <View style={styles.navRight}>
             {user ? (
-              <Pressable
-                onPress={() => router.push(secondaryBtnRoute as any)}
-                style={styles.navUserBtn}
-              >
-                <View style={styles.navUserDot} />
-                <Text style={styles.navUserText}>
-                  {isAdmin ? 'Portal Admin' : profile?.full_name ?? 'Dashboard'}
-                </Text>
-              </Pressable>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Pressable
+                  onPress={() => router.push(secondaryBtnRoute as any)}
+                  style={styles.navUserBtn}
+                >
+                  <View style={styles.navUserDot} />
+                  <Text style={styles.navUserText}>
+                    {isAdmin ? 'Portal Admin' : profile?.full_name ?? 'Dashboard'}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={async () => {
+                    await signOut();
+                    router.replace('/(auth)/login');
+                  }}
+                  style={styles.navLogoutBtn}
+                >
+                  <Ionicons name="log-out-outline" size={13} color="#EF4444" />
+                  <Text style={styles.navLogoutText}>Keluar</Text>
+                </Pressable>
+              </View>
             ) : (
               <Pressable
                 onPress={() => router.push('/(auth)/login')}
@@ -300,6 +312,22 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     color: '#E4E4E7',
+  },
+  navLogoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.25)',
+  },
+  navLogoutText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#F87171',
   },
 
   // Scroll Content
