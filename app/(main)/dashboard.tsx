@@ -3,7 +3,7 @@
 // Mercedes-Benz Club Indonesia (Luxury & Sleek)
 // ============================================================
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   Pressable,
   ActivityIndicator,
   Image,
+  Modal,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -65,6 +66,36 @@ export default function DashboardScreen() {
   const activeMember = member || localMember;
   const activeProfile = profile || authProfile;
 
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+
+  useEffect(() => {
+    if (!loading && !activeMember && user?.id) {
+      const checkModal = async () => {
+        try {
+          const seen = await AsyncStorage.getItem('mb_welcome_modal_seen_' + user.id);
+          if (!seen) {
+            setShowWelcomeModal(true);
+          }
+        } catch {}
+      };
+      checkModal();
+    }
+  }, [loading, activeMember, user?.id]);
+
+  const handleDismissWelcome = async () => {
+    setShowWelcomeModal(false);
+    if (user?.id) {
+      try {
+        await AsyncStorage.setItem('mb_welcome_modal_seen_' + user.id, 'true');
+      } catch {}
+    }
+  };
+
+  const handleGoToRegister = async () => {
+    await handleDismissWelcome();
+    router.push('/(main)/keanggotaan/register');
+  };
+
   return (
     <SafeAreaView style={CommonStyles.safeArea} edges={['top']}>
       <ScrollView
@@ -113,16 +144,22 @@ export default function DashboardScreen() {
         ) : (
           /* Belum mendaftar */
           <LuxuryCard variant="gold" style={styles.pendingCard}>
-            <Ionicons name="information-circle-outline" size={32} color={Colors.brand.gold} />
+            <View style={styles.pendingIconRing}>
+              <Ionicons name="card-outline" size={30} color={Colors.brand.gold} />
+            </View>
             <Text style={styles.pendingTitle}>Keanggotaan Belum Terdaftar</Text>
             <Text style={styles.pendingDesc}>
-              Daftarkan diri Anda sebagai anggota resmi Mercedes-Benz Club Indonesia untuk menerbitkan KTA Digital Anda.
+              Akun Anda telah aktif! Lengkapi data profil dan Mercedes-Benz Anda untuk menerbitkan KTA Digital resmi MBCI.
             </Text>
             <Pressable
               onPress={() => router.push('/(main)/keanggotaan/register')}
-              style={styles.pendingBtn}
+              style={({ pressed }) => [
+                styles.pendingBtn,
+                pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
+              ]}
             >
-              <Text style={styles.pendingBtnText}>Daftar Keanggotaan →</Text>
+              <Text style={styles.pendingBtnText}>Daftar Keanggotaan Sekarang</Text>
+              <Ionicons name="arrow-forward" size={16} color="#000000" />
             </Pressable>
           </LuxuryCard>
         )}
@@ -217,6 +254,51 @@ export default function DashboardScreen() {
 
         <View style={{ height: Spacing['3xl'] }} />
       </ScrollView>
+
+      {/* Onboarding Welcome Modal for New / Unregistered Users */}
+      <Modal
+        visible={showWelcomeModal}
+        transparent
+        animationType="fade"
+        onRequestClose={handleDismissWelcome}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalIconRing}>
+              <Ionicons name="star" size={28} color={Colors.brand.gold} />
+            </View>
+
+            <Text style={styles.modalTitle}>Selamat Datang!</Text>
+            <Text style={styles.modalGreeting}>
+              {authProfile?.full_name || user?.email}
+            </Text>
+
+            <Text style={styles.modalDesc}>
+              Akun Anda telah aktif di MB Club Indonesia. Untuk menerbitkan{' '}
+              <Text style={{ color: Colors.brand.gold, fontWeight: '700' }}>KTA Digital Resmi</Text>,
+              silakan lengkapi pilihan chapter dan data kendaraan Mercedes-Benz Anda.
+            </Text>
+
+            <Pressable
+              onPress={handleGoToRegister}
+              style={({ pressed }) => [
+                styles.modalPrimaryBtn,
+                pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
+              ]}
+            >
+              <Ionicons name="card-outline" size={18} color="#000000" />
+              <Text style={styles.modalPrimaryBtnText}>LENGKAPI DATA KTA SEKARANG</Text>
+            </Pressable>
+
+            <Pressable
+              onPress={handleDismissWelcome}
+              style={styles.modalSecondaryBtn}
+            >
+              <Text style={styles.modalSecondaryBtnText}>Lihat Beranda Dahulu</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -285,10 +367,112 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing['2xl'],
     marginHorizontal: Spacing.base,
   },
-  pendingTitle: { fontSize: Typography.lg, fontWeight: Typography.weight.bold, color: Colors.text.primary, marginTop: Spacing.md },
+  pendingIconRing: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(197, 160, 89, 0.12)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(197, 160, 89, 0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.xs,
+  },
+  pendingTitle: { fontSize: Typography.lg, fontWeight: Typography.weight.bold, color: Colors.text.primary, marginTop: Spacing.xs },
   pendingDesc: { fontSize: Typography.sm, color: Colors.text.tertiary, textAlign: 'center', marginTop: Spacing.xs, lineHeight: 20, paddingHorizontal: Spacing.base },
-  pendingBtn: { marginTop: Spacing.lg },
-  pendingBtnText: { fontSize: Typography.base, color: Colors.brand.gold, fontWeight: Typography.weight.semibold },
+  pendingBtn: {
+    marginTop: Spacing.lg,
+    backgroundColor: Colors.brand.gold,
+    paddingHorizontal: 22,
+    paddingVertical: 12,
+    borderRadius: Radius.full,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    shadowColor: Colors.brand.gold,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  pendingBtnText: { fontSize: 13, color: '#000000', fontWeight: '700', letterSpacing: 0.5 },
+
+  // Onboarding Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 400,
+    backgroundColor: '#121318',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(197, 160, 89, 0.35)',
+    padding: 24,
+    alignItems: 'center',
+  },
+  modalIconRing: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(197, 160, 89, 0.15)',
+    borderWidth: 1.5,
+    borderColor: Colors.brand.gold,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 4,
+    letterSpacing: 0.3,
+  },
+  modalGreeting: {
+    fontSize: 14,
+    color: Colors.brand.gold,
+    fontWeight: '600',
+    marginBottom: 14,
+    textAlign: 'center',
+  },
+  modalDesc: {
+    fontSize: 13,
+    color: '#A1A1AA',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  modalPrimaryBtn: {
+    width: '100%',
+    backgroundColor: Colors.brand.gold,
+    paddingVertical: 14,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  modalPrimaryBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#000000',
+    letterSpacing: 0.5,
+  },
+  modalSecondaryBtn: {
+    marginTop: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+  },
+  modalSecondaryBtnText: {
+    fontSize: 13,
+    color: '#71717A',
+    fontWeight: '500',
+  },
 
   // Shortcut Grid
   shortcutGrid: {

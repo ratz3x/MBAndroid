@@ -151,18 +151,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } catch {}
 
+    let profileData: Profile | null = null;
     const { data, error } = await (supabase
       .from('profiles') as any)
       .select('*')
       .eq('id', userId)
-      .single();
+      .maybeSingle();
 
-    if (error) {
-      console.error('[Auth] Profile fetch error:', error.message);
-      return;
+    if (data) {
+      profileData = data as Profile;
+    } else if (currentUser) {
+      // Auto-create profile in public.profiles if not yet created
+      const fallbackName =
+        currentUser.user_metadata?.full_name ||
+        currentUser.user_metadata?.name ||
+        currentUser.email?.split('@')[0] ||
+        'Anggota MBCI';
+      const fallbackAvatar =
+        currentUser.user_metadata?.avatar_url ||
+        currentUser.user_metadata?.picture ||
+        null;
+
+      const newProfile = {
+        id: userId,
+        email: currentUser.email || '',
+        full_name: fallbackName,
+        avatar_url: fallbackAvatar,
+        role: 'member',
+      };
+
+      const { data: upserted, error: upsertErr } = await (supabase
+        .from('profiles') as any)
+        .upsert(newProfile)
+        .select()
+        .maybeSingle();
+
+      if (!upsertErr && upserted) {
+        profileData = upserted as Profile;
+      } else {
+        profileData = newProfile as Profile;
+      }
     }
 
-    const profileData = data as Profile;
+    if (!profileData) {
+      if (error) console.error('[Auth] Profile fetch error:', error.message);
+      return;
+    }
 
     // Auto-sync Google OAuth avatar to profiles if missing or updated
     const oauthAvatar =
