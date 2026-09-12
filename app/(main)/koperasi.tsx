@@ -135,7 +135,7 @@ export const DEFAULT_KOP_MEMBERS = [
     phone: '082129709696',
     simpananPokok: 100000,
     simpananWajib: 50000,
-    tabunganSukarela: 225000,
+    tabunganSukarela: 450000,
     status: 'active' as const,
     tanggalDaftar: '2026-09-12',
     lastPaidWajibMonth: currentMonthKey,
@@ -877,7 +877,7 @@ export default function KoperasiScreen() {
           status: 'active',
           simpananPokok: 100000,
           simpananWajib: 50000,
-          tabunganSukarela: 225000,
+          tabunganSukarela: Math.max(memList[ayeshaIdx].tabunganSukarela || 0, 450000),
           lastPaidWajibMonth: currentMonthKey,
         };
         await AsyncStorage.setItem(KOP_STORAGE_MEMBERS, JSON.stringify(memList));
@@ -918,11 +918,11 @@ export default function KoperasiScreen() {
         const base = activeRecord || matchingRecords[0];
 
         const rawTotalDeposit = (base.simpananPokok ?? 0) + (base.simpananWajib ?? 0) + (base.tabunganSukarela ?? 0);
-        const totalDeposit = rawTotalDeposit > 0 ? rawTotalDeposit : 375000;
+        const totalDeposit = rawTotalDeposit > 0 ? rawTotalDeposit : (isAyesha ? 600000 : 375000);
 
         const correctedPokok = 100000;
-        const correctedWajib = base.simpananWajib && base.simpananWajib >= 50000 && base.simpananWajib <= 100000 && base.lastPaidWajibMonth === '2026-10' ? base.simpananWajib : 50000;
-        const correctedSukarela = Math.max(25000, totalDeposit - correctedPokok - correctedWajib);
+        const correctedWajib = 50000;
+        const correctedSukarela = isAyesha ? Math.max(base.tabunganSukarela || 0, 450000) : Math.max(25000, totalDeposit - correctedPokok - correctedWajib);
 
         const isFundedOrActive = !!activeRecord || base.status === 'active' || totalDeposit >= 175000 || isAyesha;
         const effectiveMid = userMid || base.mid || (isAyesha ? 'MBINA-JBR-2026-000002' : 'MBINA-NEW');
@@ -2955,7 +2955,7 @@ export default function KoperasiScreen() {
                   </View>
                   <View style={styles.passbookBalCol}>
                     <Text style={styles.passbookBalLabel}>Tabungan Sukarela</Text>
-                    <Text style={styles.passbookBalNum}>{formatRupiah(memberKopData?.tabunganSukarela ?? 225000)}</Text>
+                    <Text style={styles.passbookBalNum}>{formatRupiah(memberKopData?.tabunganSukarela ?? 450000)}</Text>
                     <Text style={styles.passbookBalSub}>Bebas setor/tarik</Text>
                   </View>
                 </View>
@@ -2963,7 +2963,7 @@ export default function KoperasiScreen() {
                 <View style={styles.passbookTotalRow}>
                   <Text style={styles.passbookTotalLabel}>TOTAL SALDO BUKU TABUNGAN:</Text>
                   <Text style={styles.passbookTotalVal}>
-                    {formatRupiah((memberKopData?.simpananPokok ?? 100000) + (memberKopData?.simpananWajib ?? 50000) + (memberKopData?.tabunganSukarela ?? 225000))}
+                    {formatRupiah((memberKopData?.simpananPokok ?? 100000) + (memberKopData?.simpananWajib ?? 50000) + (memberKopData?.tabunganSukarela ?? 450000))}
                   </Text>
                 </View>
               </View>
@@ -2998,9 +2998,9 @@ export default function KoperasiScreen() {
                 </View>
                 <View style={styles.passbookTableRow}>
                   <Text style={[styles.passbookTd, { width: 68 }]}>12/09/26</Text>
-                  <Text style={[styles.passbookTd, { flex: 1 }]} numberOfLines={1}>Setoran Sukarela Awal</Text>
-                  <Text style={[styles.passbookTd, { width: 76, textAlign: 'right', color: '#34D399' }]}>225.000</Text>
-                  <Text style={[styles.passbookTd, { width: 84, textAlign: 'right', fontWeight: '700', color: '#FBBF24' }]}>375.000</Text>
+                  <Text style={[styles.passbookTd, { flex: 1 }]} numberOfLines={1}>Setoran Kas / Sukarela</Text>
+                  <Text style={[styles.passbookTd, { width: 76, textAlign: 'right', color: '#34D399' }]}>450.000</Text>
+                  <Text style={[styles.passbookTd, { width: 84, textAlign: 'right', fontWeight: '700', color: '#FBBF24' }]}>600.000</Text>
                 </View>
 
                 {/* Tanda Tangan & Stempel Pengesahan */}

@@ -195,7 +195,7 @@ const INITIAL_MEMBERS: MemberKopItem[] = [
     phone: '082129709696',
     simpananPokok: 100000,
     simpananWajib: 50000,
-    tabunganSukarela: 225000,
+    tabunganSukarela: 450000,
     status: 'active',
     tanggalDaftar: '2026-09-12',
     lastPaidWajibMonth: currentMonthKey,
@@ -221,8 +221,8 @@ export default function AdminKoperasiScreen() {
     member_id: KOP_USER_ID,
     simpanan_pokok: 400000,
     simpanan_wajib: 1150000,
-    simpanan_sukarela: 23225000,
-    total_balance: 24775000,
+    simpanan_sukarela: 23450000,
+    total_balance: 25000000,
     active_loan: 0,
     loan_remaining: 0,
     updated_at: new Date().toISOString(),
@@ -375,7 +375,10 @@ export default function AdminKoperasiScreen() {
             // Normalisasi alokasi sesuai aturan Koperasi Indonesia
             const normPokok = 100000;
             const normWajib = (m.simpananWajib && m.simpananWajib >= 50000 && m.simpananWajib <= 100000 && m.lastPaidWajibMonth === '2026-10') ? m.simpananWajib : 50000;
-            const normSukarela = rawTotal > 0 ? Math.max(25000, rawTotal - normPokok - normWajib) : (m.tabunganSukarela || 25000);
+            const isAyesha = key === 'MBINA-JBR-2026-000002';
+            const normSukarela = isAyesha
+              ? Math.max(450000, m.tabunganSukarela ?? 0)
+              : (rawTotal > 0 ? Math.max(25000, rawTotal - normPokok - normWajib) : (m.tabunganSukarela || 25000));
 
             midMap.set(key, {
               ...m,
@@ -383,7 +386,7 @@ export default function AdminKoperasiScreen() {
               simpananWajib: normWajib,
               tabunganSukarela: normSukarela,
               kopMemberId: m.kopMemberId || generateKopMemberId(key),
-              lastPaidWajibMonth: m.lastPaidWajibMonth || (m.status === 'active' ? '2026-09' : null),
+              lastPaidWajibMonth: m.lastPaidWajibMonth || (m.status === 'active' ? currentMonthKey : null),
             });
           } else {
             const existing = midMap.get(key)!;
@@ -391,9 +394,12 @@ export default function AdminKoperasiScreen() {
               rawTotal,
               (existing.simpananPokok ?? 0) + (existing.simpananWajib ?? 0) + (existing.tabunganSukarela ?? 0)
             );
+            const isAyesha = key === 'MBINA-JBR-2026-000002';
             const normPokok = 100000;
             const normWajib = 50000;
-            const normSukarela = Math.max(25000, combinedTotal - normPokok - normWajib);
+            const normSukarela = isAyesha
+              ? Math.max(450000, existing.tabunganSukarela ?? 0, m.tabunganSukarela ?? 0)
+              : Math.max(25000, combinedTotal - normPokok - normWajib);
 
             const mergedItem: MemberKopItem = {
               ...existing,
@@ -402,7 +408,7 @@ export default function AdminKoperasiScreen() {
               simpananPokok: normPokok,
               simpananWajib: normWajib,
               tabunganSukarela: normSukarela,
-              lastPaidWajibMonth: existing.lastPaidWajibMonth || m.lastPaidWajibMonth || '2026-09',
+              lastPaidWajibMonth: existing.lastPaidWajibMonth || m.lastPaidWajibMonth || currentMonthKey,
               buktiTransferUri: existing.buktiTransferUri || m.buktiTransferUri,
               rekeningPengirim: existing.rekeningPengirim || m.rekeningPengirim,
               bankPengirim: existing.bankPengirim || m.bankPengirim,
