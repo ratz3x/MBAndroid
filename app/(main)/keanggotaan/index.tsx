@@ -74,8 +74,8 @@ export default function KeanggotaanScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={Colors.brand.gold}
-            colors={[Colors.brand.gold]}
+            tintColor="#D1D5DB"
+            colors={['#D1D5DB']}
           />
         }
       >
@@ -85,7 +85,7 @@ export default function KeanggotaanScreen() {
             onPress={() => router.back()}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Ionicons name="arrow-back" size={22} color={Colors.text.primary} />
+            <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
           </Pressable>
           <Text style={styles.title}>Keanggotaan</Text>
           <Pressable
@@ -93,7 +93,7 @@ export default function KeanggotaanScreen() {
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             style={styles.headerRefreshBtn}
           >
-            <Ionicons name="refresh-outline" size={18} color={Colors.brand.gold} />
+            <Ionicons name="refresh-outline" size={18} color="#D1D5DB" />
           </Pressable>
         </View>
 
@@ -219,14 +219,21 @@ export default function KeanggotaanScreen() {
           </LuxuryCard>
         ) : isActive ? (
           /* ============================================================
-             STATE: ANGGOTA AKTIF (E-KTA RESMI TERBIT)
+             STATE: ANGGOTA AKTIF (E-KTA RESMI TERBIT) - MERCEDES LUXURY DARK
              ============================================================ */
-          <LuxuryCard variant="gold">
+          <View style={styles.luxuryActiveMemberCard}>
+            {/* Header Status Keanggotaan */}
             <View style={styles.statusRow}>
               <Text style={styles.memberLabel}>Status Keanggotaan</Text>
-              <StatusBadge status={activeMember.status} />
+              <View style={styles.minimalStatusBadge}>
+                <View style={styles.statusDotGreen} />
+                <Text style={styles.statusTextWhite}>Aktif</Text>
+              </View>
             </View>
+
             <View style={styles.divider} />
+
+            {/* Data Anggota */}
             {[
               { label: 'No. Anggota KTA', value: activeMember.member_number },
               { label: 'Chapter', value: activeMember.chapter ?? 'Pusat' },
@@ -241,38 +248,40 @@ export default function KeanggotaanScreen() {
                 <Text style={styles.infoValue}>{row.value}</Text>
               </View>
             ))}
-            <MetallicButton
-              label="Edit Data Anggota"
+
+            {/* Tombol Edit Data Anggota (Metallic Chrome Luxury) */}
+            <Pressable
               onPress={() => router.push('/(main)/keanggotaan/register')}
-              variant="outline"
-              size="md"
-              icon="create-outline"
-              style={{ marginTop: Spacing.base }}
-            />
-          </LuxuryCard>
+              style={({ pressed }) => [
+                styles.editMemberBtn,
+                pressed && { opacity: 0.85, transform: [{ scale: 0.985 }] },
+              ]}
+            >
+              <Ionicons name="create-outline" size={17} color="#E5E7EB" />
+              <Text style={styles.editMemberBtnText}>Edit Data Anggota</Text>
+            </Pressable>
+          </View>
         ) : (
           /* ============================================================
              STATE: BELUM PERNAH MENDAFTAR
              ============================================================ */
-          <LuxuryCard variant="gold" style={styles.noMemberCard}>
-            <Ionicons name="person-add-outline" size={48} color={Colors.brand.gold} />
+          <View style={styles.noMemberCard}>
+            <Ionicons name="person-add-outline" size={44} color="#D1D5DB" />
             <Text style={styles.noMemberTitle}>Belum Terdaftar sebagai Anggota</Text>
             <Text style={styles.noMemberDesc}>
               Daftarkan diri Anda sebagai anggota resmi Mercedes-Benz Club Indonesia dan nikmati berbagai keuntungan eksklusif.
             </Text>
-            <MetallicButton
-              label="Mulai Pendaftaran"
+            <Pressable
               onPress={() => router.push('/(main)/keanggotaan/register')}
-              variant="gold"
-              size="md"
-              icon="arrow-forward-outline"
-              iconPosition="right"
-              style={{ marginTop: Spacing.md }}
-            />
-          </LuxuryCard>
+              style={styles.registerCtaBtn}
+            >
+              <Text style={styles.registerCtaBtnText}>Mulai Pendaftaran</Text>
+              <Ionicons name="arrow-forward-outline" size={16} color="#000" />
+            </Pressable>
+          </View>
         )}
 
-        {/* Keuntungan Anggota Resmi (Grid 2 Kolom / 2 Kartu Per Baris) */}
+        {/* Keuntungan Anggota Resmi (Grid 2 Kolom / 2 Kartu Per Baris - Monochrome Luxury) */}
         <View style={{ marginTop: Spacing.xl, marginBottom: Spacing.md }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
             <Text style={styles.title}>
@@ -282,7 +291,7 @@ export default function KeanggotaanScreen() {
               <Text style={styles.gridCountBadgeText}>6 LAYANAN</Text>
             </View>
           </View>
-          <Text style={{ fontSize: 12, color: Colors.text.tertiary }}>
+          <Text style={{ fontSize: 12, color: '#9CA3AF' }}>
             Hak istimewa, tingkatan loyalitas, & fasilitas resmi khusus member ber-MID
           </Text>
         </View>
@@ -295,7 +304,6 @@ export default function KeanggotaanScreen() {
               title: 'KTA Digital',
               desc: 'QR Code resmi & chip MID di Beranda',
               badge: 'KTA RESMI',
-              badgeColor: '#FBBF24',
               action: () => router.push('/(main)/dashboard' as any),
             },
             {
@@ -303,7 +311,6 @@ export default function KeanggotaanScreen() {
               title: 'Tier Member',
               desc: 'Sistem Bronze, Silver, Gold, Platinum',
               badge: 'SISTEM BARU',
-              badgeColor: '#38BDF8',
               action: () => setShowTierModal(true),
             },
             {
@@ -311,7 +318,6 @@ export default function KeanggotaanScreen() {
               title: 'Akses Event',
               desc: 'Prioritas daftar touring & gathering',
               badge: 'AGENDA KLUB',
-              badgeColor: '#60A5FA',
               action: () => router.push('/(main)/event' as any),
             },
             {
@@ -319,7 +325,6 @@ export default function KeanggotaanScreen() {
               title: 'Diskon Mitra',
               desc: 'Potongan bengkel, asuransi, & hotel',
               badge: 'REKANAN',
-              badgeColor: '#34D399',
               action: () => router.push('/(main)/sponsorship' as any),
             },
             {
@@ -327,7 +332,6 @@ export default function KeanggotaanScreen() {
               title: 'Koperasi',
               desc: 'Tabungan sukarela & e-passbook',
               badge: 'SIMPANAN',
-              badgeColor: '#F59E0B',
               action: () => router.push('/(main)/koperasi' as any),
             },
             {
@@ -335,7 +339,6 @@ export default function KeanggotaanScreen() {
               title: 'Toko Resmi',
               desc: 'Merchandise resmi, part OEM, & lapak',
               badge: 'MARKET',
-              badgeColor: '#C084FC',
               action: () => router.push('/(main)/toko' as any),
             },
           ].map((benefit) => (
@@ -350,13 +353,13 @@ export default function KeanggotaanScreen() {
               <View style={styles.gridBenefitHeader}>
                 <View style={styles.gridBenefitIconWrap}>
                   {(benefit as any).isLogo ? (
-                    <Image source={KOPERASI_LOGO} style={{ width: 20, height: 20, borderRadius: 10 }} resizeMode="contain" />
+                    <Image source={KOPERASI_LOGO} style={{ width: 18, height: 18, borderRadius: 9, opacity: 0.9 }} resizeMode="contain" />
                   ) : (
-                    <Ionicons name={(benefit as any).icon as any} size={18} color={benefit.badgeColor} />
+                    <Ionicons name={(benefit as any).icon as any} size={18} color="#D1D5DB" />
                   )}
                 </View>
-                <View style={[styles.gridBenefitBadge, { backgroundColor: `${benefit.badgeColor}20`, borderColor: `${benefit.badgeColor}40` }]}>
-                  <Text style={[styles.gridBenefitBadgeText, { color: benefit.badgeColor }]}>
+                <View style={styles.gridBenefitBadge}>
+                  <Text style={styles.gridBenefitBadgeText}>
                     {benefit.badge}
                   </Text>
                 </View>
@@ -370,10 +373,10 @@ export default function KeanggotaanScreen() {
               </Text>
 
               <View style={styles.gridBenefitActionRow}>
-                <Text style={[styles.gridBenefitActionText, { color: benefit.badgeColor }]}>
+                <Text style={styles.gridBenefitActionText}>
                   {benefit.title === 'Tier Member' ? 'Pelajari Tier' : 'Buka Layanan'}
                 </Text>
-                <Ionicons name="chevron-forward" size={13} color={benefit.badgeColor} />
+                <Ionicons name="chevron-forward" size={13} color="#D1D5DB" />
               </View>
             </Pressable>
           ))}
@@ -545,7 +548,9 @@ const styles = StyleSheet.create({
   headerRefreshBtn: {
     padding: 6,
     borderRadius: 8,
-    backgroundColor: 'rgba(201,168,76,0.1)',
+    backgroundColor: '#1F2228',
+    borderWidth: 1,
+    borderColor: '#2D3139',
   },
 
   // Loading State
@@ -760,7 +765,14 @@ const styles = StyleSheet.create({
     gap: 8,
   },
 
-  // Active State
+  // Active State - Mercedes-Benz Luxury Dark
+  luxuryActiveMemberCard: {
+    backgroundColor: '#141518',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#26282E',
+    padding: Spacing.base,
+  },
   statusRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -770,30 +782,88 @@ const styles = StyleSheet.create({
   memberLabel: {
     fontSize: Typography.base,
     fontWeight: Typography.weight.semibold,
-    color: Colors.text.primary,
+    color: '#FFFFFF',
+  },
+  minimalStatusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#1C1F26',
+    borderWidth: 1,
+    borderColor: '#2D323F',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  statusDotGreen: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#10B981',
+  },
+  statusTextWhite: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#E5E7EB',
   },
   divider: {
-    height: 0.5,
-    backgroundColor: Colors.border.default,
+    height: 1,
+    backgroundColor: '#26282E',
     marginBottom: Spacing.md,
+  },
+  editMemberBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#1C1F26',
+    borderWidth: 1,
+    borderColor: '#374151',
+    borderRadius: 10,
+    paddingVertical: 12,
+    marginTop: Spacing.base,
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' as any } : {}),
+  },
+  editMemberBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#E5E7EB',
+    letterSpacing: 0.3,
+  },
+  registerCtaBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#E5E7EB',
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    marginTop: Spacing.md,
+    alignSelf: 'stretch',
+  },
+  registerCtaBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#000',
   },
 
   gridCountBadge: {
-    backgroundColor: 'rgba(56, 189, 248, 0.15)',
+    backgroundColor: '#1E2128',
     borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.4)',
+    borderColor: '#374151',
     paddingHorizontal: 7,
-    paddingVertical: 2,
+    paddingVertical: 2.5,
     borderRadius: 6,
   },
   gridCountBadgeText: {
     fontSize: 9,
     fontWeight: '800',
-    color: '#38BDF8',
+    color: '#9CA3AF',
     letterSpacing: 0.5,
   },
 
-  // 2-Column Grid Benefit Cards (2 Kartu Per Baris)
+  // 2-Column Grid Benefit Cards (2 Kartu Per Baris - Mercedes Monochrome Luxury)
   benefitGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -802,10 +872,10 @@ const styles = StyleSheet.create({
   },
   gridBenefitCard: {
     width: '48.5%',
-    backgroundColor: '#121214',
+    backgroundColor: '#141518',
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: '#26282E',
     padding: 12,
     justifyContent: 'space-between',
     ...(Platform.OS === 'web' ? { cursor: 'pointer' as any } : {}),
@@ -820,32 +890,35 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: '#1F2228',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: '#2D3139',
   },
   gridBenefitBadge: {
-    paddingHorizontal: 5,
-    paddingVertical: 2,
-    borderRadius: 5,
+    backgroundColor: '#1C1E24',
     borderWidth: 1,
+    borderColor: '#2D3139',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
   },
   gridBenefitBadgeText: {
-    fontSize: 8,
-    fontWeight: '800',
-    letterSpacing: 0.3,
+    fontSize: 8.5,
+    fontWeight: '700',
+    color: '#9CA3AF',
+    letterSpacing: 0.4,
   },
   gridBenefitTitle: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#FAFAFA',
+    color: '#FFFFFF',
     marginBottom: 2,
   },
   gridBenefitDesc: {
     fontSize: 10.5,
-    color: '#A1A1AA',
+    color: '#9CA3AF',
     lineHeight: 14,
     height: 28,
     marginBottom: 8,
@@ -856,17 +929,18 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingTop: 6,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.06)',
+    borderTopColor: '#20232A',
   },
   gridBenefitActionText: {
-    fontSize: 10,
-    fontWeight: '700',
+    fontSize: 10.5,
+    fontWeight: '600',
+    color: '#D1D5DB',
   },
 
-  // Modal Styles for Tier Guide
+  // Modal Styles for Tier Guide (Monochrome Luxury Theme)
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: Spacing.base,
@@ -874,10 +948,10 @@ const styles = StyleSheet.create({
   tierModalContent: {
     width: '100%',
     maxWidth: 520,
-    backgroundColor: '#121214',
+    backgroundColor: '#141518',
     borderRadius: 20,
-    borderWidth: 1.5,
-    borderColor: 'rgba(56, 189, 248, 0.4)',
+    borderWidth: 1,
+    borderColor: '#2D3139',
     padding: Spacing.base,
   },
   tierModalHeader: {
@@ -887,30 +961,34 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     paddingBottom: 10,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+    borderBottomColor: '#26282E',
   },
   tierModalIconRing: {
     width: 38,
     height: 38,
     borderRadius: 12,
-    backgroundColor: 'rgba(56, 189, 248, 0.15)',
+    backgroundColor: '#1F2228',
+    borderWidth: 1,
+    borderColor: '#2D3139',
     alignItems: 'center',
     justifyContent: 'center',
   },
   tierModalTitle: {
     fontSize: 14.5,
     fontWeight: '800',
-    color: '#FAFAFA',
+    color: '#FFFFFF',
   },
   tierModalSubtitle: {
     fontSize: 11,
-    color: '#A1A1AA',
+    color: '#9CA3AF',
   },
   tierModalCloseBtn: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    backgroundColor: '#1F2228',
+    borderWidth: 1,
+    borderColor: '#2D3139',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -918,23 +996,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 8,
-    backgroundColor: 'rgba(56, 189, 248, 0.08)',
+    backgroundColor: '#1A1C22',
     borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.25)',
+    borderColor: '#2D3139',
     borderRadius: 10,
     padding: 10,
     marginBottom: 12,
   },
   tierNoticeText: {
     fontSize: 11,
-    color: '#BAE6FD',
+    color: '#D1D5DB',
     flex: 1,
     lineHeight: 16,
   },
   tierLevelCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+    backgroundColor: '#181A20',
     borderRadius: 12,
     borderWidth: 1,
+    borderColor: '#26282E',
     padding: 12,
     marginBottom: 10,
   },
@@ -974,12 +1053,12 @@ const styles = StyleSheet.create({
   },
   tierBenefitText: {
     fontSize: 11,
-    color: '#D4D4D8',
+    color: '#D1D5DB',
     flex: 1,
     lineHeight: 15,
   },
   tierCloseActionBtn: {
-    backgroundColor: '#38BDF8',
+    backgroundColor: '#E5E7EB',
     paddingVertical: 11,
     borderRadius: 10,
     alignItems: 'center',
