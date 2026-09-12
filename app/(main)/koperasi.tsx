@@ -4,7 +4,7 @@
 // Fokus Utama: Unit Usaha Simpan Pinjam Komunitas
 // ============================================================
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -18,7 +18,7 @@ import {
   RefreshControl,
   Platform,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -307,9 +307,13 @@ export default function KoperasiScreen() {
         namaPengirim: namaPengirim.trim() || regName.trim(),
       };
 
-      // Simpan ke list anggota (pending)
-      memList = [newMemberItem, ...memList.filter((m: any) => m.id !== user?.id && m.mid !== newMemberItem.mid)];
+      // Simpan ke list anggota (pending) & filter seluruh duplikat MID yang sama
+      memList = [
+        newMemberItem,
+        ...memList.filter((m: any) => (m.id !== user?.id && (!m.mid || m.mid.trim().toUpperCase() !== newMemberItem.mid)))
+      ];
       await AsyncStorage.setItem(KOP_STORAGE_MEMBERS, JSON.stringify(memList));
+      await AsyncStorage.setItem('@mbclub_my_koperasi_mid', newMemberItem.mid);
 
       setMembershipStatus('pending');
       setMemberKopData(newMemberItem);
@@ -431,7 +435,7 @@ export default function KoperasiScreen() {
     );
   };
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     if (!user) return;
 
     if (isKopManager) {
@@ -465,26 +469,63 @@ export default function KoperasiScreen() {
     // Regular member: check KOP_STORAGE_MEMBERS
     try {
       const rawMem = await AsyncStorage.getItem(KOP_STORAGE_MEMBERS);
+      const storedMyMid = await AsyncStorage.getItem('@mbclub_my_koperasi_mid');
+      const userMid = (storedMyMid || currentMember?.member_number || '').trim().toUpperCase();
+      const userEmail = user?.email?.trim().toLowerCase();
+      const userName = profile?.full_name?.trim().toLowerCase();
       let activeMemBal: KoperasiBalance | null = null;
+
       if (rawMem) {
-        const memList = JSON.parse(rawMem);
-        const userMid = currentMember?.member_number?.toUpperCase();
-        const userEmail = user?.email?.toLowerCase();
-        const found = memList.find((m: any) =>
+        let memList = JSON.parse(rawMem);
+
+        // Cari semua record yang relevan dengan member ini (MID / Email / User ID / Nama)
+        const matchingRecords = memList.filter((m: any) =>
+          (userMid && m.mid && m.mid.trim().toUpperCase() === userMid) ||
+          (userEmail && m.email && m.email.trim().toLowerCase() === userEmail) ||
           (m.id && m.id === user.id) ||
-          (userEmail && m.email && m.email.toLowerCase() === userEmail) ||
-          (userMid && m.mid && m.mid.toUpperCase() === userMid)
+          (userName && m.nama && m.nama.trim().toLowerCase() === userName)
         );
+
+        let found: any = null;
+        if (matchingRecords.length > 0) {
+          // Prioritaskan status 'active' jika salah satu record telah diverifikasi/diaktifkan admin
+          const activeRecord = matchingRecords.find((m: any) => m.status === 'active');
+          const maxPokok = Math.max(...matchingRecords.map((m: any) => m.simpananPokok ?? 0));
+          const maxWajib = Math.max(...matchingRecords.map((m: any) => m.simpananWajib ?? 0));
+          const maxSukarela = Math.max(...matchingRecords.map((m: any) => m.tabunganSukarela ?? 0));
+
+          const base = activeRecord || matchingRecords[0];
+          found = {
+            ...base,
+            id: user.id || base.id,
+            mid: userMid || base.mid,
+            status: activeRecord ? 'active' : base.status,
+            simpananPokok: maxPokok,
+            simpananWajib: maxWajib,
+            tabunganSukarela: maxSukarela,
+          };
+
+          // Simpan balik record yang telah di-unifikasi & hapus duplikasi
+          const cleanMid = found.mid.trim().toUpperCase();
+          const cleanList = [
+            found,
+            ...memList.filter((m: any) => !m.mid || m.mid.trim().toUpperCase() !== cleanMid)
+          ];
+          await AsyncStorage.setItem(KOP_STORAGE_MEMBERS, JSON.stringify(cleanList));
+          await AsyncStorage.setItem('@mbclub_my_koperasi_mid', found.mid);
+        }
+
         if (found) {
           setMembershipStatus(found.status);
           setMemberKopData(found);
+          const totalBal = (found.simpananPokok ?? 0) + (found.simpananWajib ?? 0) + (found.tabunganSukarela ?? 0);
           activeMemBal = {
             id: `bal_${found.id}`,
             member_id: found.id,
-            simpanan_pokok: found.simpananPokok || 100000,
-            simpanan_wajib: found.simpananWajib || 50000,
-            simpanan_sukarela: found.tabunganSukarela || 0,
-            total_balance: (found.simpananPokok || 100000) + (found.simpananWajib || 50000) + (found.tabunganSukarela || 0),
+            simpanan_pokok: found.simpananPokok ?? 0,
+            simpanan_wajib: found.simpananWajib ?? 0,
+            simpanan_sukarela: found.tabunganSukarela ?? 0,
+            total_balance: totalBal,
             active_loan: 0,
             loan_remaining: 0,
             updated_at: new Date().toISOString(),
@@ -504,11 +545,9 @@ export default function KoperasiScreen() {
         const rawLoans = await AsyncStorage.getItem(KOP_STORAGE_LOANS);
         if (rawLoans) {
           const allLoans = JSON.parse(rawLoans);
-          const userMid = currentMember?.member_number?.toUpperCase();
-          const userEmail = user?.email?.toLowerCase();
           const myLoans = allLoans.filter((l: any) =>
-            (userMid && l.mid && l.mid.toUpperCase() === userMid) ||
-            (userEmail && l.email && l.email.toLowerCase() === userEmail) ||
+            (userMid && l.mid && l.mid.trim().toUpperCase() === userMid) ||
+            (userEmail && l.email && l.email.trim().toLowerCase() === userEmail) ||
             (l.id && l.id === user.id)
           );
           setMemberLoans(myLoans);
@@ -532,9 +571,8 @@ export default function KoperasiScreen() {
       const rawTx = await AsyncStorage.getItem(KOP_STORAGE_TX);
       if (rawTx) {
         const allTxs: KoperasiTransaction[] = JSON.parse(rawTx);
-        const userMid = currentMember?.member_number?.toUpperCase();
         const myTxs = allTxs.filter((t) =>
-          (userMid && t.description && t.description.includes(userMid)) ||
+          (userMid && t.description && t.description.toUpperCase().includes(userMid)) ||
           t.member_id === user.id
         );
         setTransactions(myTxs);
@@ -549,11 +587,17 @@ export default function KoperasiScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [user, isKopManager, currentMember?.member_number, profile?.full_name]);
 
   useEffect(() => {
     loadData();
-  }, [user, isKopManager]);
+  }, [loadData]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [loadData])
+  );
 
   const onRefresh = () => {
     setRefreshing(true);

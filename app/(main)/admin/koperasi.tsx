@@ -19,7 +19,7 @@ import {
   Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { formatRupiah, formatDateTime, formatDate } from '../../../src/utils/helpers';
@@ -314,15 +314,41 @@ export default function AdminKoperasiScreen() {
         await AsyncStorage.setItem(KOP_STORAGE_LOANS, JSON.stringify([]));
       }
 
-      // 4. Members (Purge any legacy dummy members)
+      // 4. Members (Purge any legacy dummy members & Deduplicate by MID)
       const rawMembers = await AsyncStorage.getItem(KOP_STORAGE_MEMBERS);
       const dummyMids = new Set(['MBINA-JKT-042', 'MBINA-BDG-019', 'MBINA-SBY-088']);
       if (rawMembers) {
         const parsed: MemberKopItem[] = JSON.parse(rawMembers);
-        const filtered = parsed.filter((m) => !dummyMids.has(m.mid.toUpperCase()));
-        const existingMids = new Set(filtered.map((m) => m.mid.toUpperCase()));
-        const missing = INITIAL_MEMBERS.filter((m) => !existingMids.has(m.mid.toUpperCase()) && !dummyMids.has(m.mid.toUpperCase()));
-        const merged = [...filtered, ...missing];
+        const filtered = parsed.filter((m) => !dummyMids.has(m.mid.trim().toUpperCase()));
+
+        // Deduplicate records by MID, merging active status and highest savings
+        const midMap = new Map<string, MemberKopItem>();
+        for (const m of filtered) {
+          const key = m.mid.trim().toUpperCase();
+          if (!midMap.has(key)) {
+            midMap.set(key, m);
+          } else {
+            const existing = midMap.get(key)!;
+            const mergedItem: MemberKopItem = {
+              ...existing,
+              // If either entry is active, the consolidated member is active
+              status: existing.status === 'active' || m.status === 'active' ? 'active' : existing.status,
+              simpananPokok: Math.max(existing.simpananPokok ?? 0, m.simpananPokok ?? 0),
+              simpananWajib: Math.max(existing.simpananWajib ?? 0, m.simpananWajib ?? 0),
+              tabunganSukarela: Math.max(existing.tabunganSukarela ?? 0, m.tabunganSukarela ?? 0),
+              buktiTransferUri: existing.buktiTransferUri || m.buktiTransferUri,
+              rekeningPengirim: existing.rekeningPengirim || m.rekeningPengirim,
+              bankPengirim: existing.bankPengirim || m.bankPengirim,
+              namaPengirim: existing.namaPengirim || m.namaPengirim,
+            };
+            midMap.set(key, mergedItem);
+          }
+        }
+
+        const dedupedList = Array.from(midMap.values());
+        const existingMids = new Set(dedupedList.map((m) => m.mid.trim().toUpperCase()));
+        const missing = INITIAL_MEMBERS.filter((m) => !existingMids.has(m.mid.trim().toUpperCase()) && !dummyMids.has(m.mid.trim().toUpperCase()));
+        const merged = [...dedupedList, ...missing];
         setMembers(merged);
         await AsyncStorage.setItem(KOP_STORAGE_MEMBERS, JSON.stringify(merged));
       } else {
@@ -340,6 +366,12 @@ export default function AdminKoperasiScreen() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [loadData])
+  );
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -584,9 +616,12 @@ export default function AdminKoperasiScreen() {
       `Verifikasi keanggotaan ${targetMember.nama} (${targetMember.mid})?\n\nSyarat terpenuhi & Bukti Transfer Terverifikasi:\n✓ Memiliki MID Resmi MBCI\n✓ Akun Koperasi Terdaftar\n✓ Simpanan Pokok: ${formatRupiah(targetMember.simpananPokok)}\n✓ Iuran Wajib: ${formatRupiah(targetMember.simpananWajib)}\n✓ Tabungan Sukarela: ${formatRupiah(targetMember.tabunganSukarela)}\n✓ Total Kas Masuk: ${formatRupiah(totalSetoranAwal)}\n✓ Berhak atas Bunga 1% SHU`,
       async () => {
         try {
-          // 1. Update status member
+          // 1. Update status member (cocokkan ID dan MID resmi)
+          const targetMid = targetMember.mid.trim().toUpperCase();
           const updated = members.map((m) =>
-            m.id === targetMember.id ? { ...m, status: 'active' as const } : m
+            (m.id === targetMember.id || m.mid.trim().toUpperCase() === targetMid)
+              ? { ...m, status: 'active' as const }
+              : m
           );
           setMembers(updated);
           await AsyncStorage.setItem(KOP_STORAGE_MEMBERS, JSON.stringify(updated));
@@ -645,8 +680,9 @@ export default function AdminKoperasiScreen() {
       `Tolak pendaftaran keanggotaan ${targetMember.nama} (${targetMember.mid})?\n\nAlasan: Bukti transfer pembayaran tidak sesuai / mutasi dana belum diterima pada rekening kas Bank Mandiri koperasi.`,
       async () => {
         try {
+          const targetMid = targetMember.mid.trim().toUpperCase();
           const updated = members.map((m) =>
-            m.id === targetMember.id
+            (m.id === targetMember.id || m.mid.trim().toUpperCase() === targetMid)
               ? {
                   ...m,
                   status: 'rejected' as const,
