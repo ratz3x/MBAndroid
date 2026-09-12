@@ -9,13 +9,14 @@ import {
   Pressable,
   StyleSheet,
   type ViewStyle,
+  type StyleProp,
   type PressableProps,
 } from 'react-native';
 import { Colors, Radius, Shadows, Spacing } from '../../constants/theme';
 
 interface LuxuryCardProps {
   children: ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   onPress?: PressableProps['onPress'];
   variant?: 'default' | 'elevated' | 'outlined' | 'gold';
   padding?: number;

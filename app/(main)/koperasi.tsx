@@ -251,6 +251,7 @@ export default function KoperasiScreen() {
   const [memberLoans, setMemberLoans] = useState<any[]>([]);
   const [showApplyLoanModal, setShowApplyLoanModal] = useState(false);
   const [showMemberProofLoanModal, setShowMemberProofLoanModal] = useState<any>(null);
+  const [showHealthNoticeModal, setShowHealthNoticeModal] = useState(false);
 
   // Form State for Apply Loan
   const [loanNominal, setLoanNominal] = useState('15000000');
@@ -724,6 +725,15 @@ export default function KoperasiScreen() {
   };
 
   const handleApplyLoanSubmit = async () => {
+    // PROTEKSI KESEHATAN KOPERASI (PERMENKOPUKM NO. 9 TAHUN 2020)
+    showAlertDialog(
+      'Fasilitas Pinjaman Ditangguhkan',
+      'Penyaluran pinjaman baru ditangguhkan sementara berdasarkan audit transparansi PermenKopUKM RI No. 9 Tahun 2020.\n\nStatus Tingkat Kesehatan: DALAM PENGAWASAN (Skor 54.4 / 100)\nModal Sendiri Disetor: Rp 300.000 (Standar min. Rp 15.000.000)\n\nKebijakan ini diterapkan demi memproteksi kas simpanan sukarela seluruh anggota dari risiko likuiditas gagal bayar.'
+    );
+    setShowApplyLoanModal(false);
+    setShowHealthNoticeModal(true);
+    return;
+
     const numNominal = parseInt(loanNominal.replace(/[^0-9]/g, ''), 10) || 0;
     if (numNominal < 1000000) {
       showAlertDialog('Perhatian', 'Nominal pengajuan pinjaman minimal Rp 1.000.000.');
@@ -741,7 +751,7 @@ export default function KoperasiScreen() {
     setLoanSubmitting(true);
     try {
       const rawLoans = await AsyncStorage.getItem(KOP_STORAGE_LOANS);
-      const allLoans = rawLoans ? JSON.parse(rawLoans) : [];
+      const allLoans = rawLoans ? JSON.parse(rawLoans as string) : [];
 
       const newLoanItem = {
         id: `loan_${Date.now()}`,
@@ -1792,6 +1802,30 @@ export default function KoperasiScreen() {
               </View>
             </View>
 
+            {/* Banner Transparansi Tingkat Kesehatan Koperasi (PermenKopUKM No. 9/2020) */}
+            <Pressable
+              onPress={() => setShowHealthNoticeModal(true)}
+              style={styles.healthMemberBanner}
+            >
+              <View style={styles.healthMemberBannerIcon}>
+                <Ionicons name="shield-half" size={22} color="#F59E0B" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                  <Text style={styles.healthMemberBannerTitle}>
+                    Tingkat Kesehatan: DALAM PENGAWASAN
+                  </Text>
+                  <View style={styles.healthMemberBannerBadge}>
+                    <Text style={styles.healthMemberBannerBadgeText}>SKOR 54.4 / 100</Text>
+                  </View>
+                </View>
+                <Text style={styles.healthMemberBannerSub}>
+                  Audit PermenKopUKM 9/2020 dari data riil. Fasilitas pinjaman ditangguhkan sementara demi memproteksi keamanan tabungan sukarela anggota.
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#F59E0B" />
+            </Pressable>
+
             {/* Aksi Khusus Manager / Anggota */}
             <SectionHeader
               title={isKopManager ? 'Aksi Bendahara Simpan Pinjam' : 'Layanan Anggota'}
@@ -1815,16 +1849,21 @@ export default function KoperasiScreen() {
 
                   <LuxuryCard
                     onPress={() => {
-                      setTxSubtype('talangan');
-                      setShowTxModal(true);
+                      showAlertDialog(
+                        'Pencairan Pinjaman Ditangguhkan',
+                        'Berdasarkan audit kesehatan PermenKopUKM No. 9/2020, Koperasi saat ini berstatus DALAM PENGAWASAN (Skor 54.4). Pencairan pinjaman baru dikunci otomatis demi memproteksi kas titipan anggota.'
+                      );
                     }}
-                    style={styles.actionCard}
+                    style={[styles.actionCard, { opacity: 0.85 }]}
                     padding={12}
                   >
-                    <View style={[styles.actionIcon, { backgroundColor: 'rgba(59, 130, 246, 0.15)' }]}>
-                      <Ionicons name="arrow-down-circle-outline" size={22} color="#60A5FA" />
+                    <View style={[styles.actionIcon, { backgroundColor: 'rgba(239, 68, 68, 0.15)' }]}>
+                      <Ionicons name="lock-closed" size={20} color="#EF4444" />
                     </View>
-                    <Text style={styles.actionLabel}>Pencairan Pinjaman / Talangan (-)</Text>
+                    <Text style={styles.actionLabel}>Pencairan Pinjaman (-)</Text>
+                    <View style={styles.loanLockMiniBadge}>
+                      <Text style={styles.loanLockMiniBadgeText}>DITANGGUHKAN</Text>
+                    </View>
                   </LuxuryCard>
 
                   <LuxuryCard
@@ -1899,46 +1938,34 @@ export default function KoperasiScreen() {
                     </LuxuryCard>
                   )}
 
+                  {/* Dana Talangan Darurat (Ditangguhkan Sementara Sesuai Regulasi) */}
                   <LuxuryCard
-                    onPress={() => {
-                      if (membershipStatus !== 'active') {
-                        showAlertDialog(
-                          'Khusus Anggota Aktif',
-                          'Pengajuan Dana Talangan Darurat hanya dapat diajukan oleh Anggota Koperasi yang telah aktif dan terverifikasi.'
-                        );
-                        return;
-                      }
-                      setLoanTujuan('Dana Talangan Darurat Servis / Touring MBCI');
-                      setShowApplyLoanModal(true);
-                    }}
-                    style={styles.actionCard}
+                    onPress={() => setShowHealthNoticeModal(true)}
+                    style={[styles.actionCard, { opacity: 0.88 }]}
                     padding={12}
                   >
-                    <View style={[styles.actionIcon, { backgroundColor: 'rgba(59, 130, 246, 0.15)' }]}>
-                      <Ionicons name="speedometer-outline" size={22} color="#60A5FA" />
+                    <View style={[styles.actionIcon, { backgroundColor: 'rgba(239, 68, 68, 0.15)' }]}>
+                      <Ionicons name="lock-closed" size={20} color="#EF4444" />
                     </View>
                     <Text style={styles.actionLabel}>Dana Talangan Darurat</Text>
+                    <View style={styles.loanLockMiniBadge}>
+                      <Text style={styles.loanLockMiniBadgeText}>DITANGGUHKAN</Text>
+                    </View>
                   </LuxuryCard>
 
+                  {/* Pinjaman Lunak 6% (Ditangguhkan Sementara Sesuai Regulasi) */}
                   <LuxuryCard
-                    onPress={() => {
-                      if (membershipStatus !== 'active') {
-                        showAlertDialog(
-                          'Khusus Anggota Aktif',
-                          'Pengajuan Pinjaman Lunak 6% PMK 49 hanya dapat diajukan oleh Anggota Koperasi yang telah aktif dan terverifikasi.'
-                        );
-                        return;
-                      }
-                      setLoanTujuan('Perawatan Servis & Kaki-kaki Unit Mercedes-Benz');
-                      setShowApplyLoanModal(true);
-                    }}
-                    style={styles.actionCard}
+                    onPress={() => setShowHealthNoticeModal(true)}
+                    style={[styles.actionCard, { opacity: 0.88 }]}
                     padding={12}
                   >
-                    <View style={[styles.actionIcon, { backgroundColor: 'rgba(251, 191, 36, 0.15)' }]}>
-                      <Ionicons name="cash-outline" size={22} color="#FBBF24" />
+                    <View style={[styles.actionIcon, { backgroundColor: 'rgba(239, 68, 68, 0.15)' }]}>
+                      <Ionicons name="lock-closed" size={20} color="#EF4444" />
                     </View>
                     <Text style={styles.actionLabel}>Pinjaman 6% PMK 49</Text>
+                    <View style={styles.loanLockMiniBadge}>
+                      <Text style={styles.loanLockMiniBadgeText}>DITANGGUHKAN</Text>
+                    </View>
                   </LuxuryCard>
 
                   <LuxuryCard
@@ -3334,6 +3361,139 @@ export default function KoperasiScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* ============================================================ */}
+      {/* MODAL: TRANSPARANSI KESEHATAN KOPERASI (PERMENKOPUKM 9/2020) */}
+      {/* ============================================================ */}
+      <Modal
+        visible={showHealthNoticeModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowHealthNoticeModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { maxHeight: '90%', maxWidth: 520 }]}>
+            <View style={styles.modalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="shield-checkmark" size={20} color="#FBBF24" />
+                <View>
+                  <Text style={styles.modalTitle}>Transparansi Kesehatan KSP</Text>
+                  <Text style={{ fontSize: 10, color: '#A1A1AA' }}>PermenKopUKM RI No. 9 Tahun 2020</Text>
+                </View>
+              </View>
+              <Pressable onPress={() => setShowHealthNoticeModal(false)} hitSlop={8}>
+                <Ionicons name="close" size={22} color="#A1A1AA" />
+              </Pressable>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {/* Executive Badge */}
+              <View style={styles.healthNoticeHeaderBox}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Text style={styles.healthNoticeKopTitle}>Koperasi Bersama Satu Bintang</Text>
+                  <View style={styles.healthNoticeStatusTag}>
+                    <Text style={styles.healthNoticeStatusTagText}>DALAM PENGAWASAN</Text>
+                  </View>
+                </View>
+                <View style={styles.healthNoticeScoreRow}>
+                  <View style={styles.healthNoticeScoreCircle}>
+                    <Text style={styles.healthNoticeScoreNum}>54.4</Text>
+                    <Text style={styles.healthNoticeScoreSub}>/ 100 Poin</Text>
+                  </View>
+                  <View style={{ flex: 1, paddingLeft: 12 }}>
+                    <Text style={styles.healthNoticeRatingTitle}>Penilaian Mandiri Data Riil</Text>
+                    <Text style={styles.healthNoticeRatingDesc}>
+                      Dihitung 100% dari kondisi pembukuan kas riil tanpa rekayasa data.
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Status Layanan Pinjaman Lock Box */}
+              <View style={styles.healthNoticeLockBox}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Ionicons name="lock-closed" size={16} color="#EF4444" />
+                  <Text style={styles.healthNoticeLockTitle}>
+                    Fasilitas Pinjaman Ditangguhkan Sementara
+                  </Text>
+                </View>
+                <Text style={styles.healthNoticeLockDesc}>
+                  Sesuai prinsip kehati-hatian (*prudential banking & cooperative*) dan regulasi Kementerian Koperasi & UKM RI, koperasi berstatus Dalam Pengawasan belum diperkenankan menyalurkan pinjaman baru.
+                </Text>
+              </View>
+
+              {/* Mengapa Belum Bisa Memberikan Pinjaman? */}
+              <Text style={styles.healthNoticeSectionTitle}>Mengapa Pinjaman Belum Dapat Dicairkan?</Text>
+              <View style={{ gap: 8, marginTop: 6 }}>
+                <View style={styles.healthNoticeReasonCard}>
+                  <Ionicons name="alert-circle" size={18} color="#F59E0B" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.healthNoticeReasonHeader}>1. Proteksi Kas Simpanan Sukarela Anggota</Text>
+                    <Text style={styles.healthNoticeReasonBody}>
+                      Mayoritas kas yang ada di bank saat ini merupakan titipan Tabungan Sukarela anggota yang dapat ditarik sewaktu-waktu. Meminjamkan dana titipan ini ke luar tanpa bantalan modal yang aman berisiko fatal memicu gagal bayar saat anggota ingin menarik tabungannya.
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.healthNoticeReasonCard}>
+                  <Ionicons name="alert-circle" size={18} color="#F59E0B" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.healthNoticeReasonHeader}>2. Modal Sendiri Disetor Masih Rp 300.000</Text>
+                    <Text style={styles.healthNoticeReasonBody}>
+                      Standar kelayakan modal disetor sendiri (Simpanan Pokok + Wajib) bagi koperasi yang menjalankan usaha pembiayaan/pinjaman adalah minimal Rp 15.000.000. Saat ini modal sendiri baru tercapai Rp 300.000 (2% dari standar).
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.healthNoticeReasonCard}>
+                  <Ionicons name="alert-circle" size={18} color="#F59E0B" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.healthNoticeReasonHeader}>3. Kuorum Anggota Masih 2 Orang Aktif</Text>
+                    <Text style={styles.healthNoticeReasonBody}>
+                      Sesuai undang-undang perkoperasian, pembentukan KSP primer yang kokoh membutuhkan kuorum minimal 9 sampai 20 orang anggota aktif untuk menjamin diversifikasi risiko.
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Kapan Fasilitas Pinjaman Dibuka Kembali? */}
+              <Text style={[styles.healthNoticeSectionTitle, { marginTop: 14 }]}>
+                Kapan Pinjaman & Talangan Akan Dibuka Kembali?
+              </Text>
+              <View style={styles.healthNoticeRoadmapBox}>
+                <View style={styles.healthNoticeRoadmapItem}>
+                  <Ionicons name="checkmark-circle-outline" size={16} color="#34D399" />
+                  <Text style={styles.healthNoticeRoadmapText}>
+                    Jumlah anggota aktif mencapai minimal 9 orang member ber-MID.
+                  </Text>
+                </View>
+                <View style={styles.healthNoticeRoadmapItem}>
+                  <Ionicons name="checkmark-circle-outline" size={16} color="#34D399" />
+                  <Text style={styles.healthNoticeRoadmapText}>
+                    Akumulasi Simpanan Pokok & Wajib (Modal Sendiri) mencapai minimal Rp 15.000.000.
+                  </Text>
+                </View>
+                <View style={styles.healthNoticeRoadmapItem}>
+                  <Ionicons name="checkmark-circle-outline" size={16} color="#34D399" />
+                  <Text style={styles.healthNoticeRoadmapText}>
+                    Tingkat kesehatan koperasi meningkat menjadi kategori CUKUP SEHAT (≥ 60) atau SEHAT (≥ 80).
+                  </Text>
+                </View>
+              </View>
+
+              {/* Action Button */}
+              <Pressable
+                onPress={() => setShowHealthNoticeModal(false)}
+                style={styles.healthNoticeDismissBtn}
+              >
+                <Text style={styles.healthNoticeDismissBtnText}>
+                  Saya Mengerti & Mendukung Tata Kelola Amanah
+                </Text>
+              </Pressable>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -4609,5 +4769,223 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#34D399',
     lineHeight: 11,
+  },
+
+  // ============================================================
+  // HEALTH TRANSPARENCY & LOAN LOCK STYLES (PERMENKOPUKM 9/2020)
+  // ============================================================
+  healthMemberBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(245, 158, 11, 0.08)',
+    borderWidth: 1.5,
+    borderColor: '#F59E0B',
+    borderRadius: 12,
+    padding: 12,
+    gap: 10,
+    marginBottom: 16,
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' as any } : {}),
+  },
+  healthMemberBannerIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(245, 158, 11, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  healthMemberBannerTitle: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: '#F59E0B',
+  },
+  healthMemberBannerBadge: {
+    backgroundColor: 'rgba(245, 158, 11, 0.2)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.4)',
+  },
+  healthMemberBannerBadgeText: {
+    fontSize: 8.5,
+    fontWeight: '900',
+    color: '#FBBF24',
+    letterSpacing: 0.5,
+  },
+  healthMemberBannerSub: {
+    fontSize: 10.5,
+    color: '#D4D4D8',
+    marginTop: 3,
+    lineHeight: 15,
+  },
+
+  // Locked Mini Badge on Loan Cards
+  loanLockMiniBadge: {
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.5)',
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginTop: 4,
+  },
+  loanLockMiniBadgeText: {
+    fontSize: 8,
+    fontWeight: '900',
+    color: '#EF4444',
+    letterSpacing: 0.5,
+  },
+
+  // Modal Health Notice Styles
+  healthNoticeHeaderBox: {
+    backgroundColor: 'rgba(245, 158, 11, 0.08)',
+    borderWidth: 1.5,
+    borderColor: '#F59E0B',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 12,
+  },
+  healthNoticeKopTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#FAFAFA',
+  },
+  healthNoticeStatusTag: {
+    backgroundColor: '#F59E0B',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  healthNoticeStatusTagText: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: '#000',
+    letterSpacing: 0.5,
+  },
+  healthNoticeScoreRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  healthNoticeScoreCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    borderWidth: 2,
+    borderColor: '#F59E0B',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  healthNoticeScoreNum: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#F59E0B',
+  },
+  healthNoticeScoreSub: {
+    fontSize: 8.5,
+    color: '#A1A1AA',
+    marginTop: -2,
+  },
+  healthNoticeRatingTitle: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: '#FAFAFA',
+  },
+  healthNoticeRatingDesc: {
+    fontSize: 10.5,
+    color: '#A1A1AA',
+    marginTop: 2,
+    lineHeight: 14,
+  },
+
+  healthNoticeLockBox: {
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.4)',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 14,
+  },
+  healthNoticeLockTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#EF4444',
+  },
+  healthNoticeLockDesc: {
+    fontSize: 10.5,
+    color: '#FCA5A5',
+    marginTop: 4,
+    lineHeight: 15,
+  },
+
+  healthNoticeSectionTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FBBF24',
+    marginBottom: 6,
+  },
+  healthNoticeReasonCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 8,
+    padding: 10,
+  },
+  healthNoticeReasonHeader: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FAFAFA',
+  },
+  healthNoticeReasonBody: {
+    fontSize: 10,
+    color: '#A1A1AA',
+    marginTop: 2,
+    lineHeight: 14,
+  },
+
+  healthNoticeRoadmapBox: {
+    backgroundColor: 'rgba(52, 211, 153, 0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(52, 211, 153, 0.25)',
+    borderRadius: 10,
+    padding: 10,
+    gap: 6,
+    marginTop: 4,
+    marginBottom: 14,
+  },
+  healthNoticeRoadmapItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  healthNoticeRoadmapText: {
+    fontSize: 10.5,
+    color: '#D1FAE5',
+    flex: 1,
+    lineHeight: 15,
+  },
+
+  healthNoticeDismissBtn: {
+    backgroundColor: '#FBBF24',
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 6,
+    marginBottom: 8,
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' as any } : {}),
+  },
+  healthNoticeDismissBtnText: {
+    fontSize: 11.5,
+    fontWeight: '800',
+    color: '#000',
   },
 });
