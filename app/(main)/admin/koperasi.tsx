@@ -588,21 +588,68 @@ export default function AdminKoperasiScreen() {
 
   // Aktivasi / Verifikasi Anggota Baru
   const handleApproveMember = async (targetMember: MemberKopItem) => {
+    const totalSetoranAwal = targetMember.simpananPokok + targetMember.simpananWajib + targetMember.tabunganSukarela;
+
     Alert.alert(
       'Verifikasi Anggota Baru',
-      `Verifikasi keanggotaan ${targetMember.nama} (${targetMember.mid})?\n\nSyarat terpenuhi:\n✓ Memiliki MID Resmi MBCI\n✓ Akun Koperasi Terdaftar\n✓ Simpanan Pokok: Rp 100.000\n✓ Iuran Wajib: Rp 50.000\n✓ Tabungan Sukarela: Minimal Rp 25.000\n✓ Berhak atas Bunga 1% SHU`,
+      `Verifikasi keanggotaan ${targetMember.nama} (${targetMember.mid})?\n\nSyarat terpenuhi & Bukti Transfer Terverifikasi:\n✓ Memiliki MID Resmi MBCI\n✓ Akun Koperasi Terdaftar\n✓ Simpanan Pokok: ${formatRupiah(targetMember.simpananPokok)}\n✓ Iuran Wajib: ${formatRupiah(targetMember.simpananWajib)}\n✓ Tabungan Sukarela: ${formatRupiah(targetMember.tabunganSukarela)}\n✓ Total Kas Masuk: ${formatRupiah(totalSetoranAwal)}\n✓ Berhak atas Bunga 1% SHU`,
       [
         { text: 'Batal', style: 'cancel' },
         {
-          text: 'Verifikasi & Aktifkan',
+          text: 'Verifikasi & Bukukan Kas',
           style: 'default',
           onPress: async () => {
-            const updated = members.map((m) =>
-              m.id === targetMember.id ? { ...m, status: 'active' as const } : m
-            );
-            setMembers(updated);
-            await AsyncStorage.setItem(KOP_STORAGE_MEMBERS, JSON.stringify(updated));
-            Alert.alert('Berhasil', `Anggota ${targetMember.nama} kini resmi berstatus AKTIF di Koperasi Bersama Satu Bintang.`);
+            try {
+              // 1. Update status member
+              const updated = members.map((m) =>
+                m.id === targetMember.id ? { ...m, status: 'active' as const } : m
+              );
+              setMembers(updated);
+              await AsyncStorage.setItem(KOP_STORAGE_MEMBERS, JSON.stringify(updated));
+
+              // 2. Tambah kas likuid & alokasi simpanan
+              const newTotal = balance.total_balance + totalSetoranAwal;
+              const newPokok = balance.simpanan_pokok + targetMember.simpananPokok;
+              const newWajib = balance.simpanan_wajib + targetMember.simpananWajib;
+              const newSukarela = balance.simpanan_sukarela + targetMember.tabunganSukarela;
+
+              const updatedBal: KoperasiBalance = {
+                ...balance,
+                total_balance: newTotal,
+                simpanan_pokok: newPokok,
+                simpanan_wajib: newWajib,
+                simpanan_sukarela: newSukarela,
+                updated_at: new Date().toISOString(),
+              };
+              setBalance(updatedBal);
+              await AsyncStorage.setItem(KOP_STORAGE_BAL, JSON.stringify(updatedBal));
+
+              // 3. Catat di Buku Kas / Jurnal Transaksi
+              const newTx: KoperasiTransaction = {
+                id: `tx_member_reg_${Date.now()}`,
+                member_id: KOP_USER_ID,
+                type: 'simpanan',
+                amount: totalSetoranAwal,
+                status: 'completed',
+                description: `[Aktivasi Anggota Baru] MID: ${targetMember.mid} (${targetMember.nama}) — Setoran Pokok (${formatRupiah(targetMember.simpananPokok)}) + Wajib (${formatRupiah(targetMember.simpananWajib)}) + Sukarela (${formatRupiah(targetMember.tabunganSukarela)})`,
+                reference_number: `TX-REG-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+                due_date: null,
+                processed_by: KOP_USER_ID,
+                processed_at: new Date().toISOString(),
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              };
+              const updatedTxs = [newTx, ...transactions];
+              setTransactions(updatedTxs);
+              await AsyncStorage.setItem(KOP_STORAGE_TX, JSON.stringify(updatedTxs));
+
+              Alert.alert(
+                'Keanggotaan Terverifikasi',
+                `Anggota ${targetMember.nama} (${targetMember.mid}) kini resmi AKTIF. Setoran awal ${formatRupiah(totalSetoranAwal)} berhasil dibukukan ke saldo kas likuid koperasi.`
+              );
+            } catch (err) {
+              Alert.alert('Gagal', 'Terjadi kesalahan saat memverifikasi anggota.');
+            }
           },
         },
       ]
