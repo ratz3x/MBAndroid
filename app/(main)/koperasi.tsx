@@ -1263,22 +1263,7 @@ export default function KoperasiScreen() {
     loadData();
   };
 
-  // Reset Semua Data ke Nol (Sesuai Permintaan User)
-  const handleResetToZero = () => {
-    showConfirmDialog(
-      'Konfirmasi Reset Nol',
-      'Apakah Anda yakin ingin mengosongkan seluruh saldo kas dan riwayat transaksi koperasi kembali ke Rp 0?',
-      async () => {
-        setBalance(ZERO_KOP_BALANCE);
-        setTransactions([]);
-        await AsyncStorage.setItem(KOP_STORAGE_BAL, JSON.stringify(ZERO_KOP_BALANCE));
-        await AsyncStorage.setItem(KOP_STORAGE_TX, JSON.stringify([]));
-        showAlertDialog('Berhasil', 'Seluruh data kas dan mutasi simpan pinjam koperasi telah di-reset ke Nol.');
-      },
-      'Reset ke Nol',
-      'Batal'
-    );
-  };
+
 
   // Simpan Transaksi Baru Simpan Pinjam
   const handleSaveTransaction = async () => {
@@ -1453,7 +1438,7 @@ export default function KoperasiScreen() {
             <Ionicons
               name={isSponsor ? "lock-closed-outline" : "cash-outline"}
               size={15}
-              color={activeTab === 'simpan_pinjam' ? (isSponsor ? '#F87171' : '#C5A059') : '#A1A1AA'}
+              color={activeTab === 'simpan_pinjam' ? (isSponsor ? '#F87171' : '#FFFFFF') : '#9CA3AF'}
             />
             <Text style={[styles.tabButtonText, activeTab === 'simpan_pinjam' && styles.tabButtonTextActive, isSponsor && { color: '#F87171' }]}>
               Simpan Pinjam {isSponsor ? '(Terkunci)' : ''}
@@ -1467,7 +1452,7 @@ export default function KoperasiScreen() {
             <Ionicons
               name="business-outline"
               size={15}
-              color={activeTab === 'profil' ? '#C5A059' : '#A1A1AA'}
+              color={activeTab === 'profil' ? '#FFFFFF' : '#9CA3AF'}
             />
             <Text style={[styles.tabButtonText, activeTab === 'profil' && styles.tabButtonTextActive]}>
               Profil & Pendiri
@@ -1480,31 +1465,24 @@ export default function KoperasiScreen() {
         {/* ============================================================ */}
         {activeTab === 'simpan_pinjam' && (
           isSponsor ? (
-            <View style={{ paddingVertical: 36, alignItems: 'center', paddingHorizontal: 16 }}>
-              <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: 'rgba(239,68,68,0.12)', alignItems: 'center', justifyContent: 'center', marginBottom: 16, borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)' }}>
-                <Ionicons name="lock-closed" size={32} color="#F87171" />
+            <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 40, paddingHorizontal: 20 }}>
+              <View style={{ width: 70, height: 70, borderRadius: 35, backgroundColor: 'rgba(239, 68, 68, 0.12)', borderWidth: 1.5, borderColor: '#EF4444', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+                <Ionicons name="lock-closed" size={32} color="#EF4444" />
               </View>
-              <Text style={{ fontSize: 18, fontWeight: '800', color: '#FAFAFA', textAlign: 'center', marginBottom: 8 }}>
-                Akses Simpan Pinjam Terkunci
+              <Text style={{ fontSize: 18, fontWeight: '800', color: '#FAFAFA', marginBottom: 8, textAlign: 'center' }}>
+                Fasilitas Khusus Anggota Resmi MBCI
               </Text>
               <Text style={{ fontSize: 13, color: '#A1A1AA', textAlign: 'center', lineHeight: 22, maxWidth: 340, marginBottom: 20 }}>
                 Unit Usaha Simpan Pinjam Koperasi Bersama Satu Bintang khusus diperuntukkan bagi <Text style={{ color: '#FBBF24', fontWeight: '700' }}>Member Resmi MB Club Indonesia</Text>.{'\n\n'}
                 Mitra Sponsor hanya dapat melihat informasi struktur & latar belakang Koperasi pada tab <Text style={{ color: '#60A5FA', fontWeight: '700' }}>Profil & Pendiri</Text>.
               </Text>
-              <Pressable
-                onPress={() => setActiveTab('profil')}
-                style={{ backgroundColor: 'rgba(96,165,250,0.15)', borderWidth: 1, borderColor: '#60A5FA', borderRadius: 10, paddingHorizontal: 20, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 8 }}
-              >
-                <Ionicons name="business-outline" size={16} color="#60A5FA" />
-                <Text style={{ color: '#60A5FA', fontSize: 13, fontWeight: '700' }}>Buka Profil Koperasi</Text>
-              </Pressable>
             </View>
           ) : (
             <>
             {/* Manager Alert Banner */}
             {isKopManager && (
               <View style={styles.managerBanner}>
-                <Ionicons name="shield-checkmark" size={20} color="#C5A059" />
+                <Ionicons name="shield-checkmark" size={20} color="#9CA3AF" />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.managerBannerTitle}>PENGELOLA & BENDAHARA SIMPAN PINJAM</Text>
                   <Text style={styles.managerBannerDesc}>
@@ -1517,26 +1495,22 @@ export default function KoperasiScreen() {
                       alignItems: 'center',
                       gap: 6,
                       marginTop: 8,
-                      backgroundColor: 'rgba(251, 191, 36, 0.15)',
-                      borderColor: '#FBBF24',
+                      backgroundColor: '#1E2025',
+                      borderColor: '#3A3D46',
                       borderWidth: 1,
-                      paddingVertical: 5,
-                      paddingHorizontal: 10,
+                      paddingVertical: 6,
+                      paddingHorizontal: 12,
                       borderRadius: 8,
                       alignSelf: 'flex-start',
                     }}
                   >
-                    <Ionicons name="apps" size={13} color="#FBBF24" />
-                    <Text style={{ fontSize: 11, fontWeight: '700', color: '#FDE68A' }}>
+                    <Ionicons name="apps-outline" size={13} color="#E5E7EB" />
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: '#E5E7EB' }}>
                       Buka Dashboard Pengelola Koperasi
                     </Text>
-                    <Ionicons name="arrow-forward" size={11} color="#FBBF24" />
+                    <Ionicons name="arrow-forward" size={11} color="#9CA3AF" />
                   </Pressable>
                 </View>
-                <Pressable onPress={handleResetToZero} style={styles.resetZeroBtn} hitSlop={6}>
-                  <Ionicons name="refresh" size={13} color="#EF4444" />
-                  <Text style={styles.resetZeroBtnText}>Nol-kan</Text>
-                </Pressable>
               </View>
             )}
 
@@ -4394,58 +4368,42 @@ const styles = StyleSheet.create({
     borderRadius: Radius.sm,
   },
   tabButtonActive: {
-    backgroundColor: 'rgba(197, 160, 89, 0.2)',
+    backgroundColor: '#26282E',
     borderWidth: 1,
-    borderColor: 'rgba(197, 160, 89, 0.4)',
+    borderColor: '#3A3D46',
   },
   tabButtonText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#A1A1AA',
+    color: '#9CA3AF',
   },
   tabButtonTextActive: {
-    color: '#C5A059',
+    color: '#FFFFFF',
     fontWeight: '700',
   },
 
   managerBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    backgroundColor: 'rgba(197, 160, 89, 0.12)',
+    gap: 12,
+    backgroundColor: '#141518',
     borderWidth: 1,
-    borderColor: 'rgba(197, 160, 89, 0.3)',
-    borderRadius: Radius.md,
-    padding: Spacing.md,
+    borderColor: '#26282E',
+    borderRadius: 12,
+    padding: 14,
     marginBottom: Spacing.base,
   },
   managerBannerTitle: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#C5A059',
+    color: '#FFFFFF',
     letterSpacing: 0.5,
   },
   managerBannerDesc: {
     fontSize: 11,
-    color: '#D4D4D8',
+    color: '#9CA3AF',
     marginTop: 2,
     lineHeight: 15,
-  },
-  resetZeroBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.3)',
-  },
-  resetZeroBtnText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#EF4444',
   },
 
   balanceCard: { marginBottom: Spacing.base },
