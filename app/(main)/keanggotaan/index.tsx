@@ -14,6 +14,7 @@ import {
   ActivityIndicator,
   Platform,
   Image,
+  Modal,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -34,6 +35,7 @@ export default function KeanggotaanScreen() {
   const { member, loading, refetch } = useProfile(user?.id);
   const [localMember, setLocalMember] = useState<any>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [showTierModal, setShowTierModal] = useState(false);
 
   // Load fallback local storage if Supabase network is syncing
   const loadLocalBackup = useCallback(async () => {
@@ -270,106 +272,255 @@ export default function KeanggotaanScreen() {
           </LuxuryCard>
         )}
 
-        {/* Keuntungan Anggota Resmi (Horizontal Interactive Cards) */}
-        <View style={{ marginTop: Spacing.xl, marginBottom: Spacing.sm }}>
+        {/* Keuntungan Anggota Resmi (Grid 2 Kolom / 2 Kartu Per Baris) */}
+        <View style={{ marginTop: Spacing.xl, marginBottom: Spacing.md }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
             <Text style={styles.title}>
               Keuntungan Anggota Resmi
             </Text>
-            <Text style={{ fontSize: 11, color: '#A1A1AA' }}>Geser kartu ➔</Text>
+            <View style={styles.gridCountBadge}>
+              <Text style={styles.gridCountBadgeText}>6 LAYANAN</Text>
+            </View>
           </View>
-          <Text style={{ fontSize: 12, color: Colors.text.tertiary, marginBottom: Spacing.sm }}>
-            Akses langsung ke ekosistem layanan & privilese resmi ber-MID
+          <Text style={{ fontSize: 12, color: Colors.text.tertiary }}>
+            Hak istimewa, tingkatan loyalitas, & fasilitas resmi khusus member ber-MID
           </Text>
         </View>
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.horizontalBenefitScroll}
-        >
+        {/* Grid 2 Kolom */}
+        <View style={styles.benefitGrid}>
           {[
             {
               icon: 'ribbon-outline',
               title: 'KTA Digital',
-              desc: 'QR Code verifikasi resmi & chip MID di Beranda',
+              desc: 'QR Code resmi & chip MID di Beranda',
               badge: 'KTA RESMI',
               badgeColor: '#FBBF24',
-              route: '/(main)/dashboard',
+              action: () => router.push('/(main)/dashboard' as any),
+            },
+            {
+              icon: 'trophy-outline',
+              title: 'Tier Member',
+              desc: 'Sistem Bronze, Silver, Gold, Platinum',
+              badge: 'SISTEM BARU',
+              badgeColor: '#38BDF8',
+              action: () => setShowTierModal(true),
             },
             {
               icon: 'calendar-outline',
               title: 'Akses Event',
-              desc: 'Prioritas daftar touring & gathering nasional',
+              desc: 'Prioritas daftar touring & gathering',
               badge: 'AGENDA KLUB',
               badgeColor: '#60A5FA',
-              route: '/(main)/event',
+              action: () => router.push('/(main)/event' as any),
             },
             {
               icon: 'pricetag-outline',
               title: 'Diskon Mitra',
-              desc: 'Potongan harga bengkel, asuransi, & merchant',
-              badge: 'REKANAN MBCI',
+              desc: 'Potongan bengkel, asuransi, & hotel',
+              badge: 'REKANAN',
               badgeColor: '#34D399',
-              route: '/(main)/sponsorship',
+              action: () => router.push('/(main)/sponsorship' as any),
             },
             {
               isLogo: true,
               title: 'Koperasi',
-              desc: 'Tabungan sukarela likuid & e-passbook mutasi',
+              desc: 'Tabungan sukarela & e-passbook',
               badge: 'SIMPANAN',
               badgeColor: '#F59E0B',
-              route: '/(main)/koperasi',
+              action: () => router.push('/(main)/koperasi' as any),
             },
             {
               icon: 'storefront-outline',
               title: 'Toko Resmi',
-              desc: 'Katalog merchandise, OEM spare parts, & lapak',
-              badge: 'MARKETPLACE',
+              desc: 'Merchandise resmi, part OEM, & lapak',
+              badge: 'MARKET',
               badgeColor: '#C084FC',
-              route: '/(main)/toko',
+              action: () => router.push('/(main)/toko' as any),
             },
           ].map((benefit) => (
             <Pressable
               key={benefit.title}
-              onPress={() => router.push(benefit.route as any)}
+              onPress={benefit.action}
               style={({ pressed }) => [
-                styles.horizontalBenefitCard,
+                styles.gridBenefitCard,
                 pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
               ]}
             >
-              <View style={styles.horizontalBenefitHeader}>
-                <View style={styles.horizontalBenefitIconWrap}>
+              <View style={styles.gridBenefitHeader}>
+                <View style={styles.gridBenefitIconWrap}>
                   {(benefit as any).isLogo ? (
-                    <Image source={KOPERASI_LOGO} style={{ width: 22, height: 22, borderRadius: 11 }} resizeMode="contain" />
+                    <Image source={KOPERASI_LOGO} style={{ width: 20, height: 20, borderRadius: 10 }} resizeMode="contain" />
                   ) : (
-                    <Ionicons name={(benefit as any).icon as any} size={20} color={benefit.badgeColor} />
+                    <Ionicons name={(benefit as any).icon as any} size={18} color={benefit.badgeColor} />
                   )}
                 </View>
-                <View style={[styles.horizontalBenefitBadge, { backgroundColor: `${benefit.badgeColor}20`, borderColor: `${benefit.badgeColor}40` }]}>
-                  <Text style={[styles.horizontalBenefitBadgeText, { color: benefit.badgeColor }]}>
+                <View style={[styles.gridBenefitBadge, { backgroundColor: `${benefit.badgeColor}20`, borderColor: `${benefit.badgeColor}40` }]}>
+                  <Text style={[styles.gridBenefitBadgeText, { color: benefit.badgeColor }]}>
                     {benefit.badge}
                   </Text>
                 </View>
               </View>
 
-              <Text style={styles.horizontalBenefitTitle} numberOfLines={1}>
+              <Text style={styles.gridBenefitTitle} numberOfLines={1}>
                 {benefit.title}
               </Text>
-              <Text style={styles.horizontalBenefitDesc} numberOfLines={2}>
+              <Text style={styles.gridBenefitDesc} numberOfLines={2}>
                 {benefit.desc}
               </Text>
 
-              <View style={styles.horizontalBenefitActionRow}>
-                <Text style={[styles.horizontalBenefitActionText, { color: benefit.badgeColor }]}>Buka Layanan</Text>
-                <Ionicons name="arrow-forward-circle" size={16} color={benefit.badgeColor} />
+              <View style={styles.gridBenefitActionRow}>
+                <Text style={[styles.gridBenefitActionText, { color: benefit.badgeColor }]}>
+                  {benefit.title === 'Tier Member' ? 'Pelajari Tier' : 'Buka Layanan'}
+                </Text>
+                <Ionicons name="chevron-forward" size={13} color={benefit.badgeColor} />
               </View>
             </Pressable>
           ))}
-        </ScrollView>
+        </View>
 
         <View style={{ height: Spacing['3xl'] }} />
       </ScrollView>
+
+      {/* ============================================================ */}
+      {/* MODAL: PANDUAN SISTEM TIER & LOYALITAS KEANGGOTAAN MBCI        */}
+      {/* ============================================================ */}
+      <Modal
+        visible={showTierModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowTierModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.tierModalContent}>
+            {/* Header Modal */}
+            <View style={styles.tierModalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <View style={styles.tierModalIconRing}>
+                  <Ionicons name="trophy" size={22} color="#38BDF8" />
+                </View>
+                <View>
+                  <Text style={styles.tierModalTitle}>Tingkatan Tier Keanggotaan</Text>
+                  <Text style={styles.tierModalSubtitle}>Sistem loyalitas & privilese resmi MBCI</Text>
+                </View>
+              </View>
+              <Pressable
+                onPress={() => setShowTierModal(false)}
+                style={styles.tierModalCloseBtn}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="close" size={20} color="#A1A1AA" />
+              </Pressable>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 460 }}>
+              <View style={styles.tierNoticeBox}>
+                <Ionicons name="information-circle-outline" size={18} color="#38BDF8" />
+                <Text style={styles.tierNoticeText}>
+                  Tingkatan Tier dihitung otomatis dari akumulasi poin kehadiran di event resmi, keaktifan chapter, dan aktivitas di aplikasi Mercedes-Benz Club Indonesia.
+                </Text>
+              </View>
+
+              {/* 4 Kartu Level Tier */}
+              {[
+                {
+                  tier: 'BRONZE',
+                  title: 'Star Explorer',
+                  badgeColor: '#CD7F32',
+                  points: '0 – 600 Poin',
+                  benefits: [
+                    'Akses KTA Digital resmi dengan QR Code',
+                    'Gratis pendaftaran di seluruh event komunitas',
+                    'Diskon sewa lapak toko marketplace 5%',
+                    'Akses forum diskusi resmi seluruh chapter',
+                  ],
+                },
+                {
+                  tier: 'SILVER',
+                  title: 'Star Voyager',
+                  badgeColor: '#E4E4E7',
+                  points: '601 – 1.400 Poin',
+                  benefits: [
+                    'Seluruh keuntungan tier Bronze',
+                    'Diskon sewa lapak toko marketplace 10%',
+                    'Badge Silver eksklusif di profil & forum',
+                    'Prioritas slot display mobil di gathering chapter',
+                  ],
+                },
+                {
+                  tier: 'GOLD',
+                  title: 'Star Ambassador',
+                  badgeColor: '#FBBF24',
+                  points: '1.401 – 3.200 Poin',
+                  benefits: [
+                    'Seluruh keuntungan tier Silver',
+                    'Diskon sewa lapak toko marketplace 15%',
+                    'Slot parkir VIP (Paddock) di acara gathering resmi',
+                    'Posisi barisan depan pada konvoi touring nasional',
+                    'Ekstra kupon undian doorprize gathering tahunan',
+                  ],
+                },
+                {
+                  tier: 'PLATINUM',
+                  title: 'Star Legend / VIP Pillar',
+                  badgeColor: '#38BDF8',
+                  points: '3.201+ Poin',
+                  benefits: [
+                    'Seluruh keuntungan tier Gold',
+                    'Diskon sewa lapak toko marketplace 20%',
+                    'Meja kehormatan (VIP Lounge) di Gala Dinner / Munas',
+                    'Plakat apresiasi pilar komunitas dari Pengurus Pusat',
+                    'Merchandise eksklusif edisi terbatas Jamnas MBCI',
+                  ],
+                },
+              ].map((item) => (
+                <View
+                  key={item.tier}
+                  style={[
+                    styles.tierLevelCard,
+                    { borderColor: `${item.badgeColor}40` },
+                  ]}
+                >
+                  <View style={styles.tierLevelHeader}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <View
+                        style={[
+                          styles.tierLevelBadge,
+                          { backgroundColor: `${item.badgeColor}25`, borderColor: `${item.badgeColor}60` },
+                        ]}
+                      >
+                        <Text style={[styles.tierLevelBadgeText, { color: item.badgeColor }]}>
+                          {item.tier}
+                        </Text>
+                      </View>
+                      <Text style={styles.tierLevelTitle}>{item.title}</Text>
+                    </View>
+                    <Text style={[styles.tierPointsBadge, { color: item.badgeColor }]}>
+                      {item.points}
+                    </Text>
+                  </View>
+
+                  <View style={styles.tierBenefitList}>
+                    {item.benefits.map((b, idx) => (
+                      <View key={idx} style={styles.tierBenefitItem}>
+                        <Ionicons name="checkmark-circle" size={14} color={item.badgeColor} />
+                        <Text style={styles.tierBenefitText}>{b}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              ))}
+
+              <Pressable
+                onPress={() => setShowTierModal(false)}
+                style={styles.tierCloseActionBtn}
+              >
+                <Text style={styles.tierCloseActionBtnText}>Saya Mengerti</Text>
+              </Pressable>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -627,72 +778,217 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
 
-  // Horizontal Benefit Cards
-  horizontalBenefitScroll: {
-    paddingRight: Spacing.base,
-    gap: 12,
-    paddingVertical: 4,
+  gridCountBadge: {
+    backgroundColor: 'rgba(56, 189, 248, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.4)',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
   },
-  horizontalBenefitCard: {
-    width: 210,
+  gridCountBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#38BDF8',
+    letterSpacing: 0.5,
+  },
+
+  // 2-Column Grid Benefit Cards (2 Kartu Per Baris)
+  benefitGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    justifyContent: 'space-between',
+  },
+  gridBenefitCard: {
+    width: '48.5%',
     backgroundColor: '#121214',
     borderRadius: 14,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
-    padding: 14,
+    padding: 12,
     justifyContent: 'space-between',
     ...(Platform.OS === 'web' ? { cursor: 'pointer' as any } : {}),
   },
-  horizontalBenefitHeader: {
+  gridBenefitHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    marginBottom: 8,
   },
-  horizontalBenefitIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
+  gridBenefitIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
   },
-  horizontalBenefitBadge: {
-    paddingHorizontal: 7,
-    paddingVertical: 2.5,
-    borderRadius: 6,
+  gridBenefitBadge: {
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 5,
     borderWidth: 1,
   },
-  horizontalBenefitBadgeText: {
-    fontSize: 8.5,
+  gridBenefitBadgeText: {
+    fontSize: 8,
     fontWeight: '800',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
-  horizontalBenefitTitle: {
-    fontSize: 13.5,
+  gridBenefitTitle: {
+    fontSize: 13,
     fontWeight: '700',
     color: '#FAFAFA',
-    marginBottom: 4,
+    marginBottom: 2,
   },
-  horizontalBenefitDesc: {
-    fontSize: 11,
+  gridBenefitDesc: {
+    fontSize: 10.5,
     color: '#A1A1AA',
-    lineHeight: 15,
-    height: 30,
-    marginBottom: 12,
+    lineHeight: 14,
+    height: 28,
+    marginBottom: 8,
   },
-  horizontalBenefitActionRow: {
+  gridBenefitActionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 8,
+    paddingTop: 6,
     borderTopWidth: 1,
     borderTopColor: 'rgba(255, 255, 255, 0.06)',
   },
-  horizontalBenefitActionText: {
-    fontSize: 11,
+  gridBenefitActionText: {
+    fontSize: 10,
     fontWeight: '700',
+  },
+
+  // Modal Styles for Tier Guide
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Spacing.base,
+  },
+  tierModalContent: {
+    width: '100%',
+    maxWidth: 520,
+    backgroundColor: '#121214',
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: 'rgba(56, 189, 248, 0.4)',
+    padding: Spacing.base,
+  },
+  tierModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  tierModalIconRing: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: 'rgba(56, 189, 248, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tierModalTitle: {
+    fontSize: 14.5,
+    fontWeight: '800',
+    color: '#FAFAFA',
+  },
+  tierModalSubtitle: {
+    fontSize: 11,
+    color: '#A1A1AA',
+  },
+  tierModalCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tierNoticeBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: 'rgba(56, 189, 248, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.25)',
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 12,
+  },
+  tierNoticeText: {
+    fontSize: 11,
+    color: '#BAE6FD',
+    flex: 1,
+    lineHeight: 16,
+  },
+  tierLevelCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 12,
+    marginBottom: 10,
+  },
+  tierLevelHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  tierLevelBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+  },
+  tierLevelBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  tierLevelTitle: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  tierPointsBadge: {
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  tierBenefitList: {
+    gap: 4,
+  },
+  tierBenefitItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  tierBenefitText: {
+    fontSize: 11,
+    color: '#D4D4D8',
+    flex: 1,
+    lineHeight: 15,
+  },
+  tierCloseActionBtn: {
+    backgroundColor: '#38BDF8',
+    paddingVertical: 11,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  tierCloseActionBtnText: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: '#000',
   },
 });
