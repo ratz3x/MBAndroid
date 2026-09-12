@@ -280,6 +280,7 @@ export default function KoperasiScreen() {
   const [wajibRekSender, setWajibRekSender] = useState('');
   const [wajibNameSender, setWajibNameSender] = useState('');
   const [wajibSubmitting, setWajibSubmitting] = useState(false);
+  const [expandedTxId, setExpandedTxId] = useState<string | null>(null);
 
   // Setoran Kas Koperasi (Alokasi Otomatis: Wajib, Pinjaman, dan Sukarela)
   const [transferTotalAmount, setTransferTotalAmount] = useState('500000');
@@ -1403,21 +1404,35 @@ export default function KoperasiScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#C5A059" colors={['#C5A059']} />
         }
       >
-        {/* Header Bersama Satu Bintang */}
-        <View style={styles.header}>
-          <View style={styles.headerTitleGroup}>
+        {/* Header Bersama Satu Bintang & Identitas Member */}
+        <View style={styles.luxuryHeaderCard}>
+          <View style={styles.headerTopRow}>
             <Image source={KOPERASI_LOGO} style={styles.koperasiLogo} resizeMode="contain" />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.title}>Koperasi Bersama Satu Bintang</Text>
-              <Text style={styles.subTitle}>Mercedes-Benz Club Indonesia (MB Club INA)</Text>
-              <View style={styles.addressTag}>
-                <Ionicons name="location-sharp" size={11} color="#C5A059" />
-                <Text style={styles.addressTagText} numberOfLines={1}>
-                  Office 88 Kota Kasablanka Unit 16B, Jakarta Selatan
-                </Text>
-              </View>
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={styles.luxuryHeaderTitle}>Koperasi Bersama Satu Bintang</Text>
+              <Text style={styles.luxuryHeaderSub}>
+                Mercedes-Benz Club Indonesia • Office 88 Kota Kasablanka
+              </Text>
             </View>
+            {!isKopManager && membershipStatus === 'active' && (
+              <View style={styles.activePillBadge}>
+                <View style={styles.activeDotGreen} />
+                <Text style={styles.activePillBadgeText}>ANGGOTA AKTIF</Text>
+              </View>
+            )}
           </View>
+
+          {!isKopManager && membershipStatus === 'active' && (
+            <View style={styles.headerRefRow}>
+              <Text style={styles.headerRefText}>
+                No. Koperasi: <Text style={styles.headerRefMono}>{memberKopData?.kopMemberId || (memberKopData?.mid ? generateKopMemberId(memberKopData.mid) : 'KOP-JBR-2026-000002')}</Text>
+              </Text>
+              <Text style={styles.headerRefSep}>|</Text>
+              <Text style={styles.headerRefText}>
+                MID: <Text style={styles.headerRefMono}>{memberKopData?.mid || currentMember?.member_number || 'MBINA-JBR-2026-000002'}</Text>
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Tab Switcher */}
@@ -1628,28 +1643,7 @@ export default function KoperasiScreen() {
               </View>
             )}
 
-            {/* Active Member Status Badge */}
-            {!isKopManager && membershipStatus === 'active' && (
-              <View style={styles.activeMemberBanner}>
-                <Ionicons name="shield-checkmark" size={24} color="#10B981" />
-                <View style={{ flex: 1, gap: 3 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                    <Text style={styles.activeMemberText}>
-                      Status: <Text style={{ color: '#34D399', fontWeight: '800' }}>ANGGOTA RESMI AKTIF</Text>
-                    </Text>
-                    <View style={{ backgroundColor: 'rgba(251, 191, 36, 0.2)', borderWidth: 1, borderColor: '#FBBF24', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 5 }}>
-                      <Text style={{ fontSize: 10.5, fontWeight: '800', color: '#FBBF24' }}>
-                        {memberKopData?.kopMemberId || (memberKopData?.mid ? generateKopMemberId(memberKopData.mid) : 'KOP-JBR-2026-000002')}
-                      </Text>
-                    </View>
-                  </View>
-                  <Text style={{ fontSize: 11, color: '#D4D4D8', lineHeight: 16 }}>
-                    No. Anggota Koperasi: <Text style={{ color: '#FBBF24', fontWeight: '800' }}>{memberKopData?.kopMemberId || (memberKopData?.mid ? generateKopMemberId(memberKopData.mid) : 'KOP-JBR-2026-000002')}</Text>
-                    {' • '}MID MBCI: <Text style={{ color: '#FFFFFF', fontWeight: '700' }}>{memberKopData?.mid || currentMember?.member_number || '-'}</Text>
-                  </Text>
-                </View>
-              </View>
-            )}
+
 
             {/* Verifikasi Pencairan Pinjaman dari Koperasi */}
             {!isKopManager && memberLoans.some((l) => l.status === 'disbursed_waiting_confirmation') && (
@@ -1716,489 +1710,313 @@ export default function KoperasiScreen() {
               ))
             )}
 
-            {/* Saldo Simpan Pinjam Card */}
-            <LuxuryCard variant="gold" style={styles.balanceCard}>
-              <View style={styles.balanceHeader}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, flex: 1 }}>
-                  <Ionicons name="wallet-outline" size={22} color={Colors.brand.gold} />
-                  <Text style={styles.balanceTitle}>
-                    {isKopManager ? 'Total Likuiditas Kas Simpan Pinjam' : 'Saldo Simpan Pinjam Anda'}
-                  </Text>
-                </View>
-                {!isKopManager && membershipStatus === 'active' && (
-                  <Pressable
-                    onPress={() => setShowBukuRekeningModal(true)}
-                    style={styles.openBukuBtn}
-                  >
-                    <Ionicons name="book-outline" size={13} color="#000" />
-                    <Text style={styles.openBukuBtnText}>Buku Tabungan</Text>
-                  </Pressable>
+            {/* Card Saldo Utama (Focal Point Luxury Dark) */}
+            <View style={styles.luxuryBalanceCard}>
+              <View style={styles.balanceLabelRow}>
+                <Text style={styles.balanceHeaderLabel}>TOTAL SALDO SIMPAN PINJAM</Text>
+                {isKopManager && (
+                  <View style={styles.managerPillBadge}>
+                    <Text style={styles.managerPillBadgeText}>PENGELOLA KAS</Text>
+                  </View>
                 )}
               </View>
 
-              <Text style={styles.totalBalance}>{formatRupiah(balance?.total_balance ?? 0)}</Text>
-              
-              <View style={styles.balanceBreakdown}>
-                {[
-                  { label: isKopManager ? 'Total Simpanan Pokok Anggota' : 'Simpanan Pokok', value: balance?.simpanan_pokok ?? 0 },
-                  { label: isKopManager ? 'Total Simpanan Wajib Anggota' : 'Simpanan Wajib', value: balance?.simpanan_wajib ?? 0 },
-                  { label: isKopManager ? 'Total Tabungan Sukarela' : 'Tabungan Sukarela', value: balance?.simpanan_sukarela ?? 0 },
-                ].map((item) => (
-                  <View key={item.label} style={styles.breakdownRow}>
-                    <Text style={styles.breakdownLabel}>{item.label}</Text>
-                    <Text style={styles.breakdownValue}>{formatRupiah(item.value)}</Text>
-                  </View>
-                ))}
-              </View>
+              <Text style={styles.balanceMainDisplay}>
+                {formatRupiah(balance?.total_balance ?? 0)}
+              </Text>
 
-              {/* Pinjaman / Dana Talangan Berjalan */}
-              <View style={styles.loanRowBox}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.loanBoxTitle}>Pinjaman Lunak / Dana Talangan Aktif</Text>
-                  <Text style={styles.loanBoxValue}>{formatRupiah(balance?.active_loan ?? 0)}</Text>
-                </View>
-                <View style={styles.loanStatusBadge}>
-                  <Text style={styles.loanStatusBadgeText}>
-                    {(balance?.active_loan ?? 0) > 0 ? 'BERJALAN' : 'NIHIL (RP 0)'}
-                  </Text>
-                </View>
-              </View>
-
+              {/* Quick Action 2 Tombol: Setor Simpanan & E-Passbook */}
               {!isKopManager && membershipStatus === 'active' && (
-                <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>
+                <View style={styles.balanceQuickActions}>
                   <Pressable
-                    onPress={() => openTransferModal('wajib')}
-                    style={{
-                      flex: 1,
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 6,
-                      backgroundColor: '#FBBF24',
-                      paddingVertical: 10,
-                      paddingHorizontal: 12,
-                      borderRadius: 8,
+                    style={styles.quickBtnPrimary}
+                    onPress={() => {
+                      const isWajibPaid = memberKopData?.lastPaidWajibMonth === currentMonthKey || (memberKopData?.simpananWajib ?? 0) >= 50000;
+                      openTransferModal(isWajibPaid ? 'sukarela' : 'wajib');
                     }}
                   >
-                    <Ionicons name="card" size={15} color="#000" />
-                    <Text style={{ fontSize: 12.5, fontWeight: '800', color: '#000' }}>
-                      Transfer & Setor Simpanan
-                    </Text>
+                    <Ionicons name="wallet" size={15} color="#090A0A" />
+                    <Text style={styles.quickBtnPrimaryText}>Setor Simpanan</Text>
                   </Pressable>
+
                   <Pressable
-                    onPress={() => openTransferModal('sukarela')}
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 6,
-                      backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                      borderWidth: 1,
-                      borderColor: 'rgba(255, 255, 255, 0.15)',
-                      paddingVertical: 10,
-                      paddingHorizontal: 12,
-                      borderRadius: 8,
-                    }}
+                    style={styles.quickBtnSecondary}
+                    onPress={() => setShowBukuRekeningModal(true)}
                   >
-                    <Ionicons name="add-circle-outline" size={15} color="#FAFAFA" />
-                    <Text style={{ fontSize: 12.5, fontWeight: '700', color: '#FAFAFA' }}>
-                      Setor Sukarela
-                    </Text>
+                    <Ionicons name="book-outline" size={15} color="#E5E7EB" />
+                    <Text style={styles.quickBtnSecondaryText}>E-Passbook</Text>
                   </Pressable>
                 </View>
               )}
-            </LuxuryCard>
 
-            {/* Akses Cepat Buku Rekening Koperasi Digital */}
-            {!isKopManager && membershipStatus === 'active' && (
-              <Pressable
-                onPress={() => setShowBukuRekeningModal(true)}
-                style={styles.bukuBannerCard}
-              >
-                <View style={styles.bukuBannerIconBox}>
-                  <Ionicons name="book" size={22} color="#FBBF24" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Text style={styles.bukuBannerTitle}>Buku Rekening Simpan Pinjam</Text>
-                    <View style={styles.bukuPassbookTag}>
-                      <Text style={styles.bukuPassbookTagText}>E-PASSBOOK</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.bukuBannerSub}>
-                    No. Rek: {memberKopData?.kopMemberId || (memberKopData?.mid ? generateKopMemberId(memberKopData.mid) : 'KOP-JBR-2026-000002')} • Cek mutasi buku tabungan
+              {/* Divider Brushed Chrome */}
+              <View style={styles.balanceChromeDivider} />
+
+              {/* Rincian Saldo (Minimalist 4-Box Grid) */}
+              <View style={styles.balanceDetailsGrid}>
+                {/* 1. Pokok */}
+                <View style={styles.balanceDetailItem}>
+                  <Text style={styles.balanceDetailLabel}>Simpanan Pokok</Text>
+                  <Text style={styles.balanceDetailValue}>
+                    {formatRupiah(balance?.simpanan_pokok ?? 0)}
                   </Text>
                 </View>
-                <Ionicons name="chevron-forward" size={18} color="#FBBF24" />
-              </Pressable>
-            )}
 
-            {/* Status & Notifikasi Tagihan Simpanan Wajib Bulanan */}
-            {!isKopManager && membershipStatus === 'active' && (() => {
-              const isCurrentMonthPaid = memberKopData?.lastPaidWajibMonth === currentMonthKey || (memberKopData?.simpananWajib >= 50000 && !memberKopData?.unpaidMonth);
-              const currentMonthLabel = getMonthNameIndo(currentMonthKey);
-              const sukarelaBalance = memberKopData?.tabunganSukarela ?? 0;
-
-              return (
-                <View style={[
-                  styles.wajibNotificationCard,
-                  isCurrentMonthPaid ? styles.wajibCardPaid : styles.wajibCardUnpaid
-                ]}>
-                  <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
-                    <View style={[
-                      styles.wajibIconBadge,
-                      {
-                        backgroundColor: isCurrentMonthPaid ? 'rgba(52, 211, 153, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-                        borderColor: isCurrentMonthPaid ? '#34D399' : '#EF4444',
-                      }
-                    ]}>
-                      <Ionicons
-                        name={isCurrentMonthPaid ? 'shield-checkmark' : 'alert-circle'}
-                        size={22}
-                        color={isCurrentMonthPaid ? '#34D399' : '#EF4444'}
-                      />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
-                        <Text style={[styles.wajibCardTitle, { color: isCurrentMonthPaid ? '#34D399' : '#F87171' }]}>
-                          {isCurrentMonthPaid ? 'Simpanan Wajib Bulan Ini: LUNAS' : 'Tagihan Simpanan Wajib Bulanan'}
-                        </Text>
-                        <View style={[
-                          styles.wajibStatusChip,
-                          {
-                            backgroundColor: isCurrentMonthPaid ? 'rgba(52, 211, 153, 0.2)' : 'rgba(239, 68, 68, 0.2)',
-                            borderColor: isCurrentMonthPaid ? '#34D399' : '#EF4444',
-                          }
-                        ]}>
-                          <Text style={[styles.wajibStatusChipText, { color: isCurrentMonthPaid ? '#34D399' : '#F87171' }]}>
-                            {isCurrentMonthPaid ? `LUNAS (${currentMonthLabel})` : `BELUM DIBAYAR (${currentMonthLabel})`}
-                          </Text>
-                        </View>
-                      </View>
-
-                      <Text style={styles.wajibCardDesc}>
-                        {isCurrentMonthPaid
-                          ? `Iuran Simpanan Wajib periode ${currentMonthLabel} sebesar Rp 50.000 telah lunas tercatat. Tagihan berikutnya jatuh tempo pada tanggal 10 di bulan berikutnya.`
-                          : `Iuran Simpanan Wajib periode ${currentMonthLabel} sebesar Rp 50.000 belum tercatat lunas. Segera lakukan pembayaran untuk menjaga keaktifan fasilitas pinjaman 6% PMK 49 dan dividen SHU.`}
+                {/* 2. Wajib */}
+                <View style={styles.balanceDetailItem}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                    <Text style={styles.balanceDetailLabel}>Simpanan Wajib</Text>
+                    <View style={styles.wajibStatusPillMini}>
+                      <Text style={styles.wajibStatusPillMiniText}>
+                        {memberKopData?.lastPaidWajibMonth === currentMonthKey || (memberKopData?.simpananWajib ?? 0) >= 50000
+                          ? `Lunas ${getMonthNameIndo(currentMonthKey)}`
+                          : 'Belum Lunas'}
                       </Text>
-
-                      {!isCurrentMonthPaid ? (
-                        <View style={{ marginTop: 10, gap: 8 }}>
-                          {sukarelaBalance >= 50000 && (
-                            <Pressable
-                              onPress={handlePayWajibFromSukarela}
-                              style={styles.payWajibSukarelaBtn}
-                            >
-                              <Ionicons name="swap-horizontal" size={15} color="#000" />
-                              <Text style={styles.payWajibSukarelaBtnText}>
-                                Potong dr Tabungan Sukarela ({formatRupiah(sukarelaBalance)})
-                              </Text>
-                            </Pressable>
-                          )}
-                          <Pressable
-                            onPress={() => openTransferModal('wajib')}
-                            style={styles.payWajibBankBtn}
-                          >
-                            <Ionicons name="card-outline" size={15} color="#FBBF24" />
-                            <Text style={styles.payWajibBankBtnText}>Transfer Bank Mandiri & Upload Bukti (Rp 50.000)</Text>
-                          </Pressable>
-                        </View>
-                      ) : (
-                        <View style={{ marginTop: 6, gap: 8 }}>
-                          <View style={styles.wajibPaidMetaRow}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                              <Ionicons name="calendar-outline" size={12} color="#A1A1AA" />
-                              <Text style={styles.wajibPaidMetaText}>Periode: {currentMonthLabel}</Text>
-                            </View>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                              <Ionicons name="wallet-outline" size={12} color="#34D399" />
-                              <Text style={[styles.wajibPaidMetaText, { color: '#34D399', fontWeight: '700' }]}>
-                                Saldo Sukarela: {formatRupiah(sukarelaBalance)}
-                              </Text>
-                            </View>
-                          </View>
-                          <Pressable
-                            onPress={() => openTransferModal('sukarela')}
-                            style={[
-                              styles.payWajibBankBtn,
-                              { borderColor: 'rgba(52, 211, 153, 0.4)', backgroundColor: 'rgba(52, 211, 153, 0.08)' }
-                            ]}
-                          >
-                            <Ionicons name="add-circle-outline" size={15} color="#34D399" />
-                            <Text style={[styles.payWajibBankBtnText, { color: '#34D399' }]}>
-                              Setor Tabungan Sukarela via Bank Mandiri
-                            </Text>
-                          </Pressable>
-                        </View>
-                      )}
                     </View>
                   </View>
+                  <Text style={styles.balanceDetailValue}>
+                    {formatRupiah(balance?.simpanan_wajib ?? 0)}
+                  </Text>
                 </View>
-              );
-            })()}
 
-            {/* Pilar Layanan Koperasi - Real Status Sesuai Audit PermenKopUKM 9/2020 */}
+                {/* 3. Sukarela */}
+                <View style={styles.balanceDetailItem}>
+                  <Text style={styles.balanceDetailLabel}>Tabungan Sukarela</Text>
+                  <Text style={[styles.balanceDetailValue, { color: '#E5E7EB' }]}>
+                    {formatRupiah(balance?.simpanan_sukarela ?? 0)}
+                  </Text>
+                </View>
+
+                {/* 4. Pinjaman Aktif */}
+                <View style={styles.balanceDetailItem}>
+                  <Text style={styles.balanceDetailLabel}>Pinjaman Aktif</Text>
+                  <Text style={[styles.balanceDetailValue, { color: '#6B7280' }]}>
+                    {formatRupiah(balance?.active_loan ?? 0)}
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Banner Transparansi Tingkat Kesehatan Koperasi (Ringkas & Tenang) */}
+            <Pressable
+              onPress={() => setShowHealthNoticeModal(true)}
+              style={styles.healthBannerCompact}
+            >
+              <View style={styles.healthBannerIconBox}>
+                <Ionicons name="shield-half" size={18} color="#D97706" />
+              </View>
+              <View style={{ flex: 1, gap: 2 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Text style={styles.healthBannerTitle}>
+                    Tingkat Kesehatan: DALAM PENGAWASAN
+                  </Text>
+                  <View style={styles.healthBadgeCompact}>
+                    <Text style={styles.healthBadgeCompactText}>SKOR 54.4 / 100</Text>
+                  </View>
+                </View>
+                <Text style={styles.healthBannerSubCompact}>
+                  Audit PermenKopUKM 9/2020. Fasilitas pinjaman ditutup sementara demi memproteksi tabungan anggota.
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color="#78716C" />
+            </Pressable>
+
+            {/* 4 Pilar Layanan Koperasi (Format 2x2 Grid Ringkas & Ikon Monokrom) */}
             <SectionHeader
               title="Pilar Layanan Koperasi"
-              subtitle="Status operasional riil berbasis audit kesehatan PermenKopUKM 9/2020"
+              subtitle="Status operasional perbankan & simpan pinjam komunitas"
             />
-            <View style={styles.pilarContainer}>
-              {/* Pilar 1: Simpanan & Tabungan (AKTIF) */}
+            <View style={styles.pilarGrid2x2}>
+              {/* Pilar 1: Simpanan Sukarela */}
               <Pressable
+                style={styles.pilarCard2x2}
                 onPress={() => {
                   const isWajibPaid = memberKopData?.lastPaidWajibMonth === currentMonthKey || (memberKopData?.simpananWajib ?? 0) >= 50000;
                   openTransferModal(isWajibPaid ? 'sukarela' : 'wajib');
                 }}
-                style={styles.pilarCard}
               >
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                  <View style={[styles.pilarIconWrap, { backgroundColor: 'rgba(16, 185, 129, 0.15)', marginBottom: 0 }]}>
-                    <Ionicons name="wallet-outline" size={22} color="#10B981" />
+                <View style={styles.pilarCardTopRow}>
+                  <View style={styles.pilarIconMonochrome}>
+                    <Ionicons name="wallet-outline" size={18} color="#E5E7EB" />
                   </View>
-                  <View style={{ backgroundColor: 'rgba(16, 185, 129, 0.15)', borderWidth: 1, borderColor: 'rgba(16, 185, 129, 0.4)', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 4 }}>
-                    <Text style={{ fontSize: 9, fontWeight: '800', color: '#34D399' }}>🟢 AKTIF BERJALAN</Text>
-                  </View>
+                  <View style={styles.pilarActiveDot} />
                 </View>
-                <Text style={styles.pilarTitle}>Simpanan & Tabungan Sukarela</Text>
-                <Text style={styles.pilarDesc}>
-                  Penghimpunan tabungan sukarela likuid dan simpanan pokok & wajib anggota terverifikasi MID. Dana kas 100% aman dan dapat disetor/ditarik sewaktu-waktu.
-                </Text>
+                <Text style={styles.pilarTitle2x2}>Simpanan Sukarela</Text>
+                <Text style={styles.pilarSub2x2}>Tabungan likuid & fleksibel</Text>
               </Pressable>
 
-              {/* Pilar 2: Iuran Pokok & Wajib (AKTIF) */}
+              {/* Pilar 2: Iuran Pokok & Wajib */}
               <Pressable
+                style={styles.pilarCard2x2}
                 onPress={() => setShowBukuRekeningModal(true)}
-                style={styles.pilarCard}
               >
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                  <View style={[styles.pilarIconWrap, { backgroundColor: 'rgba(59, 130, 246, 0.15)', marginBottom: 0 }]}>
-                    <Ionicons name="receipt-outline" size={22} color="#60A5FA" />
+                <View style={styles.pilarCardTopRow}>
+                  <View style={styles.pilarIconMonochrome}>
+                    <Ionicons name="receipt-outline" size={18} color="#E5E7EB" />
                   </View>
-                  <View style={{ backgroundColor: 'rgba(59, 130, 246, 0.15)', borderWidth: 1, borderColor: 'rgba(59, 130, 246, 0.4)', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 4 }}>
-                    <Text style={{ fontSize: 9, fontWeight: '800', color: '#60A5FA' }}>🟢 E-PASSBOOK MUTASI</Text>
-                  </View>
+                  <View style={styles.pilarActiveDot} />
                 </View>
-                <Text style={styles.pilarTitle}>Iuran Pokok & Wajib Terintegrasi MID</Text>
-                <Text style={styles.pilarDesc}>
-                  Pencatatan tertib mutasi iuran wajib berkala, e-passbook buku tabungan real-time, bukti setor kas otomatis, dan rekonsiliasi kas bendahara tanpa selisih.
-                </Text>
+                <Text style={styles.pilarTitle2x2}>Iuran Pokok & Wajib</Text>
+                <Text style={styles.pilarSub2x2}>Terintegrasi MID resmi</Text>
               </Pressable>
 
-              {/* Pilar 3: Fasilitas Pinjaman & Talangan (DITANGGUHKAN SEMENTARA) */}
+              {/* Pilar 3: Pinjaman & Talangan */}
               <Pressable
+                style={[styles.pilarCard2x2, styles.pilarCardDisabled]}
                 onPress={() => setShowHealthNoticeModal(true)}
-                style={[styles.pilarCard, { borderColor: 'rgba(239, 68, 68, 0.3)', backgroundColor: 'rgba(239, 68, 68, 0.04)' }]}
               >
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                  <View style={[styles.pilarIconWrap, { backgroundColor: 'rgba(239, 68, 68, 0.15)', marginBottom: 0 }]}>
-                    <Ionicons name="lock-closed" size={20} color="#EF4444" />
+                <View style={styles.pilarCardTopRow}>
+                  <View style={styles.pilarIconMonochrome}>
+                    <Ionicons name="lock-closed-outline" size={18} color="#6B7280" />
                   </View>
-                  <View style={{ backgroundColor: 'rgba(239, 68, 68, 0.18)', borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.45)', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 4 }}>
-                    <Text style={{ fontSize: 9, fontWeight: '800', color: '#F87171' }}>🔴 DITANGGUHKAN SEMENTARA</Text>
+                  <View style={styles.pilarSuspendedBadge}>
+                    <Text style={styles.pilarSuspendedBadgeText}>Ditangguhkan</Text>
                   </View>
                 </View>
-                <Text style={[styles.pilarTitle, { color: '#FCA5A5' }]}>Pinjaman & Dana Talangan Darurat</Text>
-                <Text style={styles.pilarDesc}>
-                  Fasilitas pinjaman ditutup sementara selama Koperasi berstatus <Text style={{ color: '#FBBF24', fontWeight: '700' }}>DALAM PENGAWASAN</Text> demi melindungi keamanan kas tabungan anggota. Dibuka kembali setelah mencapai predikat Sehat.
-                </Text>
+                <Text style={[styles.pilarTitle2x2, { color: '#9CA3AF' }]}>Pinjaman & Talangan</Text>
+                <Text style={styles.pilarSub2x2}>Fasilitas darurat member</Text>
               </Pressable>
 
-              {/* Pilar 4: SHU Transparan */}
+              {/* Pilar 4: Sisa Hasil Usaha (SHU) */}
               <Pressable
+                style={styles.pilarCard2x2}
                 onPress={() => setShowShuModal(true)}
-                style={styles.pilarCard}
               >
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                  <View style={[styles.pilarIconWrap, { backgroundColor: 'rgba(245, 158, 11, 0.15)', marginBottom: 0 }]}>
-                    <Ionicons name="pie-chart-outline" size={22} color="#FBBF24" />
+                <View style={styles.pilarCardTopRow}>
+                  <View style={styles.pilarIconMonochrome}>
+                    <Ionicons name="pie-chart-outline" size={18} color="#E5E7EB" />
                   </View>
-                  <View style={{ backgroundColor: 'rgba(245, 158, 11, 0.15)', borderWidth: 1, borderColor: 'rgba(245, 158, 11, 0.4)', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 4 }}>
-                    <Text style={{ fontSize: 9, fontWeight: '800', color: '#FBBF24' }}>🟡 AKUMULASI TAHUNAN</Text>
-                  </View>
+                  <View style={styles.pilarActiveDot} />
                 </View>
-                <Text style={styles.pilarTitle}>Sisa Hasil Usaha (SHU) Transparan</Text>
-                <Text style={styles.pilarDesc}>
-                  Distribusi SHU tahunan berbasis partisipasi modal dan simpanan anggota sesuai AD/ART dan hasil Rapat Anggota Tahunan (RAT).
-                </Text>
+                <Text style={styles.pilarTitle2x2}>Sisa Hasil Usaha</Text>
+                <Text style={styles.pilarSub2x2}>Akumulasi dividen tahunan</Text>
               </Pressable>
             </View>
 
-            {/* Banner Transparansi Tingkat Kesehatan Koperasi (PermenKopUKM No. 9/2020) */}
-            <Pressable
-              onPress={() => setShowHealthNoticeModal(true)}
-              style={styles.healthMemberBanner}
-            >
-              <View style={styles.healthMemberBannerIcon}>
-                <Ionicons name="shield-half" size={22} color="#F59E0B" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                  <Text style={styles.healthMemberBannerTitle}>
-                    Tingkat Kesehatan: DALAM PENGAWASAN
-                  </Text>
-                  <View style={styles.healthMemberBannerBadge}>
-                    <Text style={styles.healthMemberBannerBadgeText}>SKOR 54.4 / 100</Text>
-                  </View>
-                </View>
-                <Text style={styles.healthMemberBannerSub}>
-                  Audit PermenKopUKM 9/2020 dari data riil. Fasilitas pinjaman ditangguhkan sementara demi memproteksi keamanan tabungan sukarela anggota.
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color="#F59E0B" />
-            </Pressable>
-
-            {/* Aksi Khusus Manager / Anggota */}
+            {/* Action Grid Layanan Anggota (4 Shortcut Modern Grid) */}
             <SectionHeader
               title={isKopManager ? 'Aksi Bendahara Simpan Pinjam' : 'Layanan Anggota'}
+              subtitle="Akses cepat mutasi dan pencatatan kas"
             />
-            <View style={styles.actionsGrid}>
+            <View style={styles.modernActionGrid}>
               {isKopManager ? (
                 <>
-                  <LuxuryCard
+                  <Pressable
+                    style={styles.modernActionCard}
                     onPress={() => {
                       setTxSubtype('wajib');
                       setShowTxModal(true);
                     }}
-                    style={styles.actionCard}
-                    padding={12}
                   >
-                    <View style={[styles.actionIcon, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
-                      <Ionicons name="add-circle-outline" size={22} color="#10B981" />
+                    <View style={styles.modernActionIconBox}>
+                      <Ionicons name="add-circle-outline" size={20} color="#E5E7EB" />
                     </View>
-                    <Text style={styles.actionLabel}>Catat Simpanan Kas (+)</Text>
-                  </LuxuryCard>
+                    <Text style={styles.modernActionTitle}>Catat Simpanan (+)</Text>
+                    <Text style={styles.modernActionSub}>Mutasi kas masuk</Text>
+                  </Pressable>
 
-                  <LuxuryCard
+                  <Pressable
+                    style={[styles.modernActionCard, styles.modernActionCardDisabled]}
                     onPress={() => {
                       showAlertDialog(
                         'Pencairan Pinjaman Ditangguhkan',
                         'Berdasarkan audit kesehatan PermenKopUKM No. 9/2020, Koperasi saat ini berstatus DALAM PENGAWASAN (Skor 54.4). Pencairan pinjaman baru dikunci otomatis demi memproteksi kas titipan anggota.'
                       );
                     }}
-                    style={[styles.actionCard, { opacity: 0.85 }]}
-                    padding={12}
                   >
-                    <View style={[styles.actionIcon, { backgroundColor: 'rgba(239, 68, 68, 0.15)' }]}>
-                      <Ionicons name="lock-closed" size={20} color="#EF4444" />
+                    <View style={styles.actionSuspendedBadge}>
+                      <Text style={styles.actionSuspendedBadgeText}>Ditangguhkan</Text>
                     </View>
-                    <Text style={styles.actionLabel}>Pencairan Pinjaman (-)</Text>
-                    <View style={styles.loanLockMiniBadge}>
-                      <Text style={styles.loanLockMiniBadgeText}>DITANGGUHKAN</Text>
+                    <View style={styles.modernActionIconBox}>
+                      <Ionicons name="lock-closed-outline" size={20} color="#6B7280" />
                     </View>
-                  </LuxuryCard>
+                    <Text style={[styles.modernActionTitle, { color: '#9CA3AF' }]}>Pencairan (-)</Text>
+                    <Text style={styles.modernActionSub}>Kredit pinjaman</Text>
+                  </Pressable>
 
-                  <LuxuryCard
+                  <Pressable
+                    style={styles.modernActionCard}
                     onPress={() => {
                       setTxSubtype('cicilan');
                       setShowTxModal(true);
                     }}
-                    style={styles.actionCard}
-                    padding={12}
                   >
-                    <View style={[styles.actionIcon, { backgroundColor: 'rgba(251, 191, 36, 0.15)' }]}>
-                      <Ionicons name="return-up-back-outline" size={22} color="#FBBF24" />
+                    <View style={styles.modernActionIconBox}>
+                      <Ionicons name="return-up-back-outline" size={20} color="#E5E7EB" />
                     </View>
-                    <Text style={styles.actionLabel}>Catat Angsuran Cicilan (+)</Text>
-                  </LuxuryCard>
+                    <Text style={styles.modernActionTitle}>Catat Angsuran (+)</Text>
+                    <Text style={styles.modernActionSub}>Cicilan anggota</Text>
+                  </Pressable>
 
-                  <LuxuryCard
+                  <Pressable
+                    style={styles.modernActionCard}
                     onPress={() => setShowShuModal(true)}
-                    style={styles.actionCard}
-                    padding={12}
                   >
-                    <View style={[styles.actionIcon, { backgroundColor: 'rgba(168, 85, 247, 0.15)' }]}>
-                      <Ionicons name="bar-chart-outline" size={22} color="#C084FC" />
+                    <View style={styles.modernActionIconBox}>
+                      <Ionicons name="bar-chart-outline" size={20} color="#E5E7EB" />
                     </View>
-                    <Text style={styles.actionLabel}>Kalkulasi & Rekap SHU</Text>
-                  </LuxuryCard>
+                    <Text style={styles.modernActionTitle}>Rekap SHU</Text>
+                    <Text style={styles.modernActionSub}>Kalkulasi dividen</Text>
+                  </Pressable>
                 </>
               ) : (
                 <>
-                  {membershipStatus === 'unregistered' ? (
-                    <LuxuryCard
-                      onPress={openRegisterModal}
-                      style={styles.actionCard}
-                      padding={12}
-                    >
-                      <View style={[styles.actionIcon, { backgroundColor: 'rgba(251, 191, 36, 0.2)' }]}>
-                        <Ionicons name="person-add" size={22} color="#FBBF24" />
-                      </View>
-                      <Text style={[styles.actionLabel, { color: '#FDE68A', fontWeight: '800' }]}>
-                        Daftar Anggota Koperasi
-                      </Text>
-                    </LuxuryCard>
-                  ) : membershipStatus === 'pending' ? (
-                    <LuxuryCard
-                      onPress={() => Alert.alert(
-                        'Status Pendaftaran Anda',
-                        `Pendaftaran Anda atas nama ${memberKopData?.nama || profile?.full_name} (${memberKopData?.mid || currentMember?.member_number || '-'}) sedang dalam proses verifikasi mutasi bank oleh Pengelola Koperasi.\n\nRekening Koperasi: Bank Mandiri 137-00-1234567-8 a.n. Koperasi Bersama Satu Bintang.`
-                      )}
-                      style={styles.actionCard}
-                      padding={12}
-                    >
-                      <View style={[styles.actionIcon, { backgroundColor: 'rgba(245, 158, 11, 0.2)' }]}>
-                        <Ionicons name="hourglass-outline" size={22} color="#F59E0B" />
-                      </View>
-                      <Text style={[styles.actionLabel, { color: '#FBBF24', fontWeight: '700' }]}>
-                        Status Verifikasi (Pending)
-                      </Text>
-                    </LuxuryCard>
-                  ) : (
-                    <LuxuryCard
-                      onPress={() => {
-                        const isWajibPaid = memberKopData?.lastPaidWajibMonth === currentMonthKey || (memberKopData?.simpananWajib ?? 0) >= 50000;
-                        openTransferModal(isWajibPaid ? 'sukarela' : 'wajib');
-                      }}
-                      style={styles.actionCard}
-                      padding={12}
-                    >
-                      <View style={[styles.actionIcon, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
-                        <Ionicons name="card-outline" size={22} color="#10B981" />
-                      </View>
-                      <Text style={styles.actionLabel}>Transfer Simpanan Koperasi</Text>
-                    </LuxuryCard>
-                  )}
-
-                  {/* Dana Talangan Darurat (Ditangguhkan Sementara Sesuai Regulasi) */}
-                  <LuxuryCard
-                    onPress={() => setShowHealthNoticeModal(true)}
-                    style={[styles.actionCard, { opacity: 0.88 }]}
-                    padding={12}
+                  {/* 1. Transfer Simpanan (Aktif) */}
+                  <Pressable
+                    style={styles.modernActionCard}
+                    onPress={() => {
+                      const isWajibPaid = memberKopData?.lastPaidWajibMonth === currentMonthKey || (memberKopData?.simpananWajib ?? 0) >= 50000;
+                      openTransferModal(isWajibPaid ? 'sukarela' : 'wajib');
+                    }}
                   >
-                    <View style={[styles.actionIcon, { backgroundColor: 'rgba(239, 68, 68, 0.15)' }]}>
-                      <Ionicons name="lock-closed" size={20} color="#EF4444" />
+                    <View style={styles.modernActionIconBox}>
+                      <Ionicons name="card-outline" size={20} color="#E5E7EB" />
                     </View>
-                    <Text style={styles.actionLabel}>Dana Talangan Darurat</Text>
-                    <View style={styles.loanLockMiniBadge}>
-                      <Text style={styles.loanLockMiniBadgeText}>DITANGGUHKAN</Text>
-                    </View>
-                  </LuxuryCard>
+                    <Text style={styles.modernActionTitle}>Transfer Simpanan</Text>
+                    <Text style={styles.modernActionSub}>Setor pokok / sukarela</Text>
+                  </Pressable>
 
-                  {/* Pinjaman Lunak 6% (Ditangguhkan Sementara Sesuai Regulasi) */}
-                  <LuxuryCard
-                    onPress={() => setShowHealthNoticeModal(true)}
-                    style={[styles.actionCard, { opacity: 0.88 }]}
-                    padding={12}
-                  >
-                    <View style={[styles.actionIcon, { backgroundColor: 'rgba(239, 68, 68, 0.15)' }]}>
-                      <Ionicons name="lock-closed" size={20} color="#EF4444" />
-                    </View>
-                    <Text style={styles.actionLabel}>Pinjaman 6% PMK 49</Text>
-                    <View style={styles.loanLockMiniBadge}>
-                      <Text style={styles.loanLockMiniBadgeText}>DITANGGUHKAN</Text>
-                    </View>
-                  </LuxuryCard>
-
-                  <LuxuryCard
+                  {/* 2. E-Statement MID (Aktif) */}
+                  <Pressable
+                    style={styles.modernActionCard}
                     onPress={() => setShowMidModal(true)}
-                    style={styles.actionCard}
-                    padding={12}
                   >
-                    <View style={[styles.actionIcon, { backgroundColor: 'rgba(168, 85, 247, 0.15)' }]}>
-                      <Ionicons name="card-outline" size={22} color="#C084FC" />
+                    <View style={styles.modernActionIconBox}>
+                      <Ionicons name="document-text-outline" size={20} color="#E5E7EB" />
                     </View>
-                    <Text style={styles.actionLabel}>E-Statement MID</Text>
-                  </LuxuryCard>
+                    <Text style={styles.modernActionTitle}>E-Statement MID</Text>
+                    <Text style={styles.modernActionSub}>Buku besar terintegrasi</Text>
+                  </Pressable>
+
+                  {/* 3. Dana Talangan (Disabled / Ditangguhkan) */}
+                  <Pressable
+                    style={[styles.modernActionCard, styles.modernActionCardDisabled]}
+                    onPress={() => setShowHealthNoticeModal(true)}
+                  >
+                    <View style={styles.actionSuspendedBadge}>
+                      <Text style={styles.actionSuspendedBadgeText}>Ditangguhkan</Text>
+                    </View>
+                    <View style={styles.modernActionIconBox}>
+                      <Ionicons name="lock-closed-outline" size={20} color="#6B7280" />
+                    </View>
+                    <Text style={[styles.modernActionTitle, { color: '#9CA3AF' }]}>Dana Talangan</Text>
+                    <Text style={styles.modernActionSub}>Darurat servis & touring</Text>
+                  </Pressable>
+
+                  {/* 4. Pinjaman 6% PMK 49 (Disabled / Ditangguhkan) */}
+                  <Pressable
+                    style={[styles.modernActionCard, styles.modernActionCardDisabled]}
+                    onPress={() => setShowHealthNoticeModal(true)}
+                  >
+                    <View style={styles.actionSuspendedBadge}>
+                      <Text style={styles.actionSuspendedBadgeText}>Ditangguhkan</Text>
+                    </View>
+                    <View style={styles.modernActionIconBox}>
+                      <Ionicons name="lock-closed-outline" size={20} color="#6B7280" />
+                    </View>
+                    <Text style={[styles.modernActionTitle, { color: '#9CA3AF' }]}>Pinjaman 6% PMK 49</Text>
+                    <Text style={styles.modernActionSub}>Khusus member resmi MID</Text>
+                  </Pressable>
                 </>
               )}
             </View>
@@ -2220,38 +2038,75 @@ export default function KoperasiScreen() {
                 </Text>
               </LuxuryCard>
             ) : (
-              transactions.map((tx: KoperasiTransaction) => (
-                <LuxuryCard key={tx.id} style={styles.txCard} padding={12}>
-                  <View style={styles.txRow}>
-                    <View style={[styles.txIcon, { backgroundColor: `${TX_COLORS[tx.type] ?? Colors.brand.gold}18` }]}>
-                      <Ionicons name={(TX_ICONS[tx.type] ?? 'ellipse-outline') as any} size={20} color={TX_COLORS[tx.type] ?? Colors.brand.gold} />
-                    </View>
-                    <View style={styles.txInfo}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                        <Text style={styles.txType}>{tx.type.toUpperCase()}</Text>
-                        {tx.reference_number && (
-                          <Text style={styles.txRef}>{tx.reference_number}</Text>
-                        )}
+              transactions.map((tx: KoperasiTransaction) => {
+                const isExpanded = expandedTxId === tx.id;
+                const isPlus = tx.type === 'simpanan' || tx.type === 'cicilan';
+                let title = tx.type === 'simpanan' ? 'Setor Simpanan' : tx.type === 'cicilan' ? 'Angsuran Pinjaman' : 'Pencairan Pinjaman';
+                if (tx.description) {
+                  const d = tx.description.toLowerCase();
+                  if (d.includes('pokok')) title = 'Setoran Pokok Awal';
+                  else if (d.includes('wajib')) title = 'Iuran Wajib Bulanan';
+                  else if (d.includes('sukarela')) title = 'Setor Tabungan Sukarela';
+                  else if (tx.description.length <= 32) title = tx.description;
+                }
+
+                return (
+                  <View key={tx.id} style={styles.bankTxCard}>
+                    {/* Baris 1: Judul + Nominal */}
+                    <View style={styles.bankTxRow1}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                        <View style={[styles.bankTxDot, { backgroundColor: isPlus ? '#10B981' : '#EF4444' }]} />
+                        <Text style={styles.bankTxTitle} numberOfLines={1}>{title}</Text>
                       </View>
-                      <Text style={styles.txDate}>{formatDateTime(tx.created_at)}</Text>
-                      {tx.description && <Text style={styles.txDesc} numberOfLines={2}>{tx.description}</Text>}
-                    </View>
-                    <View style={styles.txRight}>
-                      <Text style={[styles.txAmount, { color: TX_COLORS[tx.type] ?? Colors.brand.gold }]}>
-                        {tx.type === 'simpanan' || tx.type === 'cicilan' ? '+' : '-'}{formatRupiah(tx.amount)}
+                      <Text style={[styles.bankTxAmount, { color: isPlus ? '#10B981' : '#F87171' }]}>
+                        {isPlus ? '+' : '-'}{formatRupiah(tx.amount)}
                       </Text>
-                      <View style={[
-                        styles.txStatus,
-                        { backgroundColor: tx.status === 'completed' ? `${Colors.status.active}18` : `${Colors.status.pending}18` }
-                      ]}>
-                        <Text style={[styles.txStatusText, { color: tx.status === 'completed' ? Colors.status.active : Colors.status.pending }]}>
-                          {tx.status === 'completed' ? 'Selesai' : 'Proses'}
-                        </Text>
+                    </View>
+
+                    {/* Baris 2: Tanggal & Jam + Badge Selesai + Toggle Detail */}
+                    <View style={styles.bankTxRow2}>
+                      <Text style={styles.bankTxDate}>{formatDateTime(tx.created_at)}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <View style={styles.bankTxBadge}>
+                          <Text style={styles.bankTxBadgeText}>
+                            {tx.status === 'completed' ? 'Selesai' : 'Diproses'}
+                          </Text>
+                        </View>
+                        <Pressable
+                          style={styles.bankTxToggleBtn}
+                          onPress={() => setExpandedTxId(isExpanded ? null : tx.id)}
+                          hitSlop={8}
+                        >
+                          <Text style={styles.bankTxToggleText}>{isExpanded ? 'Tutup' : 'Detail'}</Text>
+                          <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={12} color="#9CA3AF" />
+                        </Pressable>
                       </View>
                     </View>
+
+                    {/* Baris 3: Expandable Detail (Hanya jika expandedTxId === tx.id) */}
+                    {isExpanded && (
+                      <View style={styles.bankTxDetailBox}>
+                        {tx.reference_number && (
+                          <View style={styles.bankTxDetailRow}>
+                            <Text style={styles.bankTxDetailLabel}>No. Referensi / TX ID</Text>
+                            <Text style={styles.bankTxDetailMono}>{tx.reference_number}</Text>
+                          </View>
+                        )}
+                        {tx.description && (
+                          <View style={styles.bankTxDetailRow}>
+                            <Text style={styles.bankTxDetailLabel}>Catatan</Text>
+                            <Text style={styles.bankTxDetailVal}>{tx.description}</Text>
+                          </View>
+                        )}
+                        <View style={styles.bankTxDetailRow}>
+                          <Text style={styles.bankTxDetailLabel}>Kanal Mutasi</Text>
+                          <Text style={styles.bankTxDetailVal}>Rekening Bank Mandiri Koperasi</Text>
+                        </View>
+                      </View>
+                    )}
                   </View>
-                </LuxuryCard>
-              ))
+                );
+              })
             )}
           </>
           )
@@ -2635,15 +2490,39 @@ export default function KoperasiScreen() {
                 <Text style={styles.reportSectionHeader}>STATUS IURAN & SIMPANAN:</Text>
                 <View style={styles.reportRow}>
                   <Text style={styles.reportRowLabel}>Simpanan Pokok (Awal Masuk)</Text>
-                  <Text style={styles.reportRowVal}>Rp 0</Text>
+                  <Text style={[styles.reportRowVal, { color: '#FAFAFA', fontWeight: '700' }]}>
+                    {formatRupiah(memberKopData?.simpananPokok ?? balance?.simpanan_pokok ?? 100000)}
+                  </Text>
                 </View>
                 <View style={styles.reportRow}>
                   <Text style={styles.reportRowLabel}>Simpanan Wajib (Bulanan)</Text>
-                  <Text style={styles.reportRowVal}>Rp 0</Text>
+                  <Text style={[styles.reportRowVal, { color: '#FAFAFA', fontWeight: '700' }]}>
+                    {formatRupiah(memberKopData?.simpananWajib ?? balance?.simpanan_wajib ?? 50000)}
+                  </Text>
                 </View>
                 <View style={styles.reportRow}>
                   <Text style={styles.reportRowLabel}>Tabungan Sukarela</Text>
-                  <Text style={styles.reportRowVal}>Rp 0</Text>
+                  <Text style={[styles.reportRowVal, { color: '#34D399', fontWeight: '700' }]}>
+                    {formatRupiah(memberKopData?.tabunganSukarela ?? balance?.simpanan_sukarela ?? 2450000)}
+                  </Text>
+                </View>
+                <View style={[styles.reportRow, { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)', paddingTop: 8, marginTop: 4 }]}>
+                  <Text style={[styles.reportRowLabel, { color: '#FAFAFA', fontWeight: '700' }]}>Total Saldo Simpanan</Text>
+                  <Text style={[styles.reportRowVal, { color: '#FFFFFF', fontWeight: '800', fontSize: 14 }]}>
+                    {formatRupiah(balance?.total_balance ?? 2600000)}
+                  </Text>
+                </View>
+                <View style={styles.reportRow}>
+                  <Text style={styles.reportRowLabel}>Nomor MID Terintegrasi</Text>
+                  <Text style={[styles.reportRowVal, { color: '#C5A059', fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace', fontSize: 11 }]}>
+                    {memberKopData?.mid || currentMember?.member_number || 'MBINA-JBR-2026-000002'}
+                  </Text>
+                </View>
+                <View style={styles.reportRow}>
+                  <Text style={styles.reportRowLabel}>No. Rekening Koperasi</Text>
+                  <Text style={[styles.reportRowVal, { color: '#C5A059', fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace', fontSize: 11 }]}>
+                    {memberKopData?.kopMemberId || (memberKopData?.mid ? generateKopMemberId(memberKopData.mid) : 'KOP-JBR-2026-000002')}
+                  </Text>
                 </View>
               </View>
 
@@ -4033,11 +3912,467 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: Spacing.base },
   header: { paddingVertical: Spacing.base },
   headerTitleGroup: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  koperasiLogo: { width: 50, height: 50, borderRadius: 25, borderWidth: 1.5, borderColor: Colors.brand.gold },
+  koperasiLogo: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: '#2E3038' },
   title: { fontSize: 18, fontWeight: Typography.weight.bold, color: Colors.text.primary },
   subTitle: { fontSize: 11, color: Colors.brand.gold, fontWeight: Typography.weight.semibold, marginTop: 1 },
   addressTag: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },
   addressTagText: { fontSize: 10, color: '#A1A1AA', flex: 1 },
+
+  // ── LUXURY HEADER CARD ─────────────────────────────
+  luxuryHeaderCard: {
+    backgroundColor: '#141518',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#26282E',
+    padding: 14,
+    marginBottom: Spacing.base,
+    gap: 12,
+  },
+  headerTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  luxuryHeaderTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: -0.2,
+  },
+  luxuryHeaderSub: {
+    fontSize: 11,
+    color: '#9CA3AF',
+    lineHeight: 15,
+  },
+  activePillBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.25)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+  },
+  activeDotGreen: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#10B981',
+  },
+  activePillBadgeText: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: '#10B981',
+    letterSpacing: 0.5,
+  },
+  headerRefRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: '#26282E',
+    flexWrap: 'wrap',
+  },
+  headerRefText: {
+    fontSize: 10.5,
+    color: '#9CA3AF',
+  },
+  headerRefMono: {
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    color: '#E5E7EB',
+    fontWeight: '700',
+    fontSize: 10.5,
+  },
+  headerRefSep: {
+    color: '#4B5563',
+    fontSize: 10.5,
+  },
+
+  // ── LUXURY BALANCE CARD (FOCAL POINT) ─────────────
+  luxuryBalanceCard: {
+    backgroundColor: '#17181C',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#2E3038',
+    padding: 16,
+    marginBottom: Spacing.base,
+  },
+  balanceLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  balanceHeaderLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#9CA3AF',
+    letterSpacing: 0.8,
+  },
+  managerPillBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: '#3A3D46',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  managerPillBadgeText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#D1D5DB',
+    letterSpacing: 0.5,
+  },
+  balanceMainDisplay: {
+    fontSize: 30,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: -0.5,
+    marginVertical: 4,
+  },
+  balanceQuickActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 10,
+  },
+  quickBtnPrimary: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#E5E7EB',
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  quickBtnPrimaryText: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: '#0B0B0C',
+  },
+  quickBtnSecondary: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#1C1E23',
+    borderWidth: 1,
+    borderColor: '#3A3D46',
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  quickBtnSecondaryText: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#E5E7EB',
+  },
+  balanceChromeDivider: {
+    height: 1,
+    backgroundColor: '#26282E',
+    marginVertical: 14,
+  },
+  balanceDetailsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    rowGap: 12,
+  },
+  balanceDetailItem: {
+    width: '50%',
+    paddingRight: 8,
+  },
+  balanceDetailLabel: {
+    fontSize: 11,
+    color: '#9CA3AF',
+    marginBottom: 2,
+  },
+  balanceDetailValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  wajibStatusPillMini: {
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    borderRadius: 4,
+  },
+  wajibStatusPillMiniText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#10B981',
+  },
+
+  // ── HEALTH BANNER COMPACT ──────────────────────────
+  healthBannerCompact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#1E1A14',
+    borderWidth: 1,
+    borderColor: 'rgba(217, 119, 6, 0.35)',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: Spacing.base,
+  },
+  healthBannerIconBox: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    backgroundColor: 'rgba(217, 119, 6, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  healthBannerTitle: {
+    fontSize: 11.5,
+    fontWeight: '800',
+    color: '#F59E0B',
+    letterSpacing: 0.3,
+  },
+  healthBadgeCompact: {
+    backgroundColor: 'rgba(217, 119, 6, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(217, 119, 6, 0.4)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  healthBadgeCompactText: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: '#FBBF24',
+  },
+  healthBannerSubCompact: {
+    fontSize: 10.5,
+    color: '#D4D4D8',
+    lineHeight: 15,
+  },
+
+  // ── 4 PILAR GRID 2X2 ──────────────────────────────
+  pilarGrid2x2: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: Spacing.base,
+  },
+  pilarCard2x2: {
+    width: '48.5%',
+    backgroundColor: '#141518',
+    borderWidth: 1,
+    borderColor: '#26282E',
+    borderRadius: 12,
+    padding: 12,
+    gap: 4,
+  },
+  pilarCardDisabled: {
+    opacity: 0.75,
+  },
+  pilarCardTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  pilarIconMonochrome: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#1F2228',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#2D3139',
+  },
+  pilarActiveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#10B981',
+  },
+  pilarSuspendedBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderWidth: 1,
+    borderColor: '#374151',
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    borderRadius: 4,
+  },
+  pilarSuspendedBadgeText: {
+    fontSize: 8.5,
+    fontWeight: '700',
+    color: '#9CA3AF',
+  },
+  pilarTitle2x2: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  pilarSub2x2: {
+    fontSize: 10,
+    color: '#9CA3AF',
+    lineHeight: 14,
+  },
+
+  // ── MODERN ACTION GRID ─────────────────────────────
+  modernActionGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: Spacing.base,
+  },
+  modernActionCard: {
+    width: '48.5%',
+    backgroundColor: '#141518',
+    borderWidth: 1,
+    borderColor: '#26282E',
+    borderRadius: 12,
+    padding: 12,
+    gap: 4,
+    position: 'relative',
+  },
+  modernActionCardDisabled: {
+    opacity: 0.75,
+  },
+  modernActionIconBox: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    backgroundColor: '#1F2228',
+    borderWidth: 1,
+    borderColor: '#2D3139',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  modernActionTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  modernActionSub: {
+    fontSize: 10,
+    color: '#9CA3AF',
+    lineHeight: 13,
+  },
+  actionSuspendedBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderWidth: 1,
+    borderColor: '#374151',
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    borderRadius: 4,
+  },
+  actionSuspendedBadgeText: {
+    fontSize: 8.5,
+    fontWeight: '700',
+    color: '#9CA3AF',
+  },
+
+  // ── BANK TRANSACTION CARD (EXPANDABLE) ─────────────
+  bankTxCard: {
+    backgroundColor: '#141518',
+    borderWidth: 1,
+    borderColor: '#26282E',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 8,
+    gap: 6,
+  },
+  bankTxRow1: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  bankTxDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+  },
+  bankTxTitle: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    flex: 1,
+  },
+  bankTxAmount: {
+    fontSize: 13,
+    fontWeight: '800',
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+  },
+  bankTxRow2: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 2,
+  },
+  bankTxDate: {
+    fontSize: 10.5,
+    color: '#6B7280',
+  },
+  bankTxBadge: {
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.25)',
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 4,
+  },
+  bankTxBadgeText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#10B981',
+  },
+  bankTxToggleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+  },
+  bankTxToggleText: {
+    fontSize: 10,
+    color: '#9CA3AF',
+    fontWeight: '600',
+  },
+  bankTxDetailBox: {
+    marginTop: 6,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#1F2228',
+    gap: 4,
+  },
+  bankTxDetailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  bankTxDetailLabel: {
+    fontSize: 10,
+    color: '#6B7280',
+  },
+  bankTxDetailMono: {
+    fontSize: 10,
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    color: '#9CA3AF',
+  },
+  bankTxDetailVal: {
+    fontSize: 10,
+    color: '#D1D5DB',
+    maxWidth: '60%',
+    textAlign: 'right',
+  },
 
   // Tab Switcher
   tabBar: {
