@@ -1978,16 +1978,21 @@ export default function AdminKoperasiScreen() {
               <Text style={styles.inputLabel}>Jenis Transaksi:</Text>
               <View style={styles.subtypeGrid}>
                 {[
-                  { key: 'wajib', label: 'Simpanan Wajib (Rp 50rb)' },
-                  { key: 'pokok', label: 'Simpanan Pokok (Rp 100rb)' },
-                  { key: 'sukarela', label: 'Tabungan Sukarela (Min 25rb)' },
-                  { key: 'talangan', label: 'Dana Talangan Darurat' },
-                  { key: 'pinjaman', label: 'Pinjaman 6% PMK 49' },
-                  { key: 'cicilan', label: 'Angsuran Pinjaman' },
+                  { key: 'wajib', label: 'Simpanan Wajib (Rp 50rb)', defaultAmount: '50.000' },
+                  { key: 'pokok', label: 'Simpanan Pokok (Rp 100rb)', defaultAmount: '100.000' },
+                  { key: 'sukarela', label: 'Tabungan Sukarela (Min 25rb)', defaultAmount: '25.000' },
+                  { key: 'talangan', label: 'Dana Talangan Darurat', defaultAmount: '' },
+                  { key: 'pinjaman', label: 'Pinjaman 6% PMK 49', defaultAmount: '' },
+                  { key: 'cicilan', label: 'Angsuran Pinjaman', defaultAmount: '' },
                 ].map((item) => (
                   <Pressable
                     key={item.key}
-                    onPress={() => setTxSubtype(item.key as any)}
+                    onPress={() => {
+                      setTxSubtype(item.key as any);
+                      if (item.defaultAmount) {
+                        setTxAmount(item.defaultAmount);
+                      }
+                    }}
                     style={[
                       styles.subtypeBtn,
                       txSubtype === item.key && styles.subtypeBtnActive,

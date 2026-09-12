@@ -1586,10 +1586,16 @@ export default function KoperasiScreen() {
                     </LuxuryCard>
                   ) : (
                     <LuxuryCard
-                      onPress={() => Alert.alert(
-                        'Setor Simpanan Wajib / Sukarela',
-                        'Transfer setoran berkala ke:\nBank Mandiri 137-00-1234567-8 a.n. Koperasi Bersama Satu Bintang\nBerita: SETORAN - [MID] - [NAMA].\n\nPengelola Keuangan akan memverifikasi dan membukukan mutasi ke saldo simpanan Anda.'
-                      )}
+                      onPress={() => {
+                        const isPokokLunas = memberKopData?.status === 'active' || (memberKopData?.simpananPokok ?? 0) >= 100000;
+                        const isWajibPaid = memberKopData?.lastPaidWajibMonth === currentMonthKey || (memberKopData?.simpananWajib ?? 0) >= 50000;
+                        const targetSubtype = isWajibPaid ? 'sukarela' : 'wajib';
+                        setTxSubtype(targetSubtype);
+                        setTxAmount(targetSubtype === 'wajib' ? '50000' : '25000');
+                        setTxMemberMid(memberKopData?.mid || currentMember?.member_number || '');
+                        setTxDesc(`Setoran ${targetSubtype === 'wajib' ? 'Simpanan Wajib' : 'Tabungan Sukarela'} (${memberKopData?.nama || profile?.full_name || ''})`);
+                        setShowTxModal(true);
+                      }}
                       style={styles.actionCard}
                       padding={12}
                     >
@@ -1836,32 +1842,94 @@ export default function KoperasiScreen() {
               {/* Type Subtype Selector */}
               <Text style={styles.inputLabel}>Klasifikasi Simpan Pinjam</Text>
               <View style={styles.typeSelectorRow}>
-                {[
-                  { key: 'pokok', label: 'Simpanan Pokok (+)' },
-                  { key: 'wajib', label: 'Simpanan Wajib (+)' },
-                  { key: 'sukarela', label: 'Tabungan Sukarela (+)' },
-                  { key: 'talangan', label: 'Dana Talangan Servis (-)' },
-                  { key: 'pinjaman', label: 'Pinjaman Lunak (-)' },
-                  { key: 'cicilan', label: 'Angsuran Cicilan (+)' },
-                ].map((item) => (
-                  <Pressable
-                    key={item.key}
-                    style={[
-                      styles.typeSelectorPill,
-                      txSubtype === item.key && styles.typeSelectorPillActive,
-                    ]}
-                    onPress={() => setTxSubtype(item.key as any)}
-                  >
-                    <Text
-                      style={[
-                        styles.typeSelectorText,
-                        txSubtype === item.key && styles.typeSelectorTextActive,
-                      ]}
-                    >
-                      {item.label}
-                    </Text>
-                  </Pressable>
-                ))}
+                {(() => {
+                  const isPokokLunas = memberKopData?.status === 'active' || (memberKopData?.simpananPokok ?? 0) >= 100000;
+                  const isWajibPaid = memberKopData?.lastPaidWajibMonth === currentMonthKey || (memberKopData?.simpananWajib ?? 0) >= 50000;
+
+                  const items: Array<{
+                    key: 'pokok' | 'wajib' | 'sukarela' | 'talangan' | 'pinjaman' | 'cicilan';
+                    label: string;
+                    disabled?: boolean;
+                    disabledReason?: string;
+                    defaultAmount: string;
+                  }> = [
+                    {
+                      key: 'pokok',
+                      label: isPokokLunas ? 'Simpanan Pokok (Rp 100.000) ✓ LUNAS 1X' : 'Simpanan Pokok (Rp 100.000)',
+                      disabled: isPokokLunas,
+                      disabledReason: 'Simpanan Pokok sebesar Rp 100.000 telah lunas saat pendaftaran awal dan telah disetujui pengurus koperasi.\n\nSesuai aturan AD/ART, Simpanan Pokok hanya disetor 1x seumur hidup dan dinonaktifkan dari pembayaran berulang agar anggota koperasi dapat fokus pada Simpanan Wajib & Sukarela.',
+                      defaultAmount: '100000',
+                    },
+                    {
+                      key: 'wajib',
+                      label: isWajibPaid ? 'Simpanan Wajib (Rp 50.000) ✓ LUNAS SEP' : 'Simpanan Wajib (Rp 50.000)',
+                      disabled: isWajibPaid,
+                      disabledReason: 'Simpanan Wajib periode bulan ini (Rp 50.000) telah lunas tercatat.\n\nUntuk mencegah pembayaran ganda dalam bulan yang sama, Anda disarankan menabung di Tabungan Sukarela atau membayar angsuran pinjaman.',
+                      defaultAmount: '50000',
+                    },
+                    {
+                      key: 'sukarela',
+                      label: 'Tabungan Sukarela (Min. Rp 25.000)',
+                      defaultAmount: '25000',
+                    },
+                    {
+                      key: 'talangan',
+                      label: 'Dana Talangan Servis (-)',
+                      defaultAmount: '',
+                    },
+                    {
+                      key: 'pinjaman',
+                      label: 'Pinjaman Lunak (-)',
+                      defaultAmount: '',
+                    },
+                    {
+                      key: 'cicilan',
+                      label: 'Angsuran Cicilan (+)',
+                      defaultAmount: '',
+                    },
+                  ];
+
+                  return items.map((item) => {
+                    const isSelected = txSubtype === item.key;
+                    return (
+                      <Pressable
+                        key={item.key}
+                        style={[
+                          styles.typeSelectorPill,
+                          isSelected && styles.typeSelectorPillActive,
+                          item.disabled && {
+                            opacity: 0.5,
+                            backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                            borderColor: 'rgba(255, 255, 255, 0.08)',
+                          },
+                        ]}
+                        onPress={() => {
+                          if (item.disabled) {
+                            showAlertDialog('Status Simpanan 🔒', item.disabledReason || 'Pilihan ini telah lunas.');
+                            return;
+                          }
+                          setTxSubtype(item.key);
+                          if (item.defaultAmount) {
+                            setTxAmount(item.defaultAmount);
+                          }
+                        }}
+                      >
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                          {item.disabled && <Ionicons name="lock-closed" size={11} color="#A1A1AA" />}
+                          <Text
+                            style={[
+                              styles.typeSelectorText,
+                              isSelected && styles.typeSelectorTextActive,
+                              item.disabled && { color: '#71717A' },
+                            ]}
+                          >
+                            {item.label}
+                          </Text>
+                        </View>
+                      </Pressable>
+                    );
+                  });
+                })()}
               </View>
 
               {/* MID Member Input (Optional) */}
@@ -1876,15 +1944,47 @@ export default function KoperasiScreen() {
               />
 
               {/* Amount Input */}
-              <Text style={styles.inputLabel}>Nominal (Rp)</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12 }}>
+                <Text style={styles.inputLabel}>Nominal (Rp)</Text>
+                {txSubtype === 'wajib' && (
+                  <View style={{ backgroundColor: 'rgba(52, 211, 153, 0.15)', borderWidth: 1, borderColor: '#34D399', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4 }}>
+                    <Text style={{ fontSize: 9.5, fontWeight: '800', color: '#34D399' }}>TARIF TETAP: RP 50.000 / BLN</Text>
+                  </View>
+                )}
+                {txSubtype === 'pokok' && (
+                  <View style={{ backgroundColor: 'rgba(251, 191, 36, 0.15)', borderWidth: 1, borderColor: '#FBBF24', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4 }}>
+                    <Text style={{ fontSize: 9.5, fontWeight: '800', color: '#FBBF24' }}>TARIF TETAP: RP 100.000 (1X)</Text>
+                  </View>
+                )}
+                {txSubtype === 'sukarela' && (
+                  <View style={{ backgroundColor: 'rgba(96, 165, 250, 0.15)', borderWidth: 1, borderColor: '#60A5FA', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4 }}>
+                    <Text style={{ fontSize: 9.5, fontWeight: '800', color: '#60A5FA' }}>MINIMAL RP 25.000 (BEBAS)</Text>
+                  </View>
+                )}
+              </View>
               <TextInput
                 style={styles.modalInput}
                 value={txAmount}
                 onChangeText={setTxAmount}
-                placeholder="Contoh: 500000"
+                placeholder={txSubtype === 'wajib' ? '50000' : txSubtype === 'pokok' ? '100000' : 'Contoh: 50000'}
                 placeholderTextColor="#71717A"
                 keyboardType="numeric"
               />
+              {txSubtype === 'wajib' && (
+                <Text style={{ fontSize: 10.5, color: '#34D399', marginTop: 3, marginBottom: 8 }}>
+                  * Nominal otomatis terisi Rp 50.000 untuk mencegah kebingungan jumlah iuran bulanan.
+                </Text>
+              )}
+              {txSubtype === 'pokok' && (
+                <Text style={{ fontSize: 10.5, color: '#FBBF24', marginTop: 3, marginBottom: 8 }}>
+                  * Nominal Simpanan Pokok resmi Rp 100.000 (hanya 1x diawal saat pendaftaran).
+                </Text>
+              )}
+              {txSubtype === 'sukarela' && (
+                <Text style={{ fontSize: 10.5, color: '#A1A1AA', marginTop: 3, marginBottom: 8 }}>
+                  * Tabungan Sukarela bebas setor nominal berapa pun (minimal Rp 25.000) dan dapat ditarik sewaktu-waktu.
+                </Text>
+              )}
 
               {/* Description Input */}
               <Text style={styles.inputLabel}>Keterangan / Nama Anggota</Text>
