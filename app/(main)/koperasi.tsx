@@ -3224,7 +3224,7 @@ export default function KoperasiScreen() {
                   <Text style={[styles.passbookTh, { width: 68 }]}>Tgl</Text>
                   <Text style={[styles.passbookTh, { flex: 1 }]}>Sandi / Keterangan</Text>
                   <Text style={[styles.passbookTh, { width: 76, textAlign: 'right' }]}>Kredit (+)</Text>
-                  <Text style={[styles.passbookTh, { width: 84, textAlign: 'right' }]}>Saldo</Text>
+                  <Text style={[styles.passbookTh, { width: 88, textAlign: 'right' }]}>Saldo Total</Text>
                 </View>
 
                 {/* Baris Buku Tabungan */}
@@ -3232,31 +3232,38 @@ export default function KoperasiScreen() {
                   <Text style={[styles.passbookTd, { width: 68 }]}>12/09/26</Text>
                   <Text style={[styles.passbookTd, { flex: 1 }]} numberOfLines={1}>Setoran Pokok Awal</Text>
                   <Text style={[styles.passbookTd, { width: 76, textAlign: 'right', color: '#34D399' }]}>100.000</Text>
-                  <Text style={[styles.passbookTd, { width: 84, textAlign: 'right', fontWeight: '700' }]}>100.000</Text>
+                  <Text style={[styles.passbookTd, { width: 88, textAlign: 'right', fontWeight: '700' }]}>100.000</Text>
                 </View>
                 <View style={[styles.passbookTableRow, { backgroundColor: 'rgba(255,255,255,0.02)' }]}>
                   <Text style={[styles.passbookTd, { width: 68 }]}>12/09/26</Text>
-                  <Text style={[styles.passbookTd, { flex: 1 }]} numberOfLines={1}>Iuran Wajib Sep 2026</Text>
+                  <Text style={[styles.passbookTd, { flex: 1 }]} numberOfLines={1}>Iuran Wajib Sep 2026 (1 Bln)</Text>
                   <Text style={[styles.passbookTd, { width: 76, textAlign: 'right', color: '#34D399' }]}>50.000</Text>
-                  <Text style={[styles.passbookTd, { width: 84, textAlign: 'right', fontWeight: '700' }]}>150.000</Text>
+                  <Text style={[styles.passbookTd, { width: 88, textAlign: 'right', fontWeight: '700' }]}>150.000</Text>
                 </View>
                 <View style={styles.passbookTableRow}>
                   <Text style={[styles.passbookTd, { width: 68 }]}>12/09/26</Text>
                   <Text style={[styles.passbookTd, { flex: 1 }]} numberOfLines={1}>Setoran Kas / Sukarela</Text>
                   <Text style={[styles.passbookTd, { width: 76, textAlign: 'right', color: '#34D399' }]}>450.000</Text>
-                  <Text style={[styles.passbookTd, { width: 84, textAlign: 'right', fontWeight: '700' }]}>600.000</Text>
+                  <Text style={[styles.passbookTd, { width: 88, textAlign: 'right', fontWeight: '700' }]}>600.000</Text>
                 </View>
                 <View style={[styles.passbookTableRow, { backgroundColor: 'rgba(255,255,255,0.02)' }]}>
                   <Text style={[styles.passbookTd, { width: 68 }]}>12/09/26</Text>
                   <Text style={[styles.passbookTd, { flex: 1 }]} numberOfLines={1}>Setoran Tambahan Sukarela</Text>
                   <Text style={[styles.passbookTd, { width: 76, textAlign: 'right', color: '#34D399' }]}>1.000.000</Text>
-                  <Text style={[styles.passbookTd, { width: 84, textAlign: 'right', fontWeight: '700' }]}>1.600.000</Text>
+                  <Text style={[styles.passbookTd, { width: 88, textAlign: 'right', fontWeight: '700' }]}>1.600.000</Text>
                 </View>
                 <View style={styles.passbookTableRow}>
                   <Text style={[styles.passbookTd, { width: 68 }]}>12/09/26</Text>
                   <Text style={[styles.passbookTd, { flex: 1 }]} numberOfLines={1}>Setoran Tambahan Sukarela</Text>
                   <Text style={[styles.passbookTd, { width: 76, textAlign: 'right', color: '#34D399' }]}>1.000.000</Text>
-                  <Text style={[styles.passbookTd, { width: 84, textAlign: 'right', fontWeight: '700', color: '#FBBF24' }]}>2.600.000</Text>
+                  <Text style={[styles.passbookTd, { width: 88, textAlign: 'right', fontWeight: '700', color: '#FBBF24' }]}>2.600.000</Text>
+                </View>
+
+                {/* Penjelasan Transparan Saldo Berjalan */}
+                <View style={{ backgroundColor: 'rgba(251, 191, 36, 0.08)', borderWidth: 1, borderColor: 'rgba(251, 191, 36, 0.2)', borderRadius: 6, padding: 8, marginHorizontal: 6, marginTop: 8, marginBottom: 4 }}>
+                  <Text style={{ fontSize: 10, color: '#FDE68A', lineHeight: 14 }}>
+                    ℹ️ <Text style={{ fontWeight: '700' }}>Penjelasan Kolom Saldo Total:</Text> Nilai Rp 150.000 pada baris ke-2 adalah Saldo Kumulatif Buku Tabungan (Simpanan Pokok Rp 100.000 + Iuran Wajib 1 bulan Rp 50.000), bukan akumulasi 3 bulan. Iuran wajib yang dibayar lunas saat ini adalah 1 bulan (September 2026).
+                  </Text>
                 </View>
 
                 {/* Tanda Tangan & Stempel Pengesahan */}
