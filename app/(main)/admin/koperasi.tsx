@@ -917,6 +917,35 @@ export default function AdminKoperasiScreen() {
     };
   };
 
+  // Buka Modal Setor Kas dengan Alokasi Pintar Khusus Anggota Terpilih
+  const handleOpenSetorForMember = (mem: MemberKopItem) => {
+    setTxMemberMid(mem.mid);
+    setTxMemberName(mem.nama);
+
+    const isWajibPaid = mem.lastPaidWajibMonth === currentMonthKey || (mem.status === 'active' && mem.simpananWajib >= 50000);
+    const memLoan = loanRequests.find(
+      (r) => r.mid === mem.mid && (r.status === 'confirmed_active' || r.status === 'disbursed_waiting_confirmation')
+    );
+
+    if (!isWajibPaid) {
+      setTxSubtype('wajib');
+      setTxAmount('50.000');
+      setTxDesc(`[Simpanan Wajib] MID: ${mem.mid} (${mem.nama}) — Periode ${getMonthNameIndo(currentMonthKey)}`);
+    } else if (memLoan) {
+      const calc = calculateLoanInstallment(memLoan.nominal, memLoan.tenorBulan);
+      setTxSubtype('cicilan');
+      setTxAmount(calc.total ? calc.total.toLocaleString('id-ID') : '');
+      setTxDesc(`[Angsuran Pinjaman] MID: ${mem.mid} (${mem.nama}) — PMK 49/2025`);
+    } else {
+      // Jika Pokok & Wajib sudah lunas dan tidak ada pinjaman: otomatis arahkan ke Tabungan Sukarela
+      setTxSubtype('sukarela');
+      setTxAmount('50.000');
+      setTxDesc(`[Tabungan Sukarela] MID: ${mem.mid} (${mem.nama}) — Titipan Tabungan Sukarela Anggota`);
+    }
+
+    setShowTxModal(true);
+  };
+
   // Filtered Transactions
   const filteredTransactions = useMemo(() => {
     return transactions.filter((tx) => {
@@ -1765,11 +1794,7 @@ export default function AdminKoperasiScreen() {
 
                           {mem.status === 'active' && (
                             <Pressable
-                              onPress={() => {
-                                setTxMemberMid(mem.mid);
-                                setTxMemberName(mem.nama);
-                                setShowTxModal(true);
-                              }}
+                              onPress={() => handleOpenSetorForMember(mem)}
                               style={[styles.tableActionBtn, { backgroundColor: 'rgba(255, 255, 255, 0.06)', borderColor: 'rgba(255, 255, 255, 0.15)' }]}
                             >
                               <Ionicons name="add" size={11} color="#E4E4E7" />
@@ -1979,39 +2004,167 @@ export default function AdminKoperasiScreen() {
             </View>
 
             <ScrollView style={{ maxHeight: 480 }} showsVerticalScrollIndicator={false}>
+              {/* Info Anggota Terpilih & Status Kewajiban (Jika Dipilih dari Tabel) */}
+              {(() => {
+                const selectedTargetMem = members.find(
+                  (m) => m.mid.trim().toUpperCase() === txMemberMid.trim().toUpperCase()
+                );
+                if (!selectedTargetMem) return null;
+
+                const isTargetPokokLunas = selectedTargetMem.simpananPokok >= 100000;
+                const isTargetWajibPaid = selectedTargetMem.lastPaidWajibMonth === currentMonthKey ||
+                  (selectedTargetMem.status === 'active' && selectedTargetMem.simpananWajib >= 50000);
+                const targetActiveLoan = loanRequests.find(
+                  (r) => r.mid === selectedTargetMem.mid && (r.status === 'confirmed_active' || r.status === 'disbursed_waiting_confirmation')
+                );
+
+                return (
+                  <View style={{
+                    backgroundColor: 'rgba(251, 191, 36, 0.08)',
+                    borderWidth: 1,
+                    borderColor: 'rgba(251, 191, 36, 0.3)',
+                    borderRadius: 8,
+                    padding: 10,
+                    marginBottom: 14,
+                    gap: 5,
+                  }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Text style={{ fontSize: 13, fontWeight: '800', color: '#FBBF24' }}>
+                        {selectedTargetMem.nama}
+                      </Text>
+                      <View style={{ backgroundColor: 'rgba(251, 191, 36, 0.15)', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4, borderWidth: 1, borderColor: '#FBBF24' }}>
+                        <Text style={{ fontSize: 9.5, fontWeight: '800', color: '#FBBF24' }}>
+                          {selectedTargetMem.kopMemberId || selectedTargetMem.mid}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <Text style={{ fontSize: 10.5, color: '#A1A1AA' }}>
+                      Chapter: {selectedTargetMem.chapter} • Total Saldo: {formatRupiah(selectedTargetMem.simpananPokok + selectedTargetMem.simpananWajib + selectedTargetMem.tabunganSukarela)}
+                    </Text>
+
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 3 }}>
+                      <View style={{ backgroundColor: 'rgba(52, 211, 153, 0.15)', borderWidth: 1, borderColor: '#34D399', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                        <Text style={{ fontSize: 9.5, fontWeight: '700', color: '#34D399' }}>
+                          Pokok: {isTargetPokokLunas ? '✓ LUNAS 1X (Rp 100rb)' : 'Belum Lunas'}
+                        </Text>
+                      </View>
+                      <View style={{ backgroundColor: isTargetWajibPaid ? 'rgba(52, 211, 153, 0.15)' : 'rgba(239, 68, 68, 0.15)', borderWidth: 1, borderColor: isTargetWajibPaid ? '#34D399' : '#EF4444', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                        <Text style={{ fontSize: 9.5, fontWeight: '700', color: isTargetWajibPaid ? '#34D399' : '#F87171' }}>
+                          Wajib (Sep): {isTargetWajibPaid ? '✓ LUNAS (Rp 50rb)' : '⚠️ BELUM BAYAR'}
+                        </Text>
+                      </View>
+                      <View style={{ backgroundColor: targetActiveLoan ? 'rgba(251, 191, 36, 0.15)' : 'rgba(255, 255, 255, 0.06)', borderWidth: 1, borderColor: targetActiveLoan ? '#FBBF24' : 'rgba(255, 255, 255, 0.15)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                        <Text style={{ fontSize: 9.5, fontWeight: '700', color: targetActiveLoan ? '#FBBF24' : '#A1A1AA' }}>
+                          Pinjaman: {targetActiveLoan ? `Cicilan Aktif (${formatRupiah(targetActiveLoan.nominal)})` : 'NIHIL (Rp 0 - Bebas Pinjaman)'}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {isTargetPokokLunas && isTargetWajibPaid && !targetActiveLoan && (
+                      <View style={{ backgroundColor: 'rgba(96, 165, 250, 0.12)', borderWidth: 1, borderColor: '#60A5FA', padding: 6, borderRadius: 6, marginTop: 4 }}>
+                        <Text style={{ fontSize: 10, color: '#93C5FD', lineHeight: 14 }}>
+                          ℹ️ Anggota ini tidak memiliki tunggakan/pinjaman. Setoran kas otomatis diarahkan untuk menambah Tabungan Sukarela.
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                );
+              })()}
+
               <Text style={styles.inputLabel}>Jenis Transaksi:</Text>
               <View style={styles.subtypeGrid}>
-                {[
-                  { key: 'wajib', label: 'Simpanan Wajib (Rp 50rb)', defaultAmount: '50.000' },
-                  { key: 'pokok', label: 'Simpanan Pokok (Rp 100rb)', defaultAmount: '100.000' },
-                  { key: 'sukarela', label: 'Tabungan Sukarela (Min 25rb)', defaultAmount: '25.000' },
-                  { key: 'talangan', label: 'Dana Talangan Darurat', defaultAmount: '' },
-                  { key: 'pinjaman', label: 'Pinjaman 6% PMK 49', defaultAmount: '' },
-                  { key: 'cicilan', label: 'Angsuran Pinjaman', defaultAmount: '' },
-                ].map((item) => (
-                  <Pressable
-                    key={item.key}
-                    onPress={() => {
-                      setTxSubtype(item.key as any);
-                      if (item.defaultAmount) {
-                        setTxAmount(item.defaultAmount);
-                      }
-                    }}
-                    style={[
-                      styles.subtypeBtn,
-                      txSubtype === item.key && styles.subtypeBtnActive,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.subtypeBtnText,
-                        txSubtype === item.key && styles.subtypeBtnTextActive,
-                      ]}
-                    >
-                      {item.label}
-                    </Text>
-                  </Pressable>
-                ))}
+                {(() => {
+                  const selectedTargetMem = members.find(
+                    (m) => m.mid.trim().toUpperCase() === txMemberMid.trim().toUpperCase()
+                  );
+                  const isTargetPokokLunas = selectedTargetMem ? selectedTargetMem.simpananPokok >= 100000 : false;
+                  const isTargetWajibPaid = selectedTargetMem
+                    ? selectedTargetMem.lastPaidWajibMonth === currentMonthKey ||
+                      (selectedTargetMem.status === 'active' && selectedTargetMem.simpananWajib >= 50000)
+                    : false;
+                  const targetActiveLoan = selectedTargetMem
+                    ? loanRequests.find(
+                        (r) =>
+                          r.mid === selectedTargetMem.mid &&
+                          (r.status === 'confirmed_active' || r.status === 'disbursed_waiting_confirmation')
+                      )
+                    : null;
+
+                  return [
+                    {
+                      key: 'wajib',
+                      label: isTargetWajibPaid ? '✓ Wajib (Lunas)' : 'Simpanan Wajib (Rp 50rb)',
+                      defaultAmount: '50.000',
+                      disabled: isTargetWajibPaid,
+                      disabledNote: 'Simpanan Wajib periode September 2026 anggota ini sudah LUNAS.',
+                    },
+                    {
+                      key: 'pokok',
+                      label: isTargetPokokLunas ? '🔒 Pokok (Lunas 1x)' : 'Simpanan Pokok (Rp 100rb)',
+                      defaultAmount: '100.000',
+                      disabled: isTargetPokokLunas,
+                      disabledNote: 'Simpanan Pokok sebesar Rp 100.000 hanya disetor 1 kali seumur hidup saat daftar dan sudah lunas.',
+                    },
+                    {
+                      key: 'sukarela',
+                      label: 'Tabungan Sukarela (Min 25rb)',
+                      defaultAmount: '50.000',
+                      disabled: false,
+                    },
+                    {
+                      key: 'talangan',
+                      label: 'Dana Talangan Darurat',
+                      defaultAmount: '',
+                      disabled: false,
+                    },
+                    {
+                      key: 'pinjaman',
+                      label: 'Pinjaman 6% PMK 49',
+                      defaultAmount: '',
+                      disabled: false,
+                    },
+                    {
+                      key: 'cicilan',
+                      label: targetActiveLoan ? 'Angsuran Pinjaman' : '🔒 Angsuran (Nihil)',
+                      defaultAmount: targetActiveLoan ? calculateLoanInstallment(targetActiveLoan.nominal, targetActiveLoan.tenorBulan).total.toLocaleString('id-ID') : '',
+                      disabled: !!selectedTargetMem && !targetActiveLoan,
+                      disabledNote: 'Anggota ini tidak memiliki pinjaman aktif (Pinjaman = Rp 0).',
+                    },
+                  ].map((item) => {
+                    const isActive = txSubtype === item.key;
+                    return (
+                      <Pressable
+                        key={item.key}
+                        onPress={() => {
+                          if (item.disabled) {
+                            showAlertDialog('Informasi Status Anggota', item.disabledNote || 'Opsi ini tidak berlaku untuk anggota ini.');
+                            return;
+                          }
+                          setTxSubtype(item.key as any);
+                          if (item.defaultAmount) {
+                            setTxAmount(item.defaultAmount);
+                          }
+                        }}
+                        style={[
+                          styles.subtypeBtn,
+                          isActive && styles.subtypeBtnActive,
+                          item.disabled && { opacity: 0.45, backgroundColor: 'rgba(255, 255, 255, 0.02)' },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.subtypeBtnText,
+                            isActive && styles.subtypeBtnTextActive,
+                            item.disabled && { color: '#71717A' },
+                          ]}
+                        >
+                          {item.label}
+                        </Text>
+                      </Pressable>
+                    );
+                  });
+                })()}
               </View>
 
               <Text style={styles.inputLabel}>Nominal Transaksi (Rp):</Text>
