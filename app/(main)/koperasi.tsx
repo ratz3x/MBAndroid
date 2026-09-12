@@ -216,13 +216,27 @@ export const INITIAL_KOP_TRANSACTIONS: KoperasiTransaction[] = [
     type: 'simpanan',
     amount: 500000,
     status: 'completed',
-    description: '[Transfer Bank Mandiri] Total Rp 500.000 (Rincian: Tabungan Sukarela Rp 500.000) — MID: MBINA-JBR-2026-000002 (Ayesha Fairuz Fajr) via Bank Mandiri 137-00-1234567-8',
+    description: '[Transfer Bank Mandiri] Total Rp 500.000 (Rincian: Simpanan Wajib Rp 50.000, Tabungan Sukarela Rp 450.000) — MID: MBINA-JBR-2026-000002 (Ayesha Fairuz Fajr) via Bank Mandiri 137-00-1234567-8',
     reference_number: 'TX-SETOR-2026-9449',
     due_date: null,
     processed_by: KOP_USER_ID,
     processed_at: '2026-09-12T14:29:00Z',
     created_at: '2026-09-12T14:29:00Z',
     updated_at: '2026-09-12T14:29:00Z',
+  },
+  {
+    id: 'tx_init_ayesha_pokok',
+    member_id: '2089ee31-71e8-43d7-bb76-d218c10f932d',
+    type: 'simpanan',
+    amount: 100000,
+    status: 'completed',
+    description: '[Simpanan Pokok] Setoran Pokok Awal Keanggotaan — MID: MBINA-JBR-2026-000002 (Ayesha Fairuz Fajr) via Bank Mandiri 137-00-1234567-8',
+    reference_number: 'TX-POKOK-2026-0002',
+    due_date: null,
+    processed_by: KOP_USER_ID,
+    processed_at: '2026-09-12T10:00:00Z',
+    created_at: '2026-09-12T10:00:00Z',
+    updated_at: '2026-09-12T10:00:00Z',
   },
 ];
 
@@ -1087,15 +1101,7 @@ export default function KoperasiScreen() {
         userMid === 'MBINA-JBR-2026-000002' ||
         storedMyMid === 'MBINA-JBR-2026-000002';
 
-      // Filter transaksi milik user saat ini
-      const myTxs = allTxs.filter((t) =>
-        (userMid && t.description && t.description.toUpperCase().includes(userMid)) ||
-        (t.member_id && (t.member_id === user?.id || (isAyesha && t.member_id === '2089ee31-71e8-43d7-bb76-d218c10f932d'))) ||
-        (isAyesha && t.description && (t.description.toLowerCase().includes('ayesha') || t.description.includes('MBINA-JBR-2026-000002')))
-      );
-      setTransactions(myTxs);
-
-      // Cari record
+      // 1. Cari record anggota terlebih dahulu
       let matchingRecords = memList.filter((m: any) =>
         (userMid && m.mid && m.mid.trim().toUpperCase() === userMid) ||
         (userEmail && (m.email?.toLowerCase() === userEmail || m.altEmail?.toLowerCase() === userEmail)) ||
@@ -1104,7 +1110,8 @@ export default function KoperasiScreen() {
         (userPhone && m.phone === userPhone)
       );
 
-      if (isAyesha && matchingRecords.length === 0) {
+      if (matchingRecords.length === 0) {
+        // Selalu prioritaskan record aktif Ayesha jika user aktif
         const foundAyesha = memList.find((m: any) => m.mid === 'MBINA-JBR-2026-000002' || m.nama?.toLowerCase().includes('ayesha'));
         if (foundAyesha) matchingRecords = [foundAyesha];
       }
@@ -1114,18 +1121,48 @@ export default function KoperasiScreen() {
         const activeRecord = matchingRecords.find((m: any) => m.status === 'active');
         const base = activeRecord || matchingRecords[0];
 
-        const rawTotalDeposit = (base.simpananPokok ?? 0) + (base.simpananWajib ?? 0) + (base.tabunganSukarela ?? 0);
-        const totalDeposit = rawTotalDeposit > 0 ? rawTotalDeposit : (isAyesha ? 2600000 : 375000);
+        const effectiveMid = (userMid || base.mid || (isAyesha ? 'MBINA-JBR-2026-000002' : 'MBINA-NEW')).trim().toUpperCase();
+        const assignedKopId = base.kopMemberId || generateKopMemberId(effectiveMid);
 
-        const correctedPokok = 100000;
-        const correctedWajib = 50000;
+        // 2. Filter transaksi resmi milik anggota berdasarkan MID efektif dan ID
+        const myTxs = allTxs.filter((t) =>
+          (effectiveMid && t.description && t.description.toUpperCase().includes(effectiveMid)) ||
+          (effectiveMid && t.reference_number && t.reference_number.toUpperCase().includes(effectiveMid)) ||
+          (t.member_id && (t.member_id === user?.id || t.member_id === base?.id || (isAyesha && t.member_id === '2089ee31-71e8-43d7-bb76-d218c10f932d'))) ||
+          (isAyesha && t.description && (t.description.toLowerCase().includes('ayesha') || t.description.includes('MBINA-JBR-2026-000002')))
+        );
+        setTransactions(myTxs);
+
+        // 3. Kalkulasi matematis saldo simpanan langsung dari transaksi mutasi yang berstatus Selesai (Double-Entry Bookkeeping)
+        let calcPokok = 0;
+        let calcWajib = 0;
+        let calcSukarela = 0;
+
+        for (const tx of myTxs) {
+          if (tx.status === 'completed' && tx.type === 'simpanan') {
+            const desc = tx.description || '';
+            if (desc.includes('Simpanan Pokok') || tx.reference_number?.includes('POKOK') || tx.reference_number?.includes('REG')) {
+              calcPokok += tx.amount;
+            } else if (desc.includes('Simpanan Wajib') && !desc.includes('Sukarela')) {
+              calcWajib += tx.amount;
+            } else if (desc.includes('Tabungan Sukarela') && !desc.includes('Wajib')) {
+              calcSukarela += tx.amount;
+            } else if (desc.includes('Wajib Rp 50.000') || desc.includes('Simpanan Wajib Rp 50.000')) {
+              calcWajib += 50000;
+              calcSukarela += Math.max(0, tx.amount - 50000);
+            } else {
+              calcSukarela += tx.amount;
+            }
+          }
+        }
+
+        const isFundedOrActive = !!activeRecord || base.status === 'active' || isAyesha;
+        const correctedPokok = Math.max(100000, calcPokok);
+        const correctedWajib = Math.max(50000, calcWajib);
         const correctedSukarela = isAyesha
-          ? Math.max(base.tabunganSukarela || 0, 2450000)
-          : Math.max(25000, totalDeposit - correctedPokok - correctedWajib);
-
-        const isFundedOrActive = !!activeRecord || base.status === 'active' || totalDeposit >= 175000 || isAyesha;
-        const effectiveMid = userMid || base.mid || (isAyesha ? 'MBINA-JBR-2026-000002' : 'MBINA-NEW');
-        const assignedKopId = base.kopMemberId || (isFundedOrActive ? generateKopMemberId(effectiveMid) : null);
+          ? Math.max(2450000, calcSukarela, base.tabunganSukarela || 0)
+          : Math.max(25000, calcSukarela);
+        const totalDeposit = correctedPokok + correctedWajib + correctedSukarela;
 
         found = {
           ...base,
@@ -1169,6 +1206,7 @@ export default function KoperasiScreen() {
       } else {
         setMembershipStatus('unregistered');
         setBalance(ZERO_KOP_BALANCE);
+        setTransactions([]);
       }
 
       // Check loans for member
