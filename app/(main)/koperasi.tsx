@@ -17,6 +17,7 @@ import {
   TextInput,
   RefreshControl,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -64,8 +65,9 @@ const DEWAN_PENDIRI = [
 ];
 
 export default function KoperasiScreen() {
-  const { user, profile } = useAuth();
-  const isKopManager = user?.id === KOP_USER_ID;
+  const router = useRouter();
+  const { user, profile, isKoperasiAdmin } = useAuth();
+  const isKopManager = user?.id === KOP_USER_ID || isKoperasiAdmin;
 
   const isSponsor = !!(
     user?.id?.startsWith('spn_') ||
@@ -396,6 +398,28 @@ export default function KoperasiScreen() {
                   <Text style={styles.managerBannerDesc}>
                     Mengelola tabungan sukarela, simpanan pokok & wajib, dana talangan darurat servis/touring, dan pinjaman lunak ber-MID.
                   </Text>
+                  <Pressable
+                    onPress={() => router.push('/(main)/admin/koperasi' as any)}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 6,
+                      marginTop: 8,
+                      backgroundColor: 'rgba(251, 191, 36, 0.15)',
+                      borderColor: '#FBBF24',
+                      borderWidth: 1,
+                      paddingVertical: 5,
+                      paddingHorizontal: 10,
+                      borderRadius: 8,
+                      alignSelf: 'flex-start',
+                    }}
+                  >
+                    <Ionicons name="apps" size={13} color="#FBBF24" />
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: '#FDE68A' }}>
+                      Buka Dashboard Pengelola Koperasi
+                    </Text>
+                    <Ionicons name="arrow-forward" size={11} color="#FBBF24" />
+                  </Pressable>
                 </View>
                 <Pressable onPress={handleResetToZero} style={styles.resetZeroBtn} hitSlop={6}>
                   <Ionicons name="refresh" size={13} color="#EF4444" />
@@ -542,7 +566,10 @@ export default function KoperasiScreen() {
               ) : (
                 <>
                   <LuxuryCard
-                    onPress={() => Alert.alert('Setoran Simpanan', 'Transfer setoran simpanan wajib/sukarela ke Bank Mandiri 137-00-1234567-8 a.n. MERCEDES-BENZ CLUB INDONESIA.')}
+                    onPress={() => Alert.alert(
+                      'Syarat Keanggotaan & Setoran',
+                      'Ketentuan Anggota Koperasi Bersama Satu Bintang:\n1. Memiliki Member Number (MID resmi MBCI)\n2. Mendaftarkan akun di Koperasi\n3. Setoran Simpanan:\n • Simpanan Pokok: Rp 100.000 (awal)\n • Iuran Wajib: Rp 50.000 / bulan\n • Tabungan Sukarela: Minimal Rp 25.000\n\nHak Anggota: Mendapatkan Bunga 1% dari SHU tahunan.\n\nTransfer ke Rekening Resmi Koperasi: Bank Mandiri 137-00-1234567-8 a.n. Koperasi Bersama Satu Bintang.'
+                    )}
                     style={styles.actionCard}
                     padding={12}
                   >
@@ -553,7 +580,10 @@ export default function KoperasiScreen() {
                   </LuxuryCard>
 
                   <LuxuryCard
-                    onPress={() => Alert.alert('Dana Talangan', 'Pengajuan dana talangan darurat servis/touring dapat diajukan oleh member ber-MID aktif kepada Pengurus Koperasi.')}
+                    onPress={() => Alert.alert(
+                      'Dana Talangan Darurat Touring & Servis',
+                      'Fasilitas dana talangan darurat untuk kebutuhan servis unit Mercedes-Benz atau touring resmi MBCI.\n\n• Suku Bunga: 6% flat p.a. (PMK 49/2025)\n• Grace Period: 6–8 bulan\n• Hubungi Bendahara Koperasi untuk pencairan.'
+                    )}
                     style={styles.actionCard}
                     padding={12}
                   >
@@ -564,14 +594,17 @@ export default function KoperasiScreen() {
                   </LuxuryCard>
 
                   <LuxuryCard
-                    onPress={() => Alert.alert('Pinjaman Lunak', 'Layanan pinjaman lunak anggota berbasis plafon simpanan. Hubungi sekretariat Koperasi MBCI.')}
+                    onPress={() => Alert.alert(
+                      'Pembiayaan & Pinjaman Lunak Anggota',
+                      'Ketentuan Pinjaman (PMK No. 49 Tahun 2025):\n• Suku Bunga: 6% per tahun (flat p.a.)\n• Tenor: Maksimal 6 tahun (72 bulan)\n• Masa Tenggang (Grace Period): 6 hingga 8 bulan\n• Plafon Anggota: Disesuaikan dengan nilai agunan unit & rekam jejak simpanan\n• Penyalur: Bank Himbara\n• Member mendapatkan bunga 1% dari SHU tahunan.'
+                    )}
                     style={styles.actionCard}
                     padding={12}
                   >
                     <View style={[styles.actionIcon, { backgroundColor: 'rgba(251, 191, 36, 0.15)' }]}>
                       <Ionicons name="cash-outline" size={22} color="#FBBF24" />
                     </View>
-                    <Text style={styles.actionLabel}>Pinjaman Lunak MID</Text>
+                    <Text style={styles.actionLabel}>Pinjaman 6% PMK 49</Text>
                   </LuxuryCard>
 
                   <LuxuryCard

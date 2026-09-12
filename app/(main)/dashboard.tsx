@@ -43,7 +43,7 @@ const SHORTCUTS = [
 
 export default function DashboardScreen() {
   const router = useRouter();
-  const { user, profile: authProfile, isAdmin, signOut } = useAuth();
+  const { user, profile: authProfile, isAdmin, isKoperasiAdmin, signOut } = useAuth();
   const { profile, member, loading, refetch } = useProfile(user?.id);
   const [localMember, setLocalMember] = useState<any>(null);
 
@@ -125,6 +125,17 @@ export default function DashboardScreen() {
             </Text>
           </View>
           <View style={styles.topBarRight}>
+            {isKoperasiAdmin && (
+              <Pressable
+                onPress={() => router.push('/(main)/admin/koperasi' as any)}
+                style={styles.kopAdminBadge}
+              >
+                <View style={styles.kopAdminDot} />
+                <Ionicons name="briefcase" size={13} color="#FBBF24" />
+                <Text style={styles.kopAdminBadgeText}>ADMIN KOP</Text>
+                <Ionicons name="chevron-forward" size={12} color="#D97706" />
+              </Pressable>
+            )}
             {isAdmin && (
               <Pressable
                 onPress={() => router.push('/(main)/admin')}
@@ -361,6 +372,29 @@ const styles = StyleSheet.create({
   topBarRight: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
 
   // Floating Admin Mode Badge
+  kopAdminBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(30, 25, 15, 0.95)',
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(251, 191, 36, 0.35)',
+    gap: 5,
+  },
+  kopAdminDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#F59E0B',
+  },
+  kopAdminBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#FDE68A',
+    letterSpacing: 0.8,
+  },
   adminBadge: {
     flexDirection: 'row',
     alignItems: 'center',

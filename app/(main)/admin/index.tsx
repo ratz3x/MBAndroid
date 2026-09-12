@@ -704,18 +704,35 @@ export default function AdminDashboardScreen() {
           <Ionicons name="chevron-forward" size={18} color="#A1A1AA" />
         </Pressable>
 
+        {/* Banner Pusat Koperasi & Keuangan */}
+        <Pressable
+          onPress={() => router.push('/(main)/admin/koperasi' as any)}
+          style={[styles.tokoBannerCard, { marginTop: 10, borderColor: 'rgba(245, 158, 11, 0.3)' }]}
+        >
+          <View style={[styles.tokoBannerIconBox, { backgroundColor: 'rgba(245, 158, 11, 0.12)' }]}>
+            <Ionicons name="wallet" size={24} color="#FBBF24" />
+          </View>
+          <View style={{ flex: 1, marginLeft: 12 }}>
+            <Text style={styles.tokoBannerTitle}>Pusat Koperasi Bersama Satu Bintang</Text>
+            <Text style={styles.tokoBannerDesc}>
+              Kelola kas simpan pinjam, approval pinjaman bunga 6% p.a. (PMK 49/2025), buku kas & kalkulator SHU.
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color="#FBBF24" />
+        </Pressable>
+
         {/* 5. Aksi Cepat (Platinum Accent Line + Soft Metallic Cards) */}
         <View style={{ marginTop: Spacing.xl }}>
           <SectionHeader title="Aksi Cepat" accentColor="#A1A1AA" />
         </View>
         <View style={styles.quickActions}>
           {[
+            { label: 'Kas Koperasi', icon: 'wallet-outline', onPress: () => router.push('/(main)/admin/koperasi' as any) },
             { label: 'Buat Event', icon: 'add-circle-outline', onPress: () => router.push('/(main)/event/create' as any) },
             { label: 'Upload Galeri', icon: 'cloud-upload-outline', onPress: () => router.push('/(main)/gallery' as any) },
             { label: 'Toko & Lapak', icon: 'storefront-outline', onPress: () => router.push('/(main)/admin/toko' as any) },
             { label: 'Kelola Sponsor', icon: 'ribbon-outline', onPress: () => router.push('/(main)/sponsorship' as any) },
             { label: 'Bersihkan Duplikat', icon: 'trash-outline', onPress: handleCleanDuplicates },
-            { label: 'Laporan Sewa', icon: 'bar-chart-outline', onPress: () => router.push('/(main)/admin/toko' as any) },
           ].map((action) => (
             <Pressable
               key={action.label}

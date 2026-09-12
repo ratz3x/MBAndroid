@@ -106,6 +106,7 @@ interface AuthContextValue {
   profile: Profile | null;
   loading: boolean;
   isAdmin: boolean;
+  isKoperasiAdmin: boolean;
   signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: AuthError | null }>;
   signInWithGoogle: () => Promise<{ error: any }>;
@@ -127,6 +128,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     profile?.role === 'admin' ||
     profile?.role === 'super_admin' ||
     profile?.role === 'chapter_admin';
+
+  const isKoperasiAdmin =
+    user?.id === KOP_USER_ID ||
+    profile?.email?.toLowerCase() === KOP_EMAIL.toLowerCase() ||
+    user?.email?.toLowerCase() === KOP_EMAIL.toLowerCase() ||
+    profile?.role === 'admin' ||
+    profile?.role === 'super_admin';
 
   // ── Fetch user profile from DB ──────────────────────────────
   const fetchProfile = useCallback(async (userId: string, currentUser?: User | null) => {
@@ -586,6 +594,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         profile,
         loading,
         isAdmin,
+        isKoperasiAdmin,
         signIn,
         signUp,
         signInWithGoogle,
