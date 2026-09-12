@@ -1937,41 +1937,90 @@ export default function KoperasiScreen() {
               );
             })()}
 
-            {/* 3 Pilar Layanan Simpan Pinjam Utama */}
+            {/* Pilar Layanan Koperasi - Real Status Sesuai Audit PermenKopUKM 9/2020 */}
             <SectionHeader
-              title="Pilar Layanan Simpan Pinjam"
-              subtitle="Fokus utama pemberdayaan ekonomi anggota MB Club INA"
+              title="Pilar Layanan Koperasi"
+              subtitle="Status operasional riil berbasis audit kesehatan PermenKopUKM 9/2020"
             />
             <View style={styles.pilarContainer}>
-              <View style={styles.pilarCard}>
-                <View style={[styles.pilarIconWrap, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
-                  <Ionicons name="people-circle-outline" size={24} color="#10B981" />
+              {/* Pilar 1: Simpanan & Tabungan (AKTIF) */}
+              <Pressable
+                onPress={() => {
+                  const isWajibPaid = memberKopData?.lastPaidWajibMonth === currentMonthKey || (memberKopData?.simpananWajib ?? 0) >= 50000;
+                  openTransferModal(isWajibPaid ? 'sukarela' : 'wajib');
+                }}
+                style={styles.pilarCard}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <View style={[styles.pilarIconWrap, { backgroundColor: 'rgba(16, 185, 129, 0.15)', marginBottom: 0 }]}>
+                    <Ionicons name="wallet-outline" size={22} color="#10B981" />
+                  </View>
+                  <View style={{ backgroundColor: 'rgba(16, 185, 129, 0.15)', borderWidth: 1, borderColor: 'rgba(16, 185, 129, 0.4)', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 4 }}>
+                    <Text style={{ fontSize: 9, fontWeight: '800', color: '#34D399' }}>🟢 AKTIF BERJALAN</Text>
+                  </View>
                 </View>
-                <Text style={styles.pilarTitle}>Simpan Pinjam Anggota</Text>
+                <Text style={styles.pilarTitle}>Simpanan & Tabungan Sukarela</Text>
                 <Text style={styles.pilarDesc}>
-                  Tabungan sukarela, simpanan pokok & wajib, dana talangan darurat servis/touring, dan pinjaman lunak khusus member resmi ber-MID.
+                  Penghimpunan tabungan sukarela likuid dan simpanan pokok & wajib anggota terverifikasi MID. Dana kas 100% aman dan dapat disetor/ditarik sewaktu-waktu.
                 </Text>
-              </View>
+              </Pressable>
 
-              <View style={styles.pilarCard}>
-                <View style={[styles.pilarIconWrap, { backgroundColor: 'rgba(59, 130, 246, 0.15)' }]}>
-                  <Ionicons name="receipt-outline" size={24} color="#60A5FA" />
+              {/* Pilar 2: Iuran Pokok & Wajib (AKTIF) */}
+              <Pressable
+                onPress={() => setShowBukuRekeningModal(true)}
+                style={styles.pilarCard}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <View style={[styles.pilarIconWrap, { backgroundColor: 'rgba(59, 130, 246, 0.15)', marginBottom: 0 }]}>
+                    <Ionicons name="receipt-outline" size={22} color="#60A5FA" />
+                  </View>
+                  <View style={{ backgroundColor: 'rgba(59, 130, 246, 0.15)', borderWidth: 1, borderColor: 'rgba(59, 130, 246, 0.4)', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 4 }}>
+                    <Text style={{ fontSize: 9, fontWeight: '800', color: '#60A5FA' }}>🟢 E-PASSBOOK MUTASI</Text>
+                  </View>
                 </View>
-                <Text style={styles.pilarTitle}>Iuran Pokok & Wajib</Text>
+                <Text style={styles.pilarTitle}>Iuran Pokok & Wajib Terintegrasi MID</Text>
                 <Text style={styles.pilarDesc}>
-                  Pencatatan otomatis mutasi iuran berkala anggota komunitas, riwayat setoran, e-statement, dan bukti potong elektronik terintegrasi MID.
+                  Pencatatan tertib mutasi iuran wajib berkala, e-passbook buku tabungan real-time, bukti setor kas otomatis, dan rekonsiliasi kas bendahara tanpa selisih.
                 </Text>
-              </View>
+              </Pressable>
 
-              <View style={styles.pilarCard}>
-                <View style={[styles.pilarIconWrap, { backgroundColor: 'rgba(245, 158, 11, 0.15)' }]}>
-                  <Ionicons name="pie-chart-outline" size={24} color="#FBBF24" />
+              {/* Pilar 3: Fasilitas Pinjaman & Talangan (DITANGGUHKAN SEMENTARA) */}
+              <Pressable
+                onPress={() => setShowHealthNoticeModal(true)}
+                style={[styles.pilarCard, { borderColor: 'rgba(239, 68, 68, 0.3)', backgroundColor: 'rgba(239, 68, 68, 0.04)' }]}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <View style={[styles.pilarIconWrap, { backgroundColor: 'rgba(239, 68, 68, 0.15)', marginBottom: 0 }]}>
+                    <Ionicons name="lock-closed" size={20} color="#EF4444" />
+                  </View>
+                  <View style={{ backgroundColor: 'rgba(239, 68, 68, 0.18)', borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.45)', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 4 }}>
+                    <Text style={{ fontSize: 9, fontWeight: '800', color: '#F87171' }}>🔴 DITANGGUHKAN SEMENTARA</Text>
+                  </View>
                 </View>
-                <Text style={styles.pilarTitle}>Sisa Hasil Usaha (SHU)</Text>
+                <Text style={[styles.pilarTitle, { color: '#FCA5A5' }]}>Pinjaman & Dana Talangan Darurat</Text>
                 <Text style={styles.pilarDesc}>
-                  Kalkulasi dan distribusi SHU tahunan transparan berbasis persentase modal simpanan seluruh anggota.
+                  Fasilitas pinjaman ditutup sementara selama Koperasi berstatus <Text style={{ color: '#FBBF24', fontWeight: '700' }}>DALAM PENGAWASAN</Text> demi melindungi keamanan kas tabungan anggota. Dibuka kembali setelah mencapai predikat Sehat.
                 </Text>
-              </View>
+              </Pressable>
+
+              {/* Pilar 4: SHU Transparan */}
+              <Pressable
+                onPress={() => setShowShuModal(true)}
+                style={styles.pilarCard}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <View style={[styles.pilarIconWrap, { backgroundColor: 'rgba(245, 158, 11, 0.15)', marginBottom: 0 }]}>
+                    <Ionicons name="pie-chart-outline" size={22} color="#FBBF24" />
+                  </View>
+                  <View style={{ backgroundColor: 'rgba(245, 158, 11, 0.15)', borderWidth: 1, borderColor: 'rgba(245, 158, 11, 0.4)', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 4 }}>
+                    <Text style={{ fontSize: 9, fontWeight: '800', color: '#FBBF24' }}>🟡 AKUMULASI TAHUNAN</Text>
+                  </View>
+                </View>
+                <Text style={styles.pilarTitle}>Sisa Hasil Usaha (SHU) Transparan</Text>
+                <Text style={styles.pilarDesc}>
+                  Distribusi SHU tahunan berbasis partisipasi modal dan simpanan anggota sesuai AD/ART dan hasil Rapat Anggota Tahunan (RAT).
+                </Text>
+              </Pressable>
             </View>
 
             {/* Banner Transparansi Tingkat Kesehatan Koperasi (PermenKopUKM No. 9/2020) */}
