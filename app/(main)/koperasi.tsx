@@ -20,6 +20,7 @@ import {
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../../src/services/supabase';
 import { LuxuryCard } from '../../src/components/ui/LuxuryCard';
@@ -111,6 +112,10 @@ export default function KoperasiScreen() {
   const [regChapter, setRegChapter] = useState('');
   const [regPhone, setRegPhone] = useState('');
   const [regSukarela, setRegSukarela] = useState('25000');
+  const [transferProofUri, setTransferProofUri] = useState<string | null>(null);
+  const [bankPengirim, setBankPengirim] = useState('Bank Mandiri');
+  const [rekeningPengirim, setRekeningPengirim] = useState('');
+  const [namaPengirim, setNamaPengirim] = useState('');
   const [regSubmitting, setRegSubmitting] = useState(false);
 
   // Form State for Recording Simpan Pinjam
@@ -126,7 +131,33 @@ export default function KoperasiScreen() {
     setRegChapter(currentMember?.chapter || 'MB Club Indonesia');
     setRegPhone(profile?.phone || '');
     setRegSukarela('25000');
+    setBankPengirim('Bank Mandiri');
+    setRekeningPengirim('');
+    setNamaPengirim(profile?.full_name || '');
+    setTransferProofUri(null);
     setShowRegisterModal(true);
+  };
+
+  const handlePickProof = async () => {
+    try {
+      if (Platform.OS !== 'web') {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Izin Ditolak', 'Izin galeri diperlukan untuk memilih foto bukti transfer.');
+          return;
+        }
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.8,
+      });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setTransferProofUri(result.assets[0].uri);
+      }
+    } catch (err: any) {
+      Alert.alert('Gagal Memilih Foto', err.message || 'Terjadi kesalahan saat memilih berkas.');
+    }
   };
 
   const handleRegisterSubmit = async () => {
@@ -141,6 +172,13 @@ export default function KoperasiScreen() {
     const numSukarela = parseInt(regSukarela.replace(/[^0-9]/g, ''), 10) || 0;
     if (numSukarela < 25000) {
       Alert.alert('Perhatian', 'Tabungan Sukarela minimal Rp 25.000.');
+      return;
+    }
+    if (!transferProofUri) {
+      Alert.alert(
+        'Bukti Transfer Belum Dilampirkan',
+        'Mohon unggah foto / screenshot bukti transfer pembayaran setoran awal agar pengelola koperasi dapat memverifikasi mutasi kas masuk.'
+      );
       return;
     }
 
@@ -161,6 +199,10 @@ export default function KoperasiScreen() {
         tabunganSukarela: numSukarela,
         status: 'pending' as const,
         tanggalDaftar: new Date().toISOString().split('T')[0],
+        buktiTransferUri: transferProofUri,
+        bankPengirim: bankPengirim.trim() || 'Bank Transfer',
+        rekeningPengirim: rekeningPengirim.trim() || '-',
+        namaPengirim: namaPengirim.trim() || regName.trim(),
       };
 
       // Simpan ke list anggota (pending)
@@ -1343,6 +1385,79 @@ export default function KoperasiScreen() {
                 </Text>
               </View>
 
+              {/* Data Rekening Pengirim */}
+              <View style={{ marginTop: 12 }}>
+                <Text style={styles.inputLabel}>Bank Pengirim Transfer *</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  value={bankPengirim}
+                  onChangeText={setBankPengirim}
+                  placeholder="Contoh: Bank BCA / Mandiri / BRI / BNI"
+                  placeholderTextColor="#71717A"
+                />
+
+                <Text style={styles.inputLabel}>Nama Pemilik Rekening Pengirim *</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  value={namaPengirim}
+                  onChangeText={setNamaPengirim}
+                  placeholder="Contoh: Ayesha Fairuz Fajr"
+                  placeholderTextColor="#71717A"
+                />
+
+                <Text style={styles.inputLabel}>Nomor Rekening Pengirim (Opsional)</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  value={rekeningPengirim}
+                  onChangeText={setRekeningPengirim}
+                  placeholder="Contoh: 0123-456-789"
+                  placeholderTextColor="#71717A"
+                  keyboardType="numeric"
+                />
+              </View>
+
+              {/* Upload Bukti Transfer Box */}
+              <View style={styles.uploadProofSection}>
+                <Text style={styles.regSummaryTitle}>UNGGAH BUKTI TRANSFER PEMBAYARAN *</Text>
+                <Text style={{ fontSize: 11, color: '#A1A1AA', marginBottom: 10 }}>
+                  Lampirkan struk ATM / screenshot m-Banking sebagai bukti setoran awal Rp 175.000 (atau lebih) untuk diverifikasi pengelola.
+                </Text>
+
+                {transferProofUri ? (
+                  <View style={styles.proofPreviewContainer}>
+                    <Image
+                      source={{ uri: transferProofUri }}
+                      style={styles.proofPreviewImage}
+                      resizeMode="cover"
+                    />
+                    <View style={styles.proofPreviewOverlay}>
+                      <View style={styles.proofSuccessTag}>
+                        <Ionicons name="checkmark-circle" size={14} color="#34D399" />
+                        <Text style={styles.proofSuccessText}>Bukti Transfer Terlampir</Text>
+                      </View>
+                      <Pressable
+                        onPress={handlePickProof}
+                        style={styles.changeProofBtn}
+                      >
+                        <Ionicons name="camera-reverse" size={13} color="#FFF" />
+                        <Text style={styles.changeProofBtnText}>Ganti Foto</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                ) : (
+                  <Pressable
+                    onPress={handlePickProof}
+                    style={styles.uploadProofPlaceholder}
+                  >
+                    <View style={styles.uploadProofIconCircle}>
+                      <Ionicons name="cloud-upload" size={26} color="#FBBF24" />
+                    </View>
+                    <Text style={styles.uploadProofTitle}>Pilih Foto / Screenshot Bukti Transfer</Text>
+                    <Text style={styles.uploadProofSub}>Format JPG, PNG atau Screenshot Mobile Banking</Text>
+                  </Pressable>
+                )}
+              </View>
+
               <View style={{ height: 16 }} />
               <MetallicButton
                 label={regSubmitting ? "Mengirim Pendaftaran..." : "Kirim Pendaftaran & Setoran Awal"}
@@ -2032,5 +2147,88 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#A1A1AA',
     marginTop: 2,
+  },
+  uploadProofSection: {
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 12,
+  },
+  uploadProofPlaceholder: {
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: 'rgba(251, 191, 36, 0.4)',
+    borderRadius: 10,
+    backgroundColor: 'rgba(251, 191, 36, 0.04)',
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  uploadProofIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(251, 191, 36, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  uploadProofTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FAFAFA',
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  uploadProofSub: {
+    fontSize: 11,
+    color: '#A1A1AA',
+    textAlign: 'center',
+  },
+  proofPreviewContainer: {
+    borderRadius: 10,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(52, 211, 153, 0.35)',
+    backgroundColor: '#000',
+  },
+  proofPreviewImage: {
+    width: '100%',
+    height: 180,
+  },
+  proofPreviewOverlay: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(15, 23, 42, 0.9)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  proofSuccessTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  proofSuccessText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#34D399',
+  },
+  changeProofBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+  },
+  changeProofBtnText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });

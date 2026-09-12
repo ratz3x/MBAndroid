@@ -16,6 +16,7 @@ import {
   Modal,
   RefreshControl,
   Platform,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -73,6 +74,10 @@ interface MemberKopItem {
   tabunganSukarela: number;
   status: 'active' | 'pending';
   tanggalDaftar: string;
+  buktiTransferUri?: string | null;
+  bankPengirim?: string | null;
+  rekeningPengirim?: string | null;
+  namaPengirim?: string | null;
 }
 
 // Initial Sample Data for Loans & Members if empty
@@ -189,6 +194,27 @@ const INITIAL_MEMBERS: MemberKopItem[] = [
     tabunganSukarela: 25000,
     status: 'pending',
     tanggalDaftar: '2026-09-11',
+    bankPengirim: 'Bank BCA',
+    namaPengirim: 'Kusumo Wardhana',
+    rekeningPengirim: '246-880-1122',
+    buktiTransferUri: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=600&auto=format&fit=crop&q=80',
+  },
+  {
+    id: 'mem_006',
+    mid: 'MBINA-JBR-2026-000002',
+    nama: 'Ayesha Fairuz Fajr',
+    chapter: 'MBC Bandung',
+    email: 'ayesha.fairuz@mbc-bandung.org',
+    phone: '082129709696',
+    simpananPokok: 100000,
+    simpananWajib: 50000,
+    tabunganSukarela: 25000,
+    status: 'pending',
+    tanggalDaftar: '2026-09-12',
+    bankPengirim: 'Bank Mandiri',
+    namaPengirim: 'Ayesha Fairuz Fajr',
+    rekeningPengirim: '137-00-1234567-8',
+    buktiTransferUri: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=600&auto=format&fit=crop&q=80',
   },
 ];
 
@@ -226,6 +252,7 @@ export default function AdminKoperasiScreen() {
   const [showLoanDetailModal, setShowLoanDetailModal] = useState<LoanRequest | null>(null);
   const [showShuModal, setShowShuModal] = useState(false);
   const [showEStatementModal, setShowEStatementModal] = useState(false);
+  const [selectedProofMember, setSelectedProofMember] = useState<MemberKopItem | null>(null);
 
   // Form State for Recording Mutasi
   const [txSubtype, setTxSubtype] = useState<'pokok' | 'wajib' | 'sukarela' | 'talangan' | 'pinjaman' | 'cicilan'>('wajib');
@@ -330,7 +357,14 @@ export default function AdminKoperasiScreen() {
       // 4. Members
       const rawMembers = await AsyncStorage.getItem(KOP_STORAGE_MEMBERS);
       if (rawMembers) {
-        setMembers(JSON.parse(rawMembers));
+        const parsed: MemberKopItem[] = JSON.parse(rawMembers);
+        const existingMids = new Set(parsed.map((m) => m.mid.toUpperCase()));
+        const missing = INITIAL_MEMBERS.filter((m) => !existingMids.has(m.mid.toUpperCase()));
+        const merged = [...parsed, ...missing];
+        setMembers(merged);
+        if (missing.length > 0) {
+          await AsyncStorage.setItem(KOP_STORAGE_MEMBERS, JSON.stringify(merged));
+        }
       } else {
         setMembers(INITIAL_MEMBERS);
         await AsyncStorage.setItem(KOP_STORAGE_MEMBERS, JSON.stringify(INITIAL_MEMBERS));
@@ -1261,16 +1295,109 @@ export default function AdminKoperasiScreen() {
                     </View>
                   </View>
 
+                  {/* Bukti Transfer Setoran Awal Card Section */}
+                  {(mem.buktiTransferUri || mem.bankPengirim || mem.status === 'pending') && (
+                    <View style={styles.memberProofBox}>
+                      <View style={styles.memberProofHeader}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Ionicons name="receipt" size={13} color="#FBBF24" />
+                          <Text style={styles.memberProofTitle}>Bukti Transfer Setoran Awal</Text>
+                        </View>
+                        <View
+                          style={[
+                            styles.proofVerifiedBadge,
+                            mem.status === 'active'
+                              ? styles.proofVerifiedActive
+                              : styles.proofVerifiedPending,
+                          ]}
+                        >
+                          <Ionicons
+                            name={mem.status === 'active' ? 'checkmark-circle' : 'alert-circle'}
+                            size={11}
+                            color={mem.status === 'active' ? '#34D399' : '#FBBF24'}
+                          />
+                          <Text
+                            style={[
+                              styles.proofVerifiedText,
+                              { color: mem.status === 'active' ? '#34D399' : '#FBBF24' },
+                            ]}
+                          >
+                            {mem.status === 'active' ? 'Terverifikasi' : 'Perlu Verifikasi'}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <View style={styles.memberProofBody}>
+                        {mem.buktiTransferUri ? (
+                          <Pressable
+                            onPress={() => setSelectedProofMember(mem)}
+                            style={styles.memberProofThumbContainer}
+                          >
+                            <Image
+                              source={{ uri: mem.buktiTransferUri }}
+                              style={styles.memberProofThumb}
+                              resizeMode="cover"
+                            />
+                            <View style={styles.memberProofZoomBadge}>
+                              <Ionicons name="scan" size={12} color="#FFF" />
+                            </View>
+                          </Pressable>
+                        ) : (
+                          <View style={styles.memberProofNoThumb}>
+                            <Ionicons name="image-outline" size={24} color="#71717A" />
+                            <Text style={{ fontSize: 9, color: '#71717A', marginTop: 2 }}>Tanpa Foto</Text>
+                          </View>
+                        )}
+
+                        <View style={{ flex: 1, justifyContent: 'center' }}>
+                          <View style={styles.proofFieldRow}>
+                            <Text style={styles.proofFieldLabel}>Bank Pengirim:</Text>
+                            <Text style={styles.proofFieldVal}>{mem.bankPengirim || 'Bank Mandiri'}</Text>
+                          </View>
+                          <View style={styles.proofFieldRow}>
+                            <Text style={styles.proofFieldLabel}>Pengirim:</Text>
+                            <Text style={styles.proofFieldVal} numberOfLines={1}>
+                              {mem.namaPengirim || mem.nama}
+                            </Text>
+                          </View>
+                          {mem.rekeningPengirim && (
+                            <View style={styles.proofFieldRow}>
+                              <Text style={styles.proofFieldLabel}>Rekening:</Text>
+                              <Text style={styles.proofFieldVal}>{mem.rekeningPengirim}</Text>
+                            </View>
+                          )}
+
+                          <Pressable
+                            onPress={() => setSelectedProofMember(mem)}
+                            style={styles.viewProofBtn}
+                          >
+                            <Ionicons name="eye-outline" size={13} color="#FBBF24" />
+                            <Text style={styles.viewProofBtnText}>Lihat Bukti Lengkap</Text>
+                          </Pressable>
+                        </View>
+                      </View>
+                    </View>
+                  )}
+
                   <View style={styles.memberFooterRow}>
                     <Text style={styles.memberJoinDate}>Terdaftar sejak {formatDate(mem.tanggalDaftar)}</Text>
                     {mem.status === 'pending' ? (
-                      <Pressable
-                        onPress={() => handleApproveMember(mem)}
-                        style={styles.verifyMemberBtn}
-                      >
-                        <Ionicons name="checkmark-done" size={14} color="#000" />
-                        <Text style={styles.verifyMemberBtnText}>Verifikasi Keanggotaan</Text>
-                      </Pressable>
+                      <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+                        <Pressable
+                          onPress={() => setSelectedProofMember(mem)}
+                          style={styles.checkProofBtn}
+                        >
+                          <Ionicons name="eye" size={12} color="#FBBF24" />
+                          <Text style={styles.checkProofBtnText}>Cek Bukti</Text>
+                        </Pressable>
+                        <Pressable
+                          onPress={() => handleApproveMember(mem)}
+                          style={styles.verifyMemberBtn}
+                        >
+                          <Ionicons name="checkmark-done" size={14} color="#000" />
+                          <Text style={styles.verifyMemberBtnText}>Verifikasi & Bukukan</Text>
+                        </Pressable>
+                      </View>
                     ) : (
                       <Pressable
                         onPress={() => {
@@ -1739,6 +1866,168 @@ export default function AdminKoperasiScreen() {
                 <Text style={styles.modalSubmitBtnText}>Ekspor / Unduh PDF</Text>
               </Pressable>
             </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ============================================================ */}
+      {/* MODAL: PRATINJAU BUKTI TRANSFER PEMBAYARAN ANGGOTA           */}
+      {/* ============================================================ */}
+      <Modal
+        visible={!!selectedProofMember}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelectedProofMember(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { maxHeight: '90%' }]}>
+            <View style={styles.modalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="receipt" size={20} color="#FBBF24" />
+                <Text style={styles.modalTitle}>Bukti Transfer Pendaftaran</Text>
+              </View>
+              <Pressable onPress={() => setSelectedProofMember(null)} hitSlop={8}>
+                <Ionicons name="close" size={22} color="#A1A1AA" />
+              </Pressable>
+            </View>
+
+            {selectedProofMember && (() => {
+              const totalSetoran =
+                selectedProofMember.simpananPokok +
+                selectedProofMember.simpananWajib +
+                selectedProofMember.tabunganSukarela;
+              return (
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  {/* Member info header */}
+                  <View style={styles.proofModalInfoBox}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Text style={styles.proofModalName}>{selectedProofMember.nama}</Text>
+                      <Text style={styles.memberMidChip}>{selectedProofMember.mid}</Text>
+                    </View>
+                    <Text style={styles.proofModalSub}>
+                      {selectedProofMember.chapter} • {selectedProofMember.phone}
+                    </Text>
+                  </View>
+
+                  {/* Transfer Proof Image */}
+                  {selectedProofMember.buktiTransferUri ? (
+                    <View style={styles.proofModalImageWrapper}>
+                      <Image
+                        source={{ uri: selectedProofMember.buktiTransferUri }}
+                        style={styles.proofModalImage}
+                        resizeMode="contain"
+                      />
+                    </View>
+                  ) : (
+                    <View style={styles.proofModalNoImage}>
+                      <Ionicons name="image-outline" size={48} color="#71717A" />
+                      <Text style={{ color: '#71717A', marginTop: 8, fontSize: 12 }}>
+                        Belum ada lampiran file bukti transfer
+                      </Text>
+                    </View>
+                  )}
+
+                  {/* Rincian Rekening & Setoran */}
+                  <View style={styles.proofModalDetailBox}>
+                    <View style={styles.loanDetailRow}>
+                      <Text style={styles.loanDetailLabel}>Bank Pengirim:</Text>
+                      <Text style={styles.loanDetailValue}>{selectedProofMember.bankPengirim || 'Bank Mandiri'}</Text>
+                    </View>
+                    <View style={styles.loanDetailRow}>
+                      <Text style={styles.loanDetailLabel}>Atas Nama Rekening:</Text>
+                      <Text style={styles.loanDetailValue}>
+                        {selectedProofMember.namaPengirim || selectedProofMember.nama}
+                      </Text>
+                    </View>
+                    {selectedProofMember.rekeningPengirim && (
+                      <View style={styles.loanDetailRow}>
+                        <Text style={styles.loanDetailLabel}>No Rekening Pengirim:</Text>
+                        <Text style={styles.loanDetailValue}>{selectedProofMember.rekeningPengirim}</Text>
+                      </View>
+                    )}
+                    <View style={styles.loanDetailRow}>
+                      <Text style={styles.loanDetailLabel}>Rekening Tujuan:</Text>
+                      <Text style={styles.loanDetailValue}>Mandiri 137-00-1234567-8 (Koperasi)</Text>
+                    </View>
+
+                    <View
+                      style={[
+                        styles.loanDetailRow,
+                        {
+                          borderTopWidth: 1,
+                          borderTopColor: 'rgba(255,255,255,0.08)',
+                          paddingTop: 8,
+                          marginTop: 6,
+                        },
+                      ]}
+                    >
+                      <Text style={styles.loanDetailLabel}>• Simpanan Pokok (1x diawal):</Text>
+                      <Text style={styles.loanDetailValue}>
+                        {formatRupiah(selectedProofMember.simpananPokok)}
+                      </Text>
+                    </View>
+                    <View style={styles.loanDetailRow}>
+                      <Text style={styles.loanDetailLabel}>• Iuran Wajib (Bulan ke-1):</Text>
+                      <Text style={styles.loanDetailValue}>
+                        {formatRupiah(selectedProofMember.simpananWajib)}
+                      </Text>
+                    </View>
+                    <View style={styles.loanDetailRow}>
+                      <Text style={styles.loanDetailLabel}>• Tabungan Sukarela Awal:</Text>
+                      <Text style={styles.loanDetailValue}>
+                        {formatRupiah(selectedProofMember.tabunganSukarela)}
+                      </Text>
+                    </View>
+                    <View
+                      style={[
+                        styles.loanDetailRow,
+                        {
+                          borderTopWidth: 1,
+                          borderTopColor: 'rgba(255,255,255,0.1)',
+                          paddingTop: 8,
+                          marginTop: 6,
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.loanDetailLabel, { color: '#FFF', fontWeight: '700' }]}>
+                        Total Transfer Masuk:
+                      </Text>
+                      <Text
+                        style={[
+                          styles.loanDetailValue,
+                          { color: '#FBBF24', fontSize: 16, fontWeight: '800' },
+                        ]}
+                      >
+                        {formatRupiah(totalSetoran)}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Actions */}
+                  <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
+                    <Pressable
+                      onPress={() => setSelectedProofMember(null)}
+                      style={[styles.loanRejectBtn, { flex: 1, paddingVertical: 12 }]}
+                    >
+                      <Text style={styles.loanRejectText}>Tutup</Text>
+                    </Pressable>
+                    {selectedProofMember.status === 'pending' && (
+                      <Pressable
+                        onPress={() => {
+                          const mem = selectedProofMember;
+                          setSelectedProofMember(null);
+                          handleApproveMember(mem);
+                        }}
+                        style={[styles.loanApproveBtn, { flex: 2, paddingVertical: 12 }]}
+                      >
+                        <Ionicons name="checkmark-done-circle" size={18} color="#000" />
+                        <Text style={styles.loanApproveText}>Verifikasi & Bukukan</Text>
+                      </Pressable>
+                    )}
+                  </View>
+                </ScrollView>
+              );
+            })()}
           </View>
         </View>
       </Modal>
@@ -2682,5 +2971,181 @@ const styles = StyleSheet.create({
   statementTxAmt: {
     fontSize: 11,
     fontWeight: '700',
+  },
+  memberProofBox: {
+    backgroundColor: 'rgba(251, 191, 36, 0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(251, 191, 36, 0.2)',
+    borderRadius: 10,
+    padding: 10,
+    marginTop: 10,
+  },
+  memberProofHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
+    paddingBottom: 6,
+  },
+  memberProofTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FBBF24',
+  },
+  proofVerifiedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  proofVerifiedActive: {
+    backgroundColor: 'rgba(52, 211, 153, 0.15)',
+  },
+  proofVerifiedPending: {
+    backgroundColor: 'rgba(251, 191, 36, 0.15)',
+  },
+  proofVerifiedText: {
+    fontSize: 9.5,
+    fontWeight: '700',
+  },
+  memberProofBody: {
+    flexDirection: 'row',
+    gap: 10,
+    alignItems: 'center',
+  },
+  memberProofThumbContainer: {
+    width: 68,
+    height: 68,
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: '#000',
+    borderWidth: 1,
+    borderColor: 'rgba(251, 191, 36, 0.4)',
+    position: 'relative',
+  },
+  memberProofThumb: {
+    width: '100%',
+    height: '100%',
+  },
+  memberProofZoomBadge: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    borderRadius: 4,
+    padding: 2,
+  },
+  memberProofNoThumb: {
+    width: 68,
+    height: 68,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  proofFieldRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
+  proofFieldLabel: {
+    fontSize: 10,
+    color: '#A1A1AA',
+    width: 80,
+  },
+  proofFieldVal: {
+    fontSize: 11,
+    color: '#FAFAFA',
+    fontWeight: '600',
+    flex: 1,
+  },
+  viewProofBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(251, 191, 36, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(251, 191, 36, 0.35)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+    marginTop: 6,
+  },
+  viewProofBtnText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#FBBF24',
+  },
+  checkProofBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(251, 191, 36, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(251, 191, 36, 0.3)',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 6,
+  },
+  checkProofBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FBBF24',
+  },
+  proofModalInfoBox: {
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 12,
+  },
+  proofModalName: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#FAFAFA',
+  },
+  proofModalSub: {
+    fontSize: 11,
+    color: '#A1A1AA',
+    marginTop: 2,
+  },
+  proofModalImageWrapper: {
+    width: '100%',
+    height: 260,
+    borderRadius: 10,
+    overflow: 'hidden',
+    backgroundColor: '#050507',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    marginBottom: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  proofModalImage: {
+    width: '100%',
+    height: '100%',
+  },
+  proofModalNoImage: {
+    width: '100%',
+    height: 160,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  proofModalDetailBox: {
+    backgroundColor: 'rgba(0, 0, 0, 0.35)',
+    borderRadius: 10,
+    padding: 10,
+    gap: 4,
   },
 });
