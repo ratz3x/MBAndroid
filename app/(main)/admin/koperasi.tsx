@@ -29,7 +29,7 @@ import type { KoperasiBalance, KoperasiTransaction } from '../../../src/types/da
 // Storage keys
 const KOP_STORAGE_TX = '@mbclub_koperasi_real_txs_v4_zero';
 const KOP_STORAGE_BAL = '@mbclub_koperasi_real_bal_v4_zero';
-const KOP_STORAGE_LOANS = '@mbclub_koperasi_loan_requests_v2';
+const KOP_STORAGE_LOANS = '@mbclub_koperasi_loan_requests_v3_clean';
 const KOP_STORAGE_MEMBERS = '@mbclub_koperasi_members_v2';
 
 // Regulasi & Ketentuan Resmi Koperasi
@@ -328,7 +328,11 @@ export default function AdminKoperasiScreen() {
         await AsyncStorage.setItem(KOP_STORAGE_TX, JSON.stringify(initTxs));
       }
 
-      // 3. Loans (Bersihkan data dummy yang diminta user)
+      // 3. Loans: Bersihkan data dummy lama dan mulai dengan antrean bersih
+      try {
+        await AsyncStorage.removeItem('@mbclub_koperasi_loan_requests_v2');
+        await AsyncStorage.removeItem('@mbclub_koperasi_loan_requests');
+      } catch {}
       const rawLoans = await AsyncStorage.getItem(KOP_STORAGE_LOANS);
       if (rawLoans) {
         const parsedLoans: LoanRequest[] = JSON.parse(rawLoans);
@@ -688,8 +692,15 @@ export default function AdminKoperasiScreen() {
     });
   }, [transactions, searchQuery, filterType]);
 
+  // Filter keluar seluruh data dummy yang diminta user
+  const activeLoans = useMemo(() => {
+    const dummyIds = new Set(['req_001', 'req_002', 'req_003']);
+    const dummyMids = new Set(['MBINA-JKT-042', 'MBINA-BDG-019', 'MBINA-SBY-088']);
+    return loanRequests.filter((r) => !dummyIds.has(r.id) && !dummyMids.has(r.mid));
+  }, [loanRequests]);
+
   // Statistik & Metrics
-  const pendingLoansCount = loanRequests.filter((r) => r.status === 'pending').length;
+  const pendingLoansCount = activeLoans.filter((r) => r.status === 'pending').length;
   const pendingMembersCount = members.filter((m) => m.status === 'pending').length;
   const totalSimpananSemua = balance.simpanan_pokok + balance.simpanan_wajib + balance.simpanan_sukarela;
 
@@ -975,14 +986,14 @@ export default function AdminKoperasiScreen() {
               </View>
             </View>
 
-            {loanRequests.length === 0 ? (
+            {activeLoans.length === 0 ? (
               <View style={styles.emptyCard}>
                 <Ionicons name="shield-checkmark" size={48} color="#C5A059" />
                 <Text style={styles.emptyTitle}>Tidak Ada Antrean Pinjaman</Text>
                 <Text style={styles.emptySub}>Tidak ada permohonan pinjaman anggota yang tertunda saat ini.</Text>
               </View>
             ) : (
-              loanRequests.map((req) => {
+              activeLoans.map((req) => {
                 const calc = calculateLoanInstallment(req.nominal, req.tenorBulan);
                 return (
                   <View
