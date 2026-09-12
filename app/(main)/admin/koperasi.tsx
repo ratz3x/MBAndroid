@@ -67,6 +67,14 @@ interface LoanRequest {
   disbursementProofUri?: string | null;
   disbursedAt?: string;
   confirmedByMemberAt?: string;
+  // 5C Risk Assessment Fields
+  incomeBersih?: number;
+  dsrRatio?: number;
+  bankStatementProof?: string | null;
+  chapterEndorser?: string;
+  chapterEndorserPhone?: string;
+  agunanPajak?: 'hidup' | 'mati';
+  agunanOwner?: string;
 }
 
 export interface PendingDepositItem {
@@ -279,6 +287,15 @@ export default function AdminKoperasiScreen() {
   const [selectedDepositMember, setSelectedDepositMember] = useState<MemberKopItem | null>(null);
   const [isProcessingDeposit, setIsProcessingDeposit] = useState(false);
   const [showHealthCertModal, setShowHealthCertModal] = useState(false);
+  const [selectedLoanForUnderwriting, setSelectedLoanForUnderwriting] = useState<any>(null);
+  const [showStatementProofModal, setShowStatementProofModal] = useState<string | null>(null);
+
+  // 5C Credit Scoring Engine States (Default Values)
+  const [scoreCharacter, setScoreCharacter] = useState(85);
+  const [scoreCapacity, setScoreCapacity] = useState(80);
+  const [scoreCapital, setScoreCapital] = useState(75);
+  const [scoreCollateral, setScoreCollateral] = useState(85);
+  const [scoreCondition, setScoreCondition] = useState(80);
 
   // Form State for Recording Mutasi
   const [txSubtype, setTxSubtype] = useState<'pokok' | 'wajib' | 'sukarela' | 'talangan' | 'pinjaman' | 'cicilan'>('wajib');
@@ -1745,6 +1762,29 @@ export default function AdminKoperasiScreen() {
                         <Text style={styles.loanDetailLabel}>Rekam Jejak Simpanan:</Text>
                         <Text style={styles.loanDetailValue}>{formatRupiah(req.rekamJejakSimpanan)}</Text>
                       </View>
+
+                      {/* Info Skrining Finansial 5C */}
+                      {req.incomeBersih ? (
+                        <View style={{ marginTop: 6, paddingTop: 6, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)' }}>
+                          <View style={styles.loanDetailRow}>
+                            <Text style={styles.loanDetailLabel}>Penghasilan Bersih:</Text>
+                            <Text style={[styles.loanDetailValue, { color: '#FAFAFA' }]}>{formatRupiah(req.incomeBersih)} / bln</Text>
+                          </View>
+                          <View style={styles.loanDetailRow}>
+                            <Text style={styles.loanDetailLabel}>Beban Angsuran (DSR):</Text>
+                            <Text style={[styles.loanDetailValue, { color: (req.dsrRatio || 0) <= 30 ? '#34D399' : (req.dsrRatio || 0) <= 35 ? '#FBBF24' : '#EF4444', fontWeight: '800' }]}>
+                              {req.dsrRatio || 0}% {(req.dsrRatio || 0) <= 30 ? '(Aman)' : (req.dsrRatio || 0) <= 35 ? '(Batas Maks)' : '(Tinggi)'}
+                            </Text>
+                          </View>
+                          {req.chapterEndorser && (
+                            <View style={styles.loanDetailRow}>
+                              <Text style={styles.loanDetailLabel}>Penjamin Chapter:</Text>
+                              <Text style={[styles.loanDetailValue, { color: '#C084FC' }]}>{req.chapterEndorser}</Text>
+                            </View>
+                          )}
+                        </View>
+                      ) : null}
+
                       <View style={{ marginTop: 8 }}>
                         <Text style={styles.loanDetailLabel}>Peruntukan Dana:</Text>
                         <Text style={styles.loanDetailPurpose} numberOfLines={2}>
@@ -1760,6 +1800,20 @@ export default function AdminKoperasiScreen() {
                       >
                         <Ionicons name="document-text-outline" size={15} color="#D4D4D8" />
                         <Text style={styles.loanDetailBtnText}>Rincian</Text>
+                      </Pressable>
+
+                      {/* Tombol Uji Kelayakan 5C */}
+                      <Pressable
+                        onPress={() => {
+                          setSelectedLoanForUnderwriting(req);
+                          const dsr = req.dsrRatio || 30;
+                          setScoreCapacity(dsr <= 30 ? 90 : dsr <= 35 ? 75 : 45);
+                          setScoreCollateral(req.agunanPajak === 'mati' ? 65 : 85);
+                        }}
+                        style={styles.loanScoringBtn}
+                      >
+                        <Ionicons name="shield-checkmark-outline" size={14} color="#FBBF24" />
+                        <Text style={styles.loanScoringBtnText}>Uji Kelayakan 5C</Text>
                       </Pressable>
 
                       {req.status === 'pending' && (
@@ -3121,6 +3175,348 @@ export default function AdminKoperasiScreen() {
                 </ScrollView>
               );
             })()}
+          </View>
+        </View>
+      </Modal>
+
+      {/* ============================================================ */}
+      {/* MODAL: LEMBAR KERJA KOMITE KREDIT (5C CREDIT UNDERWRITING)   */}
+      {/* ============================================================ */}
+      <Modal
+        visible={!!selectedLoanForUnderwriting}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSelectedLoanForUnderwriting(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { maxHeight: '92%', maxWidth: 580 }]}>
+            <View style={styles.modalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="shield-checkmark" size={20} color="#FBBF24" />
+                <View>
+                  <Text style={styles.modalTitle}>Lembar Analisis Komite Kredit (5C)</Text>
+                  <Text style={{ fontSize: 10, color: '#A1A1AA' }}>Uji Kelayakan Finansial & Mitigasi Risiko Kredit</Text>
+                </View>
+              </View>
+              <Pressable onPress={() => setSelectedLoanForUnderwriting(null)} hitSlop={8}>
+                <Ionicons name="close" size={22} color="#A1A1AA" />
+              </Pressable>
+            </View>
+
+            {selectedLoanForUnderwriting && (() => {
+              const loan = selectedLoanForUnderwriting;
+              const calc = calculateLoanInstallment(loan.nominal, loan.tenorBulan);
+              const compositeScore = Math.round(
+                (scoreCharacter * 0.25 +
+                  scoreCapacity * 0.30 +
+                  scoreCapital * 0.15 +
+                  scoreCollateral * 0.20 +
+                  scoreCondition * 0.10) *
+                  10
+              ) / 10;
+
+              let grade = 'GRADE D';
+              let gradeLabel = 'TIDAK LAYAK / BERISIKO TINGGI';
+              let gradeColor = '#EF4444';
+              let recommendation = 'TOLAK PINJAMAN: Kondisi finansial dan profil risiko tidak memenuhi ambang batas kehati-hatian koperasi.';
+
+              if (compositeScore >= 85) {
+                grade = 'GRADE A';
+                gradeLabel = 'SANGAT LAYAK (PRIME BORROWER)';
+                gradeColor = '#10B981';
+                recommendation = 'DISETUJUI PENUH: Kapasitas arus kas prima, agunan BPKB kuat, dan riwayat kedisiplinan sempurna.';
+              } else if (compositeScore >= 70) {
+                grade = 'GRADE B';
+                gradeLabel = 'LAYAK BERSYARAT';
+                gradeColor = '#3B82F6';
+                recommendation = 'DISETUJUI DENGAN SYARAT: Pengikatan fidusia BPKB ketat dan penjaminan aktif pengurus Chapter.';
+              } else if (compositeScore >= 55) {
+                grade = 'GRADE C';
+                gradeLabel = 'RISIKO SEDANG / WASPADA';
+                gradeColor = '#F59E0B';
+                recommendation = 'PENYESUAIAN PLAFON: Disarankan menurunkan nominal pinjaman agar DSR berada di bawah 30%.';
+              }
+
+              return (
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  {/* Pemohon Header Info */}
+                  <View style={styles.underwriteHeaderBox}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.underwriteMemberName}>{loan.nama}</Text>
+                      <Text style={styles.underwriteMemberMid}>{loan.mid} • {loan.chapter}</Text>
+                    </View>
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Text style={styles.underwriteLoanNominal}>{formatRupiah(loan.nominal)}</Text>
+                      <Text style={styles.underwriteLoanTenor}>Tenor {loan.tenorBulan} Bln • Angs. {formatRupiah(calc.total)}/bln</Text>
+                    </View>
+                  </View>
+
+                  {/* Summary Score Card */}
+                  <View style={[styles.underwriteScoreCard, { borderColor: gradeColor }]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <View>
+                        <Text style={styles.underwriteScoreTitle}>SKOR KELAYAKAN KREDIT 5C:</Text>
+                        <Text style={[styles.underwriteGradeText, { color: gradeColor }]}>
+                          {grade} — {gradeLabel}
+                        </Text>
+                      </View>
+                      <View style={[styles.underwriteScoreCircle, { borderColor: gradeColor }]}>
+                        <Text style={[styles.underwriteScoreNum, { color: gradeColor }]}>
+                          {compositeScore}
+                        </Text>
+                        <Text style={styles.underwriteScoreScale}>/ 100</Text>
+                      </View>
+                    </View>
+                    <View style={[styles.underwriteRecBox, { backgroundColor: `${gradeColor}18`, borderColor: gradeColor }]}>
+                      <Ionicons name="information-circle" size={16} color={gradeColor} />
+                      <Text style={[styles.underwriteRecText, { color: gradeColor }]}>
+                        {recommendation}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* 5C Assessment Sliders / Parameters */}
+                  <Text style={[styles.sectionHeaderTitle, { fontSize: 13, marginTop: 14, marginBottom: 8 }]}>
+                    Evaluasi 5 Aspek Kelayakan Kredit (Komite Penilai):
+                  </Text>
+
+                  {/* 1. Character */}
+                  <View style={styles.cAspectCard}>
+                    <View style={styles.cAspectTop}>
+                      <Text style={styles.cAspectTitle}>1. Character (Integritas & Iuran Wajib) — 25%</Text>
+                      <Text style={[styles.cAspectScoreVal, { color: scoreCharacter >= 80 ? '#10B981' : '#F59E0B' }]}>
+                        {scoreCharacter} Poin
+                      </Text>
+                    </View>
+                    <Text style={styles.cAspectDesc}>
+                      Kepatuhan membayar simpanan wajib, rekam jejak di klub, dan etika berkomunitas.
+                    </Text>
+                    <View style={styles.cOptionRow}>
+                      {[
+                        { label: 'Tertib 100%', val: 95 },
+                        { label: 'Cukup Baik', val: 80 },
+                        { label: 'Pernah Telat', val: 60 },
+                        { label: 'Menunggak', val: 30 },
+                      ].map((opt) => (
+                        <Pressable
+                          key={opt.val}
+                          onPress={() => setScoreCharacter(opt.val)}
+                          style={[
+                            styles.cOptionPill,
+                            scoreCharacter === opt.val && { borderColor: '#FBBF24', backgroundColor: 'rgba(251, 191, 36, 0.2)' }
+                          ]}
+                        >
+                          <Text style={[styles.cOptionText, scoreCharacter === opt.val && { color: '#FBBF24', fontWeight: '800' }]}>
+                            {opt.label}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  </View>
+
+                  {/* 2. Capacity */}
+                  <View style={styles.cAspectCard}>
+                    <View style={styles.cAspectTop}>
+                      <Text style={styles.cAspectTitle}>2. Capacity (Kemampuan Arus Kas & DSR) — 30%</Text>
+                      <Text style={[styles.cAspectScoreVal, { color: scoreCapacity >= 80 ? '#10B981' : scoreCapacity >= 60 ? '#3B82F6' : '#EF4444' }]}>
+                        {scoreCapacity} Poin
+                      </Text>
+                    </View>
+                    <Text style={styles.cAspectDesc}>
+                      Rasio Beban Cicilan (DSR: {loan.dsrRatio || 0}%). Penghasilan: {formatRupiah(loan.incomeBersih || 0)}/bln.
+                    </Text>
+                    {loan.bankStatementProof && (
+                      <Pressable
+                        onPress={() => setShowStatementProofModal(loan.bankStatementProof)}
+                        style={styles.viewStatementBtn}
+                      >
+                        <Ionicons name="document-attach" size={14} color="#34D399" />
+                        <Text style={styles.viewStatementBtnText}>Periksa Lampiran Rekening Koran 3 Bulan</Text>
+                      </Pressable>
+                    )}
+                    <View style={styles.cOptionRow}>
+                      {[
+                        { label: 'DSR ≤ 30% (Aman)', val: 95 },
+                        { label: 'DSR 31-35% (Batas)', val: 75 },
+                        { label: 'DSR 36-40% (Waspada)', val: 55 },
+                        { label: 'DSR > 40% (Bahaya)', val: 30 },
+                      ].map((opt) => (
+                        <Pressable
+                          key={opt.val}
+                          onPress={() => setScoreCapacity(opt.val)}
+                          style={[
+                            styles.cOptionPill,
+                            scoreCapacity === opt.val && { borderColor: '#60A5FA', backgroundColor: 'rgba(96, 165, 250, 0.2)' }
+                          ]}
+                        >
+                          <Text style={[styles.cOptionText, scoreCapacity === opt.val && { color: '#60A5FA', fontWeight: '800' }]}>
+                            {opt.label}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  </View>
+
+                  {/* 3. Capital */}
+                  <View style={styles.cAspectCard}>
+                    <View style={styles.cAspectTop}>
+                      <Text style={styles.cAspectTitle}>3. Capital (Partisipasi Simpanan Koperasi) — 15%</Text>
+                      <Text style={[styles.cAspectScoreVal, { color: scoreCapital >= 80 ? '#10B981' : '#F59E0B' }]}>
+                        {scoreCapital} Poin
+                      </Text>
+                    </View>
+                    <Text style={styles.cAspectDesc}>
+                      Saldo simpanan yang disetor di koperasi: {formatRupiah(loan.rekamJejakSimpanan || 0)}.
+                    </Text>
+                    <View style={styles.cOptionRow}>
+                      {[
+                        { label: 'Plafon ≤ 3x Simpanan', val: 90 },
+                        { label: 'Plafon 3-5x Simpanan', val: 75 },
+                        { label: 'Plafon > 5x Simpanan', val: 50 },
+                      ].map((opt) => (
+                        <Pressable
+                          key={opt.val}
+                          onPress={() => setScoreCapital(opt.val)}
+                          style={[
+                            styles.cOptionPill,
+                            scoreCapital === opt.val && { borderColor: '#FBBF24', backgroundColor: 'rgba(251, 191, 36, 0.2)' }
+                          ]}
+                        >
+                          <Text style={[styles.cOptionText, scoreCapital === opt.val && { color: '#FBBF24', fontWeight: '800' }]}>
+                            {opt.label}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  </View>
+
+                  {/* 4. Collateral */}
+                  <View style={styles.cAspectCard}>
+                    <View style={styles.cAspectTop}>
+                      <Text style={styles.cAspectTitle}>4. Collateral (Taksasi Agunan BPKB & Pajak) — 20%</Text>
+                      <Text style={[styles.cAspectScoreVal, { color: scoreCollateral >= 80 ? '#10B981' : '#EF4444' }]}>
+                        {scoreCollateral} Poin
+                      </Text>
+                    </View>
+                    <Text style={styles.cAspectDesc}>
+                      Agunan: {loan.agunan}. Taksasi: {formatRupiah(loan.nilaiAgunan)}. Pajak: {loan.agunanPajak === 'mati' ? 'Mati/Terlambat' : 'Hidup/Taat'}.
+                    </Text>
+                    <View style={styles.cOptionRow}>
+                      {[
+                        { label: 'LTV ≤ 60% & Pajak Hidup', val: 95 },
+                        { label: 'LTV 61-70% & Pajak Hidup', val: 80 },
+                        { label: 'Pajak Kendaraan Mati', val: 60 },
+                        { label: 'Agunan Meragukan', val: 35 },
+                      ].map((opt) => (
+                        <Pressable
+                          key={opt.val}
+                          onPress={() => setScoreCollateral(opt.val)}
+                          style={[
+                            styles.cOptionPill,
+                            scoreCollateral === opt.val && { borderColor: '#EF4444', backgroundColor: 'rgba(239, 68, 68, 0.2)' }
+                          ]}
+                        >
+                          <Text style={[styles.cOptionText, scoreCollateral === opt.val && { color: '#FCA5A5', fontWeight: '800' }]}>
+                            {opt.label}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  </View>
+
+                  {/* 5. Condition */}
+                  <View style={styles.cAspectCard}>
+                    <View style={styles.cAspectTop}>
+                      <Text style={styles.cAspectTitle}>5. Condition (Penjamin Chapter & Usaha) — 10%</Text>
+                      <Text style={[styles.cAspectScoreVal, { color: scoreCondition >= 80 ? '#10B981' : '#F59E0B' }]}>
+                        {scoreCondition} Poin
+                      </Text>
+                    </View>
+                    <Text style={styles.cAspectDesc}>
+                      Penjamin Chapter: {loan.chapterEndorser || '-'} ({loan.chapterEndorserPhone || '-'}).
+                    </Text>
+                    <View style={styles.cOptionRow}>
+                      {[
+                        { label: 'Rekomendasi Valid & Terverif', val: 95 },
+                        { label: 'Cukup Terkenal', val: 75 },
+                        { label: 'Belum Terverifikasi', val: 40 },
+                      ].map((opt) => (
+                        <Pressable
+                          key={opt.val}
+                          onPress={() => setScoreCondition(opt.val)}
+                          style={[
+                            styles.cOptionPill,
+                            scoreCondition === opt.val && { borderColor: '#C084FC', backgroundColor: 'rgba(192, 132, 252, 0.2)' }
+                          ]}
+                        >
+                          <Text style={[styles.cOptionText, scoreCondition === opt.val && { color: '#C084FC', fontWeight: '800' }]}>
+                            {opt.label}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  </View>
+
+                  {/* Action Decision Buttons */}
+                  <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
+                    <Pressable
+                      onPress={() => {
+                        setSelectedLoanForUnderwriting(null);
+                        showAlertDialog(
+                          'Keputusan Komite Dicatat',
+                          `Hasil evaluasi kelayakan kredit untuk ${loan.nama} telah dicatat:\n\n• Skor Akhir: ${compositeScore} / 100\n• Grade: ${grade} (${gradeLabel})\n• Rekomendasi: ${recommendation}`
+                        );
+                      }}
+                      style={[styles.loanApproveBtn, { flex: 1, paddingVertical: 12, backgroundColor: '#FBBF24' }]}
+                    >
+                      <Text style={[styles.loanApproveText, { color: '#000' }]}>Simpan Hasil Evaluasi 5C</Text>
+                    </Pressable>
+                  </View>
+                </ScrollView>
+              );
+            })()}
+          </View>
+        </View>
+      </Modal>
+
+      {/* ============================================================ */}
+      {/* MODAL: PENAMPIL DOKUMEN REKENING KORAN 3 BULAN PEMOHON       */}
+      {/* ============================================================ */}
+      <Modal
+        visible={!!showStatementProofModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowStatementProofModal(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { maxHeight: '90%' }]}>
+            <View style={styles.modalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="document-text" size={20} color="#34D399" />
+                <Text style={styles.modalTitle}>Rekening Koran 3 Bulan Pemohon</Text>
+              </View>
+              <Pressable onPress={() => setShowStatementProofModal(null)} hitSlop={8}>
+                <Ionicons name="close" size={22} color="#A1A1AA" />
+              </Pressable>
+            </View>
+
+            {showStatementProofModal && (
+              <ScrollView showsVerticalScrollIndicator={false}>
+                <View style={[styles.proofPreviewContainer, { height: 350, marginBottom: 12 }]}>
+                  <Image
+                    source={{ uri: showStatementProofModal }}
+                    style={{ width: '100%', height: '100%' }}
+                    resizeMode="contain"
+                  />
+                </View>
+                <Pressable
+                  onPress={() => setShowStatementProofModal(null)}
+                  style={[styles.loanRejectBtn, { paddingVertical: 12, backgroundColor: 'rgba(255,255,255,0.06)' }]}
+                >
+                  <Text style={[styles.loanRejectText, { color: '#FAFAFA' }]}>Tutup Berkas</Text>
+                </Pressable>
+              </ScrollView>
+            )}
           </View>
         </View>
       </Modal>
@@ -5868,5 +6264,186 @@ const styles = StyleSheet.create({
     fontSize: 8.5,
     color: '#71717A',
     marginTop: 1,
+  },
+
+  // ==========================================
+  // 5C CREDIT UNDERWRITING SHEET STYLES
+  // ==========================================
+  loanScoringBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#FBBF24',
+    backgroundColor: 'rgba(251, 191, 36, 0.12)',
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' as any } : {}),
+  },
+  loanScoringBtnText: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#FBBF24',
+  },
+
+  underwriteHeaderBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 10,
+  },
+  underwriteMemberName: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#FAFAFA',
+  },
+  underwriteMemberMid: {
+    fontSize: 10,
+    color: '#A1A1AA',
+    marginTop: 2,
+  },
+  underwriteLoanNominal: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#FBBF24',
+  },
+  underwriteLoanTenor: {
+    fontSize: 9.5,
+    color: '#34D399',
+    fontWeight: '700',
+    marginTop: 2,
+  },
+
+  underwriteScoreCard: {
+    borderWidth: 1.5,
+    borderRadius: 10,
+    padding: 12,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    marginBottom: 12,
+  },
+  underwriteScoreTitle: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#A1A1AA',
+    letterSpacing: 0.5,
+  },
+  underwriteGradeText: {
+    fontSize: 13,
+    fontWeight: '900',
+    marginTop: 2,
+  },
+  underwriteScoreCircle: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+  },
+  underwriteScoreNum: {
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  underwriteScoreScale: {
+    fontSize: 8,
+    color: '#A1A1AA',
+    marginTop: -2,
+  },
+  underwriteRecBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+    borderWidth: 1,
+    borderRadius: 6,
+    padding: 8,
+    marginTop: 10,
+  },
+  underwriteRecText: {
+    fontSize: 10,
+    fontWeight: '700',
+    lineHeight: 14,
+    flex: 1,
+  },
+
+  cAspectCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 10,
+  },
+  cAspectTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 3,
+  },
+  cAspectTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#FAFAFA',
+    flex: 1,
+  },
+  cAspectScoreVal: {
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  cAspectDesc: {
+    fontSize: 9.5,
+    color: '#A1A1AA',
+    lineHeight: 13,
+    marginBottom: 8,
+  },
+  cOptionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  cOptionPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' as any } : {}),
+  },
+  cOptionText: {
+    fontSize: 9.5,
+    color: '#D4D4D8',
+  },
+  viewStatementBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(52, 211, 153, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(52, 211, 153, 0.4)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 5,
+    marginBottom: 8,
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' as any } : {}),
+  },
+  viewStatementBtnText: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: '#34D399',
+  },
+  proofPreviewContainer: {
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

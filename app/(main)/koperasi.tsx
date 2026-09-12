@@ -252,13 +252,20 @@ export default function KoperasiScreen() {
   const [showApplyLoanModal, setShowApplyLoanModal] = useState(false);
   const [showMemberProofLoanModal, setShowMemberProofLoanModal] = useState<any>(null);
   const [showHealthNoticeModal, setShowHealthNoticeModal] = useState(false);
+  const [showLoanSopModal, setShowLoanSopModal] = useState(false);
 
-  // Form State for Apply Loan
+  // Form State for Apply Loan (Mitigasi Risiko 5C)
   const [loanNominal, setLoanNominal] = useState('15000000');
   const [loanTenor, setLoanTenor] = useState(12);
   const [loanAgunan, setLoanAgunan] = useState('BPKB Mercedes-Benz');
   const [loanNilaiAgunan, setLoanNilaiAgunan] = useState('85000000');
   const [loanTujuan, setLoanTujuan] = useState('Perawatan Servis & Kaki-kaki Unit Mercedes-Benz');
+  const [loanIncome, setLoanIncome] = useState('12000000'); // Penghasilan Bersih Bulanan (Capacity)
+  const [loanBankStatementProof, setLoanBankStatementProof] = useState<string | null>(null); // Rekening Koran 3 Bln
+  const [loanChapterEndorser, setLoanChapterEndorser] = useState(''); // Pengurus Chapter Penjamin (Condition)
+  const [loanChapterEndorserPhone, setLoanChapterEndorserPhone] = useState('');
+  const [loanAgunanPajak, setLoanAgunanPajak] = useState<'hidup' | 'mati'>('hidup');
+  const [loanAgunanOwner, setLoanAgunanOwner] = useState('');
   const [loanSubmitting, setLoanSubmitting] = useState(false);
 
   const openRegisterModal = () => {
@@ -398,6 +405,61 @@ export default function KoperasiScreen() {
       }
     } catch (err: any) {
       showAlertDialog('Gagal Memilih Foto', err?.message || 'Terjadi kesalahan saat memilih berkas.');
+    }
+  };
+
+  const handlePickBankStatementProof = async () => {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      try {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*,application/pdf';
+        input.style.display = 'none';
+        document.body.appendChild(input);
+
+        input.onchange = (e: any) => {
+          const file = e.target?.files?.[0];
+          if (file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+              const base64Uri = event.target?.result as string;
+              if (base64Uri) {
+                setLoanBankStatementProof(base64Uri);
+              }
+              try {
+                document.body.removeChild(input);
+              } catch (_) {}
+            };
+            reader.onerror = () => {
+              try { document.body.removeChild(input); } catch (_) {}
+              showAlertDialog('Gagal Membaca File', 'Terjadi kesalahan saat membaca berkas.');
+            };
+            reader.readAsDataURL(file);
+          }
+        };
+        input.click();
+      } catch (e: any) {
+        showAlertDialog('Gagal Membuka File Browser', e?.message || 'Tidak dapat membuka dialog berkas.');
+      }
+      return;
+    }
+
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        showAlertDialog('Izin Ditolak', 'Aplikasi memerlukan izin galeri untuk mengunggah rekening koran / mutasi bank.');
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: false,
+        quality: 0.8,
+      });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setLoanBankStatementProof(result.assets[0].uri);
+      }
+    } catch (err: any) {
+      showAlertDialog('Gagal Memilih Dokumen', err?.message || 'Terjadi kesalahan saat memilih berkas rekening koran.');
     }
   };
 
@@ -3228,6 +3290,18 @@ export default function KoperasiScreen() {
                 );
               })()}
 
+              {/* Tombol Panduan SOP 5C */}
+              <Pressable
+                onPress={() => setShowLoanSopModal(true)}
+                style={styles.loanSopBannerBtn}
+              >
+                <Ionicons name="shield-checkmark" size={16} color="#FBBF24" />
+                <Text style={styles.loanSopBannerBtnText}>
+                  Pelajari SOP & Standar Kelayakan Finansial 5C
+                </Text>
+                <Ionicons name="chevron-forward" size={14} color="#FBBF24" />
+              </Pressable>
+
               {/* Peruntukan Dana */}
               <Text style={styles.inputLabel}>Peruntukan / Keperluan Dana Pinjaman *</Text>
               <TextInput
@@ -3238,29 +3312,181 @@ export default function KoperasiScreen() {
                 placeholderTextColor="#71717A"
               />
 
-              {/* Agunan */}
-              <Text style={styles.inputLabel}>Agunan / Jaminan Penjamin *</Text>
-              <TextInput
-                style={styles.modalInput}
-                value={loanAgunan}
-                onChangeText={setLoanAgunan}
-                placeholder="Contoh: BPKB Mercedes-Benz W124 E320 Tahun 1995"
-                placeholderTextColor="#71717A"
-              />
+              {/* SECTION: CAPACITY (KEMAMPUAN BAYAR & CASHFLOW) */}
+              <View style={styles.screeningSectionCard}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                  <Ionicons name="analytics" size={16} color="#60A5FA" />
+                  <Text style={styles.screeningSectionTitle}>1. Analisis Kemampuan Bayar (Capacity)</Text>
+                </View>
 
-              {/* Nilai Taksasi Agunan */}
-              <Text style={styles.inputLabel}>Estimasi Nilai Taksasi Agunan (Rp) *</Text>
-              <TextInput
-                style={styles.modalInput}
-                keyboardType="numeric"
-                value={loanNilaiAgunan}
-                onChangeText={(text) => {
-                  const cleaned = text.replace(/[^0-9]/g, '');
-                  setLoanNilaiAgunan(cleaned);
-                }}
-                placeholder="85000000"
-                placeholderTextColor="#71717A"
-              />
+                <Text style={styles.inputLabel}>Penghasilan Bersih Bulanan (Rp) *</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  keyboardType="numeric"
+                  value={loanIncome}
+                  onChangeText={(text) => {
+                    const cleaned = text.replace(/[^0-9]/g, '');
+                    setLoanIncome(cleaned);
+                  }}
+                  placeholder="Contoh: 15000000"
+                  placeholderTextColor="#71717A"
+                />
+
+                {/* Live DSR (Debt Service Ratio) Meter */}
+                {(() => {
+                  const numNom = parseInt(loanNominal.replace(/[^0-9]/g, ''), 10) || 0;
+                  const numInc = parseInt(loanIncome.replace(/[^0-9]/g, ''), 10) || 1;
+                  const pokokBln = loanTenor > 0 ? Math.round(numNom / loanTenor) : 0;
+                  const bungaBln = Math.round((numNom * 0.06) / 12);
+                  const totalAngs = pokokBln + bungaBln;
+                  const dsr = Math.round((totalAngs / numInc) * 1000) / 10;
+
+                  const isSafe = dsr <= 30;
+                  const isWarning = dsr > 30 && dsr <= 35;
+                  const isDanger = dsr > 35;
+
+                  const meterColor = isSafe ? '#34D399' : isWarning ? '#F59E0B' : '#EF4444';
+                  const statusLabel = isSafe
+                    ? 'SANGAT AMAN (Ideal ≤ 30%)'
+                    : isWarning
+                    ? 'BATAS MAKSIMAL (Waspada 31-35%)'
+                    : 'BERISIKO TINGGI (DSR > 35% - Tidak Disarankan)';
+
+                  return (
+                    <View style={[styles.dsrMeterBox, { borderColor: meterColor }]}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Text style={styles.dsrMeterLabel}>Debt Service Ratio (DSR):</Text>
+                        <Text style={[styles.dsrMeterVal, { color: meterColor }]}>{dsr}%</Text>
+                      </View>
+                      <View style={styles.dsrTrack}>
+                        <View style={[styles.dsrFill, { width: `${Math.min(100, dsr * 2)}%`, backgroundColor: meterColor }]} />
+                      </View>
+                      <Text style={[styles.dsrStatusText, { color: meterColor }]}>
+                        {statusLabel}
+                      </Text>
+                      <Text style={styles.dsrDesc}>
+                        Angsuran {formatRupiah(totalAngs)}/bln dari penghasilan {formatRupiah(numInc)}/bln.
+                      </Text>
+                    </View>
+                  );
+                })()}
+
+                {/* Upload Bukti Rekening Koran 3 Bulan */}
+                <Text style={[styles.inputLabel, { marginTop: 10 }]}>
+                  Unggah Rekening Koran / Mutasi Bank 3 Bulan Terakhir *
+                </Text>
+                <Pressable
+                  onPress={handlePickBankStatementProof}
+                  style={styles.uploadStatementBtn}
+                >
+                  <Ionicons
+                    name={loanBankStatementProof ? "document-attach" : "cloud-upload-outline"}
+                    size={20}
+                    color={loanBankStatementProof ? "#34D399" : "#FBBF24"}
+                  />
+                  <Text style={[styles.uploadStatementBtnText, loanBankStatementProof ? { color: '#34D399' } : undefined]}>
+                    {loanBankStatementProof ? "✓ Dokumen Rekening Koran Terlampir" : "Pilih Berkas Rekening Koran (PDF / Foto)"}
+                  </Text>
+                </Pressable>
+              </View>
+
+              {/* SECTION: COLLATERAL (LEGALITAS & AGUNAN) */}
+              <View style={[styles.screeningSectionCard, { marginTop: 12 }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                  <Ionicons name="car-sport" size={16} color="#FBBF24" />
+                  <Text style={styles.screeningSectionTitle}>2. Agunan & Jaminan (Collateral)</Text>
+                </View>
+
+                {/* Agunan */}
+                <Text style={styles.inputLabel}>Unit Mercedes-Benz yang Dijaminkan *</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  value={loanAgunan}
+                  onChangeText={setLoanAgunan}
+                  placeholder="Contoh: BPKB Mercedes-Benz W124 E320 Tahun 1995"
+                  placeholderTextColor="#71717A"
+                />
+
+                {/* Nama di BPKB */}
+                <Text style={styles.inputLabel}>Nama Pemilik Sesuai BPKB *</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  value={loanAgunanOwner}
+                  onChangeText={setLoanAgunanOwner}
+                  placeholder="Atas nama sendiri / sertakan kuitansi jual beli"
+                  placeholderTextColor="#71717A"
+                />
+
+                {/* Nilai Taksasi Agunan */}
+                <Text style={styles.inputLabel}>Estimasi Nilai Pasar Wajar Agunan (Rp) *</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  keyboardType="numeric"
+                  value={loanNilaiAgunan}
+                  onChangeText={(text) => {
+                    const cleaned = text.replace(/[^0-9]/g, '');
+                    setLoanNilaiAgunan(cleaned);
+                  }}
+                  placeholder="85000000"
+                  placeholderTextColor="#71717A"
+                />
+
+                {/* Status Pajak */}
+                <Text style={styles.inputLabel}>Status Pajak STNK / Kendaraan *</Text>
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
+                  <Pressable
+                    onPress={() => setLoanAgunanPajak('hidup')}
+                    style={[
+                      styles.taxOptionBtn,
+                      loanAgunanPajak === 'hidup' && { borderColor: '#34D399', backgroundColor: 'rgba(52, 211, 153, 0.15)' }
+                    ]}
+                  >
+                    <Ionicons name="checkmark-circle" size={16} color={loanAgunanPajak === 'hidup' ? '#34D399' : '#71717A'} />
+                    <Text style={[styles.taxOptionBtnText, loanAgunanPajak === 'hidup' && { color: '#34D399', fontWeight: '700' }]}>
+                      Pajak Hidup / Taat
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => setLoanAgunanPajak('mati')}
+                    style={[
+                      styles.taxOptionBtn,
+                      loanAgunanPajak === 'mati' && { borderColor: '#EF4444', backgroundColor: 'rgba(239, 68, 68, 0.15)' }
+                    ]}
+                  >
+                    <Ionicons name="alert-circle" size={16} color={loanAgunanPajak === 'mati' ? '#EF4444' : '#71717A'} />
+                    <Text style={[styles.taxOptionBtnText, loanAgunanPajak === 'mati' && { color: '#EF4444', fontWeight: '700' }]}>
+                      Pajak Terlambat / Mati
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+
+              {/* SECTION: CONDITION & SOCIAL COLLATERAL (PENJAMIN CHAPTER) */}
+              <View style={[styles.screeningSectionCard, { marginTop: 12 }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                  <Ionicons name="people" size={16} color="#A78BFA" />
+                  <Text style={styles.screeningSectionTitle}>3. Rekomendasi Pengurus Chapter (Condition)</Text>
+                </View>
+
+                <Text style={styles.inputLabel}>Nama Ketua / Sekretaris Chapter Penjamin *</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  value={loanChapterEndorser}
+                  onChangeText={setLoanChapterEndorser}
+                  placeholder="Contoh: Bpk. Budi Santoso (Ketua Chapter Bandung)"
+                  placeholderTextColor="#71717A"
+                />
+
+                <Text style={styles.inputLabel}>No. WhatsApp Pengurus Chapter Penjamin *</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  keyboardType="phone-pad"
+                  value={loanChapterEndorserPhone}
+                  onChangeText={setLoanChapterEndorserPhone}
+                  placeholder="Contoh: 081234567890"
+                  placeholderTextColor="#71717A"
+                />
+              </View>
 
               <View style={{ height: 16 }} />
               <MetallicButton
@@ -3488,6 +3714,133 @@ export default function KoperasiScreen() {
               >
                 <Text style={styles.healthNoticeDismissBtnText}>
                   Saya Mengerti & Mendukung Tata Kelola Amanah
+                </Text>
+              </Pressable>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ============================================================ */}
+      {/* MODAL: SOP SKRINING KELAYAKAN FINANSIAL ANGGOTA (PRINSIP 5C)  */}
+      {/* ============================================================ */}
+      <Modal
+        visible={showLoanSopModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowLoanSopModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { maxHeight: '92%', maxWidth: 540 }]}>
+            <View style={styles.modalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="shield-checkmark" size={20} color="#FBBF24" />
+                <View>
+                  <Text style={styles.modalTitle}>SOP Kelayakan Pinjaman (5C)</Text>
+                  <Text style={{ fontSize: 10, color: '#A1A1AA' }}>Manajemen Risiko Pembiayaan Koperasi</Text>
+                </View>
+              </View>
+              <Pressable onPress={() => setShowLoanSopModal(false)} hitSlop={8}>
+                <Ionicons name="close" size={22} color="#A1A1AA" />
+              </Pressable>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {/* Banner Filosofi Proteksi */}
+              <View style={styles.sopIntroCard}>
+                <Ionicons name="lock-closed" size={20} color="#FBBF24" />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.sopIntroTitle}>Mengapa Skrining Finansial Sangat Ketat?</Text>
+                  <Text style={styles.sopIntroDesc}>
+                    Dana pinjaman bersumber dari <Text style={{ fontWeight: '800', color: '#FFF' }}>Tabungan Sukarela & Modal Anggota Lain</Text>. Memiliki unit Mercedes-Benz tidak otomatis menjamin arus kas sehat. Skrining 5C melindungi uang anggota dan mencegah peminjam dari beban utang berlebih.
+                  </Text>
+                </View>
+              </View>
+
+              {/* 5 Pilar Kelayakan Kredit */}
+              <Text style={[styles.title, { fontSize: 13, marginTop: 12, marginBottom: 8 }]}>
+                5 Parameter Evaluasi Kelayakan Finansial:
+              </Text>
+
+              {/* 1. Character */}
+              <View style={styles.sopItemCard}>
+                <View style={[styles.sopBadgeCircle, { backgroundColor: 'rgba(52, 211, 153, 0.15)' }]}>
+                  <Text style={[styles.sopBadgeText, { color: '#34D399' }]}>1</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.sopItemTitle}>Character (Integritas & Kedisiplinan)</Text>
+                  <Text style={styles.sopItemText}>
+                    • Wajib lunas 100% Simpanan Pokok & Wajib (Nihil Tunggakan).{'\n'}
+                    • Aktif berinteraksi di kegiatan Chapter MB Club Indonesia minimal 3 bulan.{'\n'}
+                    • Menjaga nama baik dan etika berkomunitas.
+                  </Text>
+                </View>
+              </View>
+
+              {/* 2. Capacity */}
+              <View style={styles.sopItemCard}>
+                <View style={[styles.sopBadgeCircle, { backgroundColor: 'rgba(96, 165, 250, 0.15)' }]}>
+                  <Text style={[styles.sopBadgeText, { color: '#60A5FA' }]}>2</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.sopItemTitle}>Capacity (Kemampuan Bayar / Arus Kas)</Text>
+                  <Text style={styles.sopItemText}>
+                    • <Text style={{ color: '#FBBF24', fontWeight: '700' }}>Debt Service Ratio (DSR) Maks. 35%</Text>: Angsuran bulanan tidak boleh melebihi 35% dari penghasilan bersih bulanan.{'\n'}
+                    • Wajib melampirkan <Text style={{ color: '#FFF', fontWeight: '700' }}>Rekening Koran 3 Bulan Terakhir</Text> untuk membuktikan arus kas positif.
+                  </Text>
+                </View>
+              </View>
+
+              {/* 3. Capital */}
+              <View style={styles.sopItemCard}>
+                <View style={[styles.sopBadgeCircle, { backgroundColor: 'rgba(251, 191, 36, 0.15)' }]}>
+                  <Text style={[styles.sopBadgeText, { color: '#FBBF24' }]}>3</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.sopItemTitle}>Capital (Partisipasi Modal Simpanan)</Text>
+                  <Text style={styles.sopItemText}>
+                    • Plafon pinjaman dibatasi maksimal kelipatan 3x hingga 5x dari total saldo simpanan anggota di koperasi.{'\n'}
+                    • Anggota memiliki tanggung jawab moral (*skin in the game*) dalam menjaga kesehatan kas bersama.
+                  </Text>
+                </View>
+              </View>
+
+              {/* 4. Collateral */}
+              <View style={styles.sopItemCard}>
+                <View style={[styles.sopBadgeCircle, { backgroundColor: 'rgba(239, 68, 68, 0.15)' }]}>
+                  <Text style={[styles.sopBadgeText, { color: '#EF4444' }]}>4</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.sopItemTitle}>Collateral (Legalitas & Taksasi Agunan)</Text>
+                  <Text style={styles.sopItemText}>
+                    • Agunan utama: BPKB unit Mercedes-Benz dengan rasio <Text style={{ color: '#FFF', fontWeight: '700' }}>LTV maksimal 70%</Text> dari nilai pasar wajar.{'\n'}
+                    • Pajak kendaraan wajib aktif (taat pajak).{'\n'}
+                    • BPKB wajib atas nama sendiri atau dilengkapi kuitansi jual-beli dan KTP pemilik sah.
+                  </Text>
+                </View>
+              </View>
+
+              {/* 5. Condition & Social Guarantee */}
+              <View style={styles.sopItemCard}>
+                <View style={[styles.sopBadgeCircle, { backgroundColor: 'rgba(167, 139, 250, 0.15)' }]}>
+                  <Text style={[styles.sopBadgeText, { color: '#C084FC' }]}>5</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.sopItemTitle}>Condition & Penjamin Chapter (Social Collateral)</Text>
+                  <Text style={styles.sopItemText}>
+                    • Wajib mencantumkan rekomendasi resmi dari <Text style={{ color: '#FBBF24', fontWeight: '700' }}>Ketua atau Sekretaris Chapter</Text> tempat anggota bernaung.{'\n'}
+                    • Kontrol sosial komunitas memastikan tidak ada anggota yang lepas tangan atas kewajibannya.
+                  </Text>
+                </View>
+              </View>
+
+              {/* Action Close */}
+              <Pressable
+                onPress={() => setShowLoanSopModal(false)}
+                style={styles.healthNoticeDismissBtn}
+              >
+                <Text style={styles.healthNoticeDismissBtnText}>
+                  Saya Mengerti & Siap Memenuhi Standar SOP 5C
                 </Text>
               </Pressable>
             </ScrollView>
@@ -4987,5 +5340,174 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     fontWeight: '800',
     color: '#000',
+  },
+
+  // ============================================================
+  // 5C FINANCIAL SCREENING & DSR STYLES
+  // ============================================================
+  loanSopBannerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(251, 191, 36, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(251, 191, 36, 0.4)',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    marginTop: 10,
+    marginBottom: 6,
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' as any } : {}),
+  },
+  loanSopBannerBtnText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#FBBF24',
+    flex: 1,
+    marginLeft: 6,
+  },
+  screeningSectionCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 10,
+    padding: 12,
+    marginTop: 12,
+  },
+  screeningSectionTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FAFAFA',
+  },
+  dsrMeterBox: {
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    borderWidth: 1.5,
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 8,
+  },
+  dsrMeterLabel: {
+    fontSize: 10.5,
+    color: '#A1A1AA',
+    fontWeight: '600',
+  },
+  dsrMeterVal: {
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  dsrTrack: {
+    height: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 3,
+    overflow: 'hidden',
+    marginVertical: 6,
+  },
+  dsrFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  dsrStatusText: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  dsrDesc: {
+    fontSize: 9.5,
+    color: '#A1A1AA',
+    marginTop: 2,
+  },
+  uploadStatementBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: 'rgba(251, 191, 36, 0.4)',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    justifyContent: 'center',
+    marginTop: 6,
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' as any } : {}),
+  },
+  uploadStatementBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FBBF24',
+  },
+  taxOptionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 9,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' as any } : {}),
+  },
+  taxOptionBtnText: {
+    fontSize: 11,
+    color: '#A1A1AA',
+  },
+
+  // SOP Modal Card Styles
+  sopIntroCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    backgroundColor: 'rgba(251, 191, 36, 0.08)',
+    borderWidth: 1.5,
+    borderColor: '#FBBF24',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 12,
+  },
+  sopIntroTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FBBF24',
+  },
+  sopIntroDesc: {
+    fontSize: 10,
+    color: '#D4D4D8',
+    marginTop: 3,
+    lineHeight: 15,
+  },
+  sopItemCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 10,
+  },
+  sopBadgeCircle: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sopBadgeText: {
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  sopItemTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FAFAFA',
+    marginBottom: 3,
+  },
+  sopItemText: {
+    fontSize: 10,
+    color: '#A1A1AA',
+    lineHeight: 15,
   },
 });
