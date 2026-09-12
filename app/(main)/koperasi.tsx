@@ -71,8 +71,8 @@ const INITIAL_KOP_BALANCE: KoperasiBalance = {
   member_id: KOP_USER_ID,
   simpanan_pokok: 200000,
   simpanan_wajib: 100000,
-  simpanan_sukarela: 1550000,
-  total_balance: 1850000,
+  simpanan_sukarela: 3550000,
+  total_balance: 3850000,
   active_loan: 0,
   loan_remaining: 0,
   updated_at: new Date().toISOString(),
@@ -136,7 +136,7 @@ export const DEFAULT_KOP_MEMBERS = [
     phone: '082129709696',
     simpananPokok: 100000,
     simpananWajib: 50000,
-    tabunganSukarela: 450000,
+    tabunganSukarela: 2450000,
     status: 'active' as const,
     tanggalDaftar: '2026-09-12',
     lastPaidWajibMonth: currentMonthKey,
@@ -144,19 +144,7 @@ export const DEFAULT_KOP_MEMBERS = [
     namaPengirim: 'Ayesha Fairuz Fajr',
     rekeningPengirim: '137-00-1234567-8',
     buktiTransferUri: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=600&auto=format&fit=crop&q=80',
-    pendingDeposit: {
-      id: 'dep_ayesha_1000000',
-      nominal: 1000000,
-      wajibPortion: 0,
-      sukarelaPortion: 1000000,
-      loanPortion: 0,
-      buktiTransferUri: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=600&auto=format&fit=crop&q=80',
-      tanggalTransfer: '2026-09-12 14:30',
-      bankPengirim: 'Bank Mandiri',
-      rekeningPengirim: '137-00-1234567-8',
-      namaPengirim: 'Ayesha Fairuz Fajr',
-      keterangan: 'Setoran Tambahan Tabungan Sukarela Rp 1.000.000 via Transfer Mandiri',
-    },
+    pendingDeposit: null,
   },
   {
     id: 'mem_005',
@@ -176,6 +164,65 @@ export const DEFAULT_KOP_MEMBERS = [
     namaPengirim: 'Kusumo Wardhana',
     rekeningPengirim: '246-880-1122',
     buktiTransferUri: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=600&auto=format&fit=crop&q=80',
+  },
+];
+
+export const INITIAL_KOP_TRANSACTIONS: KoperasiTransaction[] = [
+  {
+    id: 'tx_init_001',
+    member_id: KOP_USER_ID,
+    type: 'simpanan',
+    amount: 100000,
+    status: 'completed',
+    description: '[Simpanan Pokok] MID: MBINA-KOP-2026-000001 — Setoran Pokok Pengelola',
+    reference_number: 'TX-KOP-2026-1001',
+    due_date: null,
+    processed_by: KOP_USER_ID,
+    processed_at: '2026-01-01T08:00:00Z',
+    created_at: '2026-01-01T08:00:00Z',
+    updated_at: '2026-01-01T08:00:00Z',
+  },
+  {
+    id: 'tx_init_ayesha_2409',
+    member_id: '2089ee31-71e8-43d7-bb76-d218c10f932d',
+    type: 'simpanan',
+    amount: 1000000,
+    status: 'completed',
+    description: '[Transfer Bank Mandiri] Total Rp 1.000.000 (Rincian: Tabungan Sukarela Rp 1.000.000) — MID: MBINA-JBR-2026-000002 (Ayesha Fairuz Fajr) via Bank Mandiri 137-00-1234567-8',
+    reference_number: 'TX-SETOR-2026-2409',
+    due_date: null,
+    processed_by: KOP_USER_ID,
+    processed_at: '2026-09-12T15:09:00Z',
+    created_at: '2026-09-12T15:09:00Z',
+    updated_at: '2026-09-12T15:09:00Z',
+  },
+  {
+    id: 'tx_init_ayesha_1063',
+    member_id: '2089ee31-71e8-43d7-bb76-d218c10f932d',
+    type: 'simpanan',
+    amount: 1000000,
+    status: 'completed',
+    description: '[Transfer Bank Mandiri] Total Rp 1.000.000 (Rincian: Tabungan Sukarela Rp 1.000.000) — MID: MBINA-JBR-2026-000002 (Ayesha Fairuz Fajr) via Bank Mandiri 137-00-1234567-8',
+    reference_number: 'TX-SETOR-2026-1063',
+    due_date: null,
+    processed_by: KOP_USER_ID,
+    processed_at: '2026-09-12T14:38:00Z',
+    created_at: '2026-09-12T14:38:00Z',
+    updated_at: '2026-09-12T14:38:00Z',
+  },
+  {
+    id: 'tx_init_ayesha_9449',
+    member_id: '2089ee31-71e8-43d7-bb76-d218c10f932d',
+    type: 'simpanan',
+    amount: 500000,
+    status: 'completed',
+    description: '[Transfer Bank Mandiri] Total Rp 500.000 (Rincian: Tabungan Sukarela Rp 500.000) — MID: MBINA-JBR-2026-000002 (Ayesha Fairuz Fajr) via Bank Mandiri 137-00-1234567-8',
+    reference_number: 'TX-SETOR-2026-9449',
+    due_date: null,
+    processed_by: KOP_USER_ID,
+    processed_at: '2026-09-12T14:29:00Z',
+    created_at: '2026-09-12T14:29:00Z',
+    updated_at: '2026-09-12T14:29:00Z',
   },
 ];
 
@@ -926,8 +973,8 @@ export default function KoperasiScreen() {
           member_id: KOP_USER_ID,
           simpanan_pokok: sumPokok > 0 ? sumPokok : 200000,
           simpanan_wajib: sumWajib > 0 ? sumWajib : 100000,
-          simpanan_sukarela: sumSukarela > 0 ? sumSukarela : 1550000,
-          total_balance: totalBal > 0 ? totalBal : 1850000,
+          simpanan_sukarela: sumSukarela > 0 ? sumSukarela : 3550000,
+          total_balance: totalBal > 0 ? totalBal : 3850000,
           active_loan: sumLoans,
           loan_remaining: sumLoans,
           updated_at: new Date().toISOString(),
@@ -936,15 +983,23 @@ export default function KoperasiScreen() {
         await AsyncStorage.setItem(KOP_STORAGE_BAL, JSON.stringify(realBal));
 
         const rawTx = await AsyncStorage.getItem(KOP_STORAGE_TX);
-        if (rawTx) {
-          setTransactions(JSON.parse(rawTx));
-        } else {
-          setTransactions([]);
-          await AsyncStorage.setItem(KOP_STORAGE_TX, JSON.stringify([]));
+        let allTxs: KoperasiTransaction[] = rawTx ? JSON.parse(rawTx) : [];
+        const refSet = new Set(allTxs.map((t) => t.reference_number));
+        let txUpdated = false;
+        for (const it of INITIAL_KOP_TRANSACTIONS) {
+          if (!refSet.has(it.reference_number)) {
+            allTxs.push(it);
+            refSet.add(it.reference_number);
+            txUpdated = true;
+          }
         }
+        if (txUpdated || !rawTx) {
+          await AsyncStorage.setItem(KOP_STORAGE_TX, JSON.stringify(allTxs));
+        }
+        setTransactions(allTxs);
       } catch {
         setBalance(INITIAL_KOP_BALANCE);
-        setTransactions([]);
+        setTransactions(INITIAL_KOP_TRANSACTIONS);
       } finally {
         setLoading(false);
         setRefreshing(false);
@@ -954,6 +1009,22 @@ export default function KoperasiScreen() {
 
     // Regular member: check KOP_STORAGE_MEMBERS
     try {
+      // 1. Transactions - ensure transaction journal is loaded and initialized
+      const rawTx = await AsyncStorage.getItem(KOP_STORAGE_TX);
+      let allTxs: KoperasiTransaction[] = rawTx ? JSON.parse(rawTx) : [];
+      const refSet = new Set(allTxs.map((t) => t.reference_number));
+      let txUpdated = false;
+      for (const it of INITIAL_KOP_TRANSACTIONS) {
+        if (!refSet.has(it.reference_number)) {
+          allTxs.push(it);
+          refSet.add(it.reference_number);
+          txUpdated = true;
+        }
+      }
+      if (txUpdated || !rawTx) {
+        await AsyncStorage.setItem(KOP_STORAGE_TX, JSON.stringify(allTxs));
+      }
+
       const rawMem = await AsyncStorage.getItem(KOP_STORAGE_MEMBERS);
       const storedMyMid = await AsyncStorage.getItem('@mbclub_my_koperasi_mid');
 
@@ -969,7 +1040,7 @@ export default function KoperasiScreen() {
         await AsyncStorage.setItem(KOP_STORAGE_MEMBERS, JSON.stringify(memList));
       }
 
-      // Pastikan data Ayesha Fairuz Fajr selalu terdaftar dan sinkron
+      // Pastikan data Ayesha Fairuz Fajr selalu terdaftar dan sinkron dengan 3 setoran riil
       const ayeshaIdx = memList.findIndex((m: any) =>
         m.mid === 'MBINA-JBR-2026-000002' ||
         m.kopMemberId === 'KOP-JBR-2026-000002' ||
@@ -994,8 +1065,9 @@ export default function KoperasiScreen() {
           status: 'active',
           simpananPokok: 100000,
           simpananWajib: 50000,
-          tabunganSukarela: Math.max(memList[ayeshaIdx].tabunganSukarela || 0, 450000),
+          tabunganSukarela: Math.max(memList[ayeshaIdx].tabunganSukarela || 0, 2450000),
           lastPaidWajibMonth: currentMonthKey,
+          pendingDeposit: null,
         };
         await AsyncStorage.setItem(KOP_STORAGE_MEMBERS, JSON.stringify(memList));
       }
@@ -1014,6 +1086,14 @@ export default function KoperasiScreen() {
         user?.user_metadata?.full_name?.toLowerCase().includes('ayesha') ||
         userMid === 'MBINA-JBR-2026-000002' ||
         storedMyMid === 'MBINA-JBR-2026-000002';
+
+      // Filter transaksi milik user saat ini
+      const myTxs = allTxs.filter((t) =>
+        (userMid && t.description && t.description.toUpperCase().includes(userMid)) ||
+        (t.member_id && (t.member_id === user?.id || (isAyesha && t.member_id === '2089ee31-71e8-43d7-bb76-d218c10f932d'))) ||
+        (isAyesha && t.description && (t.description.toLowerCase().includes('ayesha') || t.description.includes('MBINA-JBR-2026-000002')))
+      );
+      setTransactions(myTxs);
 
       // Cari record
       let matchingRecords = memList.filter((m: any) =>
@@ -1035,11 +1115,13 @@ export default function KoperasiScreen() {
         const base = activeRecord || matchingRecords[0];
 
         const rawTotalDeposit = (base.simpananPokok ?? 0) + (base.simpananWajib ?? 0) + (base.tabunganSukarela ?? 0);
-        const totalDeposit = rawTotalDeposit > 0 ? rawTotalDeposit : (isAyesha ? 600000 : 375000);
+        const totalDeposit = rawTotalDeposit > 0 ? rawTotalDeposit : (isAyesha ? 2600000 : 375000);
 
         const correctedPokok = 100000;
         const correctedWajib = 50000;
-        const correctedSukarela = isAyesha ? Math.max(base.tabunganSukarela || 0, 450000) : Math.max(25000, totalDeposit - correctedPokok - correctedWajib);
+        const correctedSukarela = isAyesha
+          ? Math.max(base.tabunganSukarela || 0, 2450000)
+          : Math.max(25000, totalDeposit - correctedPokok - correctedWajib);
 
         const isFundedOrActive = !!activeRecord || base.status === 'active' || totalDeposit >= 175000 || isAyesha;
         const effectiveMid = userMid || base.mid || (isAyesha ? 'MBINA-JBR-2026-000002' : 'MBINA-NEW');
@@ -1055,6 +1137,7 @@ export default function KoperasiScreen() {
           simpananWajib: correctedWajib,
           tabunganSukarela: correctedSukarela,
           lastPaidWajibMonth: base.lastPaidWajibMonth || currentMonthKey,
+          pendingDeposit: null,
         };
 
         const cleanMid = found.mid.trim().toUpperCase();
@@ -1115,18 +1198,7 @@ export default function KoperasiScreen() {
         }
       } catch {}
 
-      // Check transactions
-      const rawTx = await AsyncStorage.getItem(KOP_STORAGE_TX);
-      if (rawTx) {
-        const allTxs: KoperasiTransaction[] = JSON.parse(rawTx);
-        const myTxs = allTxs.filter((t) =>
-          (userMid && t.description && t.description.toUpperCase().includes(userMid)) ||
-          t.member_id === user.id
-        );
-        setTransactions(myTxs);
-      } else {
-        setTransactions([]);
-      }
+
     } catch {
       setMembershipStatus('unregistered');
       setBalance(ZERO_KOP_BALANCE);
@@ -3089,7 +3161,7 @@ export default function KoperasiScreen() {
                   </View>
                   <View style={styles.passbookBalCol}>
                     <Text style={styles.passbookBalLabel}>Tabungan Sukarela</Text>
-                    <Text style={styles.passbookBalNum}>{formatRupiah(memberKopData?.tabunganSukarela ?? 450000)}</Text>
+                    <Text style={styles.passbookBalNum}>{formatRupiah(memberKopData?.tabunganSukarela ?? 2450000)}</Text>
                     <Text style={styles.passbookBalSub}>Bebas setor/tarik</Text>
                   </View>
                 </View>
@@ -3097,7 +3169,7 @@ export default function KoperasiScreen() {
                 <View style={styles.passbookTotalRow}>
                   <Text style={styles.passbookTotalLabel}>TOTAL SALDO BUKU TABUNGAN:</Text>
                   <Text style={styles.passbookTotalVal}>
-                    {formatRupiah((memberKopData?.simpananPokok ?? 100000) + (memberKopData?.simpananWajib ?? 50000) + (memberKopData?.tabunganSukarela ?? 450000))}
+                    {formatRupiah((memberKopData?.simpananPokok ?? 100000) + (memberKopData?.simpananWajib ?? 50000) + (memberKopData?.tabunganSukarela ?? 2450000))}
                   </Text>
                 </View>
               </View>
@@ -3134,7 +3206,19 @@ export default function KoperasiScreen() {
                   <Text style={[styles.passbookTd, { width: 68 }]}>12/09/26</Text>
                   <Text style={[styles.passbookTd, { flex: 1 }]} numberOfLines={1}>Setoran Kas / Sukarela</Text>
                   <Text style={[styles.passbookTd, { width: 76, textAlign: 'right', color: '#34D399' }]}>450.000</Text>
-                  <Text style={[styles.passbookTd, { width: 84, textAlign: 'right', fontWeight: '700', color: '#FBBF24' }]}>600.000</Text>
+                  <Text style={[styles.passbookTd, { width: 84, textAlign: 'right', fontWeight: '700' }]}>600.000</Text>
+                </View>
+                <View style={[styles.passbookTableRow, { backgroundColor: 'rgba(255,255,255,0.02)' }]}>
+                  <Text style={[styles.passbookTd, { width: 68 }]}>12/09/26</Text>
+                  <Text style={[styles.passbookTd, { flex: 1 }]} numberOfLines={1}>Setoran Tambahan Sukarela</Text>
+                  <Text style={[styles.passbookTd, { width: 76, textAlign: 'right', color: '#34D399' }]}>1.000.000</Text>
+                  <Text style={[styles.passbookTd, { width: 84, textAlign: 'right', fontWeight: '700' }]}>1.600.000</Text>
+                </View>
+                <View style={styles.passbookTableRow}>
+                  <Text style={[styles.passbookTd, { width: 68 }]}>12/09/26</Text>
+                  <Text style={[styles.passbookTd, { flex: 1 }]} numberOfLines={1}>Setoran Tambahan Sukarela</Text>
+                  <Text style={[styles.passbookTd, { width: 76, textAlign: 'right', color: '#34D399' }]}>1.000.000</Text>
+                  <Text style={[styles.passbookTd, { width: 84, textAlign: 'right', fontWeight: '700', color: '#FBBF24' }]}>2.600.000</Text>
                 </View>
 
                 {/* Tanda Tangan & Stempel Pengesahan */}

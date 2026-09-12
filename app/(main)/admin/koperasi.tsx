@@ -181,8 +181,8 @@ const INITIAL_MEMBERS: MemberKopItem[] = [
     email: 'Dummy_Kop1@mbandro.org',
     phone: '081298765432',
     simpananPokok: 100000,
-    simpananWajib: 150000,
-    tabunganSukarela: 1000000,
+    simpananWajib: 50000,
+    tabunganSukarela: 1100000,
     status: 'active',
     tanggalDaftar: '2026-01-01',
     lastPaidWajibMonth: '2026-09',
@@ -218,7 +218,7 @@ const INITIAL_MEMBERS: MemberKopItem[] = [
     phone: '082129709696',
     simpananPokok: 100000,
     simpananWajib: 50000,
-    tabunganSukarela: 450000,
+    tabunganSukarela: 2450000,
     status: 'active',
     tanggalDaftar: '2026-09-12',
     lastPaidWajibMonth: currentMonthKey,
@@ -226,19 +226,7 @@ const INITIAL_MEMBERS: MemberKopItem[] = [
     namaPengirim: 'Ayesha Fairuz Fajr',
     rekeningPengirim: '137-00-1234567-8',
     buktiTransferUri: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=600&auto=format&fit=crop&q=80',
-    pendingDeposit: {
-      id: 'dep_ayesha_1000000',
-      nominal: 1000000,
-      wajibPortion: 0,
-      sukarelaPortion: 1000000,
-      loanPortion: 0,
-      buktiTransferUri: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=600&auto=format&fit=crop&q=80',
-      tanggalTransfer: '2026-09-12 14:30',
-      bankPengirim: 'Bank Mandiri',
-      rekeningPengirim: '137-00-1234567-8',
-      namaPengirim: 'Ayesha Fairuz Fajr',
-      keterangan: 'Setoran Tambahan Tabungan Sukarela Rp 1.000.000 via Transfer Mandiri',
-    },
+    pendingDeposit: null,
   },
 ];
 
@@ -257,8 +245,8 @@ export default function AdminKoperasiScreen() {
     member_id: KOP_USER_ID,
     simpanan_pokok: 200000,
     simpanan_wajib: 100000,
-    simpanan_sukarela: 1550000,
-    total_balance: 1850000,
+    simpanan_sukarela: 3550000,
+    total_balance: 3850000,
     active_loan: 0,
     loan_remaining: 0,
     updated_at: new Date().toISOString(),
@@ -317,42 +305,78 @@ export default function AdminKoperasiScreen() {
     try {
       // 1. Transactions
       const rawTx = await AsyncStorage.getItem(KOP_STORAGE_TX);
-      if (rawTx) {
-        setTransactions(JSON.parse(rawTx));
-      } else {
-        const initTxs: KoperasiTransaction[] = [
-          {
-            id: 'tx_init_001',
-            member_id: KOP_USER_ID,
-            type: 'simpanan',
-            amount: 100000,
-            status: 'completed',
-            description: '[Simpanan Pokok] MID: MBINA-KOP-2026-000001 — Setoran Pokok Pengelola',
-            reference_number: 'TX-KOP-2026-1001',
-            due_date: null,
-            processed_by: KOP_USER_ID,
-            processed_at: '2026-01-01T08:00:00Z',
-            created_at: '2026-01-01T08:00:00Z',
-            updated_at: '2026-01-01T08:00:00Z',
-          },
-          {
-            id: 'tx_init_ayesha_001',
-            member_id: '2089ee31-71e8-43d7-bb76-d218c10f932d',
-            type: 'simpanan',
-            amount: 500000,
-            status: 'completed',
-            description: '[Transfer Bank Mandiri] Total Rp 500.000 (Wajib Rp 50.000, Sukarela Rp 450.000) — MID: MBINA-JBR-2026-000002 (Ayesha Fairuz Fajr)',
-            reference_number: 'TX-SETOR-2026-5001',
-            due_date: null,
-            processed_by: KOP_USER_ID,
-            processed_at: new Date().toISOString(),
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          },
-        ];
-        setTransactions(initTxs);
-        await AsyncStorage.setItem(KOP_STORAGE_TX, JSON.stringify(initTxs));
+      let allTxs: KoperasiTransaction[] = rawTx ? JSON.parse(rawTx) : [];
+      const initTxs: KoperasiTransaction[] = [
+        {
+          id: 'tx_init_001',
+          member_id: KOP_USER_ID,
+          type: 'simpanan',
+          amount: 100000,
+          status: 'completed',
+          description: '[Simpanan Pokok] MID: MBINA-KOP-2026-000001 — Setoran Pokok Pengelola',
+          reference_number: 'TX-KOP-2026-1001',
+          due_date: null,
+          processed_by: KOP_USER_ID,
+          processed_at: '2026-01-01T08:00:00Z',
+          created_at: '2026-01-01T08:00:00Z',
+          updated_at: '2026-01-01T08:00:00Z',
+        },
+        {
+          id: 'tx_init_ayesha_2409',
+          member_id: '2089ee31-71e8-43d7-bb76-d218c10f932d',
+          type: 'simpanan',
+          amount: 1000000,
+          status: 'completed',
+          description: '[Transfer Bank Mandiri] Total Rp 1.000.000 (Rincian: Tabungan Sukarela Rp 1.000.000) — MID: MBINA-JBR-2026-000002 (Ayesha Fairuz Fajr) via Bank Mandiri 137-00-1234567-8',
+          reference_number: 'TX-SETOR-2026-2409',
+          due_date: null,
+          processed_by: KOP_USER_ID,
+          processed_at: '2026-09-12T15:09:00Z',
+          created_at: '2026-09-12T15:09:00Z',
+          updated_at: '2026-09-12T15:09:00Z',
+        },
+        {
+          id: 'tx_init_ayesha_1063',
+          member_id: '2089ee31-71e8-43d7-bb76-d218c10f932d',
+          type: 'simpanan',
+          amount: 1000000,
+          status: 'completed',
+          description: '[Transfer Bank Mandiri] Total Rp 1.000.000 (Rincian: Tabungan Sukarela Rp 1.000.000) — MID: MBINA-JBR-2026-000002 (Ayesha Fairuz Fajr) via Bank Mandiri 137-00-1234567-8',
+          reference_number: 'TX-SETOR-2026-1063',
+          due_date: null,
+          processed_by: KOP_USER_ID,
+          processed_at: '2026-09-12T14:38:00Z',
+          created_at: '2026-09-12T14:38:00Z',
+          updated_at: '2026-09-12T14:38:00Z',
+        },
+        {
+          id: 'tx_init_ayesha_9449',
+          member_id: '2089ee31-71e8-43d7-bb76-d218c10f932d',
+          type: 'simpanan',
+          amount: 500000,
+          status: 'completed',
+          description: '[Transfer Bank Mandiri] Total Rp 500.000 (Rincian: Tabungan Sukarela Rp 500.000) — MID: MBINA-JBR-2026-000002 (Ayesha Fairuz Fajr) via Bank Mandiri 137-00-1234567-8',
+          reference_number: 'TX-SETOR-2026-9449',
+          due_date: null,
+          processed_by: KOP_USER_ID,
+          processed_at: '2026-09-12T14:29:00Z',
+          created_at: '2026-09-12T14:29:00Z',
+          updated_at: '2026-09-12T14:29:00Z',
+        },
+      ];
+      const refSet = new Set(allTxs.map((t) => t.reference_number));
+      let txUpdated = false;
+      for (const it of initTxs) {
+        if (!refSet.has(it.reference_number)) {
+          allTxs.push(it);
+          refSet.add(it.reference_number);
+          txUpdated = true;
+        }
       }
+      if (txUpdated || !rawTx) {
+        await AsyncStorage.setItem(KOP_STORAGE_TX, JSON.stringify(allTxs));
+      }
+      setTransactions(allTxs);
 
       // 2. Loans: Bersihkan data dummy lama dan mulai dengan antrean bersih
       try {
@@ -393,11 +417,9 @@ export default function AdminKoperasiScreen() {
             const normWajib = (m.simpananWajib && m.simpananWajib >= 50000 && m.simpananWajib <= 100000 && m.lastPaidWajibMonth === '2026-10') ? m.simpananWajib : 50000;
             const isAyesha = key === 'MBINA-JBR-2026-000002';
             const normSukarela = isAyesha
-              ? Math.max(450000, m.tabunganSukarela ?? 0)
+              ? Math.max(2450000, m.tabunganSukarela ?? 0)
               : (rawTotal > 0 ? Math.max(25000, rawTotal - normPokok - normWajib) : (m.tabunganSukarela || 25000));
-            const pendingDep = m.pendingDeposit !== undefined
-              ? m.pendingDeposit
-              : (isAyesha && (m.tabunganSukarela ?? 0) < 1450000 ? INITIAL_MEMBERS[2]?.pendingDeposit : null);
+            const pendingDep = isAyesha ? null : (m.pendingDeposit !== undefined ? m.pendingDeposit : null);
 
             midMap.set(key, {
               ...m,
@@ -418,7 +440,7 @@ export default function AdminKoperasiScreen() {
             const normPokok = 100000;
             const normWajib = 50000;
             const normSukarela = isAyesha
-              ? Math.max(450000, existing.tabunganSukarela ?? 0, m.tabunganSukarela ?? 0)
+              ? Math.max(2450000, existing.tabunganSukarela ?? 0, m.tabunganSukarela ?? 0)
               : Math.max(25000, combinedTotal - normPokok - normWajib);
 
             const mergedItem: MemberKopItem = {
@@ -433,7 +455,7 @@ export default function AdminKoperasiScreen() {
               rekeningPengirim: existing.rekeningPengirim || m.rekeningPengirim,
               bankPengirim: existing.bankPengirim || m.bankPengirim,
               namaPengirim: existing.namaPengirim || m.namaPengirim,
-              pendingDeposit: existing.pendingDeposit ?? m.pendingDeposit ?? (isAyesha && normSukarela < 1450000 ? INITIAL_MEMBERS[2]?.pendingDeposit : null),
+              pendingDeposit: isAyesha ? null : (existing.pendingDeposit ?? m.pendingDeposit ?? null),
             };
             midMap.set(key, mergedItem);
           }
