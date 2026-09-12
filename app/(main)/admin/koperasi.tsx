@@ -17,6 +17,7 @@ import {
   RefreshControl,
   Platform,
   Image,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -81,6 +82,7 @@ interface MemberKopItem {
   tabunganSukarela: number;
   status: 'active' | 'pending' | 'rejected';
   tanggalDaftar: string;
+  lastPaidWajibMonth?: string | null;
   buktiTransferUri?: string | null;
   bankPengirim?: string | null;
   rekeningPengirim?: string | null;
@@ -95,6 +97,21 @@ export const generateKopMemberId = (mid: string): string => {
     return clean.replace('MBINA-', 'KOP-');
   }
   return `KOP-${clean}`;
+};
+
+export const currentMonthKey = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`; // e.g. '2026-09'
+
+export const getMonthNameIndo = (monthKey: string) => {
+  if (!monthKey) return 'Bulan Berjalan';
+  const parts = monthKey.split('-');
+  const year = parts[0];
+  const month = parts[1];
+  const monthNames = [
+    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+  ];
+  const idx = parseInt(month, 10) - 1;
+  return `${monthNames[idx] || month} ${year}`;
 };
 
 // Cross-platform Dialog Helpers (Web + Native)
@@ -143,6 +160,7 @@ const INITIAL_MEMBERS: MemberKopItem[] = [
     tabunganSukarela: 1000000,
     status: 'active',
     tanggalDaftar: '2026-01-01',
+    lastPaidWajibMonth: '2026-09',
   },
   {
     id: 'mem_005',
@@ -157,6 +175,7 @@ const INITIAL_MEMBERS: MemberKopItem[] = [
     tabunganSukarela: 25000,
     status: 'pending',
     tanggalDaftar: '2026-09-11',
+    lastPaidWajibMonth: null,
     bankPengirim: 'Bank BCA',
     namaPengirim: 'Kusumo Wardhana',
     rekeningPengirim: '246-880-1122',
@@ -170,11 +189,12 @@ const INITIAL_MEMBERS: MemberKopItem[] = [
     chapter: 'MBC Bandung',
     email: 'ayesha.fairuz@mbc-bandung.org',
     phone: '082129709696',
-    simpananPokok: 200000,
-    simpananWajib: 150000,
-    tabunganSukarela: 25000,
+    simpananPokok: 100000,
+    simpananWajib: 50000,
+    tabunganSukarela: 225000,
     status: 'active',
     tanggalDaftar: '2026-09-12',
+    lastPaidWajibMonth: '2026-09',
     bankPengirim: 'Bank Mandiri',
     namaPengirim: 'Ayesha Fairuz Fajr',
     rekeningPengirim: '137-00-1234567-8',
@@ -334,21 +354,44 @@ export default function AdminKoperasiScreen() {
         const parsed: MemberKopItem[] = JSON.parse(rawMembers);
         const filtered = parsed.filter((m) => !dummyMids.has(m.mid.trim().toUpperCase()));
 
-        // Deduplicate records by MID, merging active status and highest savings
+        // Deduplicate records by MID, merging active status and proper allocation
         const midMap = new Map<string, MemberKopItem>();
         for (const m of filtered) {
           const key = m.mid.trim().toUpperCase();
+          const rawTotal = (m.simpananPokok ?? 0) + (m.simpananWajib ?? 0) + (m.tabunganSukarela ?? 0);
+          
           if (!midMap.has(key)) {
-            midMap.set(key, m);
+            // Normalisasi alokasi sesuai aturan Koperasi Indonesia
+            const normPokok = 100000;
+            const normWajib = (m.simpananWajib && m.simpananWajib >= 50000 && m.simpananWajib <= 100000 && m.lastPaidWajibMonth === '2026-10') ? m.simpananWajib : 50000;
+            const normSukarela = rawTotal > 0 ? Math.max(25000, rawTotal - normPokok - normWajib) : (m.tabunganSukarela || 25000);
+
+            midMap.set(key, {
+              ...m,
+              simpananPokok: normPokok,
+              simpananWajib: normWajib,
+              tabunganSukarela: normSukarela,
+              kopMemberId: m.kopMemberId || generateKopMemberId(key),
+              lastPaidWajibMonth: m.lastPaidWajibMonth || (m.status === 'active' ? '2026-09' : null),
+            });
           } else {
             const existing = midMap.get(key)!;
+            const combinedTotal = Math.max(
+              rawTotal,
+              (existing.simpananPokok ?? 0) + (existing.simpananWajib ?? 0) + (existing.tabunganSukarela ?? 0)
+            );
+            const normPokok = 100000;
+            const normWajib = 50000;
+            const normSukarela = Math.max(25000, combinedTotal - normPokok - normWajib);
+
             const mergedItem: MemberKopItem = {
               ...existing,
-              // If either entry is active, the consolidated member is active
               status: existing.status === 'active' || m.status === 'active' ? 'active' : existing.status,
-              simpananPokok: Math.max(existing.simpananPokok ?? 0, m.simpananPokok ?? 0),
-              simpananWajib: Math.max(existing.simpananWajib ?? 0, m.simpananWajib ?? 0),
-              tabunganSukarela: Math.max(existing.tabunganSukarela ?? 0, m.tabunganSukarela ?? 0),
+              kopMemberId: existing.kopMemberId || m.kopMemberId || generateKopMemberId(key),
+              simpananPokok: normPokok,
+              simpananWajib: normWajib,
+              tabunganSukarela: normSukarela,
+              lastPaidWajibMonth: existing.lastPaidWajibMonth || m.lastPaidWajibMonth || '2026-09',
               buktiTransferUri: existing.buktiTransferUri || m.buktiTransferUri,
               rekeningPengirim: existing.rekeningPengirim || m.rekeningPengirim,
               bankPengirim: existing.bankPengirim || m.bankPengirim,
@@ -715,6 +758,137 @@ export default function AdminKoperasiScreen() {
         }
       },
       'Ya, Tolak',
+      'Batal'
+    );
+  };
+
+  const handleSendWaReminder = (mem: MemberKopItem) => {
+    const cleanPhone = (mem.phone || '').replace(/[^0-9]/g, '');
+    const waPhone = cleanPhone.startsWith('0') ? '62' + cleanPhone.slice(1) : cleanPhone;
+    const periodName = getMonthNameIndo(currentMonthKey);
+    const msg = encodeURIComponent(
+      `Halo Sdr/i ${mem.nama} (${mem.kopMemberId || mem.mid}),\n\nKami dari Pengelola Koperasi Bersama Satu Bintang menginformasikan bahwa tagihan Iuran Simpanan Wajib periode ${periodName} sebesar Rp 50.000 belum tercatat lunas.\n\nPembayaran dapat ditransfer ke:\nBank Mandiri: 137-00-1234567-8\na.n. Koperasi Bersama Satu Bintang\n\natau konfirmasikan autodebet dari Tabungan Sukarela Anda melalui menu Koperasi di aplikasi MB Club INA.\n\nTerima kasih atas partisipasi dan kebersamaannya.`
+    );
+    Linking.openURL(`https://wa.me/${waPhone}?text=${msg}`).catch(() => {
+      showAlertDialog('Gagal Membuka WhatsApp', 'Tidak dapat membuka aplikasi WhatsApp.');
+    });
+  };
+
+  const handleAutoDebitWajib = (mem: MemberKopItem) => {
+    if (mem.tabunganSukarela < 50000) {
+      showAlertDialog(
+        'Saldo Sukarela Kurang',
+        `Saldo Tabungan Sukarela ${mem.nama} (${formatRupiah(mem.tabunganSukarela)}) tidak mencukupi untuk autodebet Iuran Simpanan Wajib Rp 50.000.`
+      );
+      return;
+    }
+
+    const periodName = getMonthNameIndo(currentMonthKey);
+    showConfirmDialog(
+      'Autodebet Simpanan Wajib',
+      `Potong Rp 50.000 dari Tabungan Sukarela ${mem.nama} (${mem.mid}) untuk pelunasan Iuran Simpanan Wajib periode ${periodName}?\n\n• Saldo Sukarela: ${formatRupiah(mem.tabunganSukarela)} → ${formatRupiah(mem.tabunganSukarela - 50000)}\n• Simpanan Wajib: ${formatRupiah(mem.simpananWajib)} → ${formatRupiah(mem.simpananWajib + 50000)}`,
+      async () => {
+        try {
+          const updated = members.map((m) => {
+            if (m.id === mem.id || m.mid === mem.mid) {
+              return {
+                ...m,
+                simpananWajib: m.simpananWajib + 50000,
+                tabunganSukarela: m.tabunganSukarela - 50000,
+                lastPaidWajibMonth: currentMonthKey,
+              };
+            }
+            return m;
+          });
+          setMembers(updated);
+          await AsyncStorage.setItem(KOP_STORAGE_MEMBERS, JSON.stringify(updated));
+
+          // Catat transaksi kas jurnal
+          const newTx: KoperasiTransaction = {
+            id: `tx_autodeb_${Date.now()}`,
+            member_id: KOP_USER_ID,
+            type: 'simpanan',
+            amount: 50000,
+            status: 'completed',
+            description: `[Simpanan Wajib] Autodebet Sukarela MID: ${mem.mid} (${mem.nama}) — Periode ${periodName}`,
+            reference_number: `TX-AUTODEB-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+            due_date: null,
+            processed_by: KOP_USER_ID,
+            processed_at: new Date().toISOString(),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+          const updatedTxs = [newTx, ...transactions];
+          setTransactions(updatedTxs);
+          await AsyncStorage.setItem(KOP_STORAGE_TX, JSON.stringify(updatedTxs));
+
+          showAlertDialog('Sukses', `Simpanan Wajib periode ${periodName} anggota ${mem.nama} berhasil dibayar via pemotongan Tabungan Sukarela.`);
+        } catch {
+          showAlertDialog('Gagal', 'Terjadi kesalahan sistem saat autodebet simpanan.');
+        }
+      },
+      'Ya, Potong Saldo',
+      'Batal'
+    );
+  };
+
+  const handleMarkWajibPaid = (mem: MemberKopItem) => {
+    const periodName = getMonthNameIndo(currentMonthKey);
+    showConfirmDialog(
+      'Tandai Simpanan Wajib Lunas',
+      `Tandai bahwa ${mem.nama} (${mem.mid}) telah membayar Iuran Simpanan Wajib periode ${periodName} sebesar Rp 50.000 via Setoran Kas/Bank Mandiri?`,
+      async () => {
+        try {
+          const updated = members.map((m) => {
+            if (m.id === mem.id || m.mid === mem.mid) {
+              return {
+                ...m,
+                simpananWajib: m.simpananWajib + 50000,
+                lastPaidWajibMonth: currentMonthKey,
+              };
+            }
+            return m;
+          });
+          setMembers(updated);
+          await AsyncStorage.setItem(KOP_STORAGE_MEMBERS, JSON.stringify(updated));
+
+          // Tambah kas likuid koperasi
+          const newTotal = balance.total_balance + 50000;
+          const newWajib = balance.simpanan_wajib + 50000;
+          const updatedBal: KoperasiBalance = {
+            ...balance,
+            total_balance: newTotal,
+            simpanan_wajib: newWajib,
+            updated_at: new Date().toISOString(),
+          };
+          setBalance(updatedBal);
+          await AsyncStorage.setItem(KOP_STORAGE_BAL, JSON.stringify(updatedBal));
+
+          // Catat transaksi kas jurnal
+          const newTx: KoperasiTransaction = {
+            id: `tx_wajib_paid_${Date.now()}`,
+            member_id: KOP_USER_ID,
+            type: 'simpanan',
+            amount: 50000,
+            status: 'completed',
+            description: `[Simpanan Wajib] Setoran Kas/Bank MID: ${mem.mid} (${mem.nama}) — Periode ${periodName}`,
+            reference_number: `TX-WAJIB-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+            due_date: null,
+            processed_by: KOP_USER_ID,
+            processed_at: new Date().toISOString(),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+          const updatedTxs = [newTx, ...transactions];
+          setTransactions(updatedTxs);
+          await AsyncStorage.setItem(KOP_STORAGE_TX, JSON.stringify(updatedTxs));
+
+          showAlertDialog('Sukses', `Simpanan Wajib periode ${periodName} anggota ${mem.nama} telah tercatat LUNAS.`);
+        } catch {
+          showAlertDialog('Gagal', 'Terjadi kesalahan sistem saat memperbarui status.');
+        }
+      },
+      'Ya, Tandai Lunas',
       'Batal'
     );
   };
@@ -1377,6 +1551,77 @@ export default function AdminKoperasiScreen() {
                       </Text>
                     </View>
                   </View>
+
+                  {/* Status Iuran Wajib Bulanan */}
+                  {(() => {
+                    const isWajibPaid = mem.lastPaidWajibMonth === currentMonthKey || (mem.status === 'active' && mem.simpananWajib >= 50000);
+                    const currentMonthLabel = getMonthNameIndo(currentMonthKey);
+
+                    return (
+                      <View style={styles.monthlyDuesBox}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Ionicons
+                              name={isWajibPaid ? 'checkmark-circle' : 'alert-circle'}
+                              size={15}
+                              color={isWajibPaid ? '#34D399' : '#FBBF24'}
+                            />
+                            <Text style={[styles.monthlyDuesTitle, { color: isWajibPaid ? '#34D399' : '#FDE68A' }]}>
+                              Iuran Wajib {currentMonthLabel}: {isWajibPaid ? 'LUNAS (Rp 50rb)' : 'BELUM DIBAYAR (Rp 50rb)'}
+                            </Text>
+                          </View>
+                          <View
+                            style={[
+                              styles.monthlyDuesBadge,
+                              {
+                                backgroundColor: isWajibPaid ? 'rgba(52, 211, 153, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                                borderColor: isWajibPaid ? '#34D399' : '#EF4444',
+                              }
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.monthlyDuesBadgeText,
+                                { color: isWajibPaid ? '#34D399' : '#F87171' }
+                              ]}
+                            >
+                              {isWajibPaid ? 'LUNAS' : 'MENUNGGU IURAN'}
+                            </Text>
+                          </View>
+                        </View>
+
+                        {!isWajibPaid && mem.status === 'active' && (
+                          <View style={{ flexDirection: 'row', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+                            <Pressable
+                              onPress={() => handleSendWaReminder(mem)}
+                              style={styles.waReminderBtn}
+                            >
+                              <Ionicons name="logo-whatsapp" size={13} color="#25D366" />
+                              <Text style={styles.waReminderBtnText}>Ingatkan via WA</Text>
+                            </Pressable>
+
+                            {mem.tabunganSukarela >= 50000 && (
+                              <Pressable
+                                onPress={() => handleAutoDebitWajib(mem)}
+                                style={styles.autodebitBtn}
+                              >
+                                <Ionicons name="swap-horizontal" size={13} color="#FBBF24" />
+                                <Text style={styles.autodebitBtnText}>Potong Sukarela (Rp 50rb)</Text>
+                              </Pressable>
+                            )}
+
+                            <Pressable
+                              onPress={() => handleMarkWajibPaid(mem)}
+                              style={styles.markPaidBtn}
+                            >
+                              <Ionicons name="checkmark" size={13} color="#34D399" />
+                              <Text style={styles.markPaidBtnText}>Tandai Lunas</Text>
+                            </Pressable>
+                          </View>
+                        )}
+                      </View>
+                    );
+                  })()}
 
                   {/* Bukti Transfer Setoran Awal Card Section */}
                   {(mem.buktiTransferUri || mem.bankPengirim || mem.status === 'pending' || mem.status === 'rejected') && (
@@ -3429,5 +3674,78 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 10,
     gap: 4,
+  },
+  monthlyDuesBox: {
+    backgroundColor: 'rgba(0, 0, 0, 0.28)',
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.07)',
+  },
+  monthlyDuesTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  monthlyDuesBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 5,
+    borderWidth: 1,
+  },
+  monthlyDuesBadgeText: {
+    fontSize: 8.5,
+    fontWeight: '800',
+  },
+  waReminderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(37, 211, 102, 0.15)',
+    borderWidth: 1,
+    borderColor: '#25D366',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 6,
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' as any } : {}),
+  },
+  waReminderBtnText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#25D366',
+  },
+  autodebitBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(251, 191, 36, 0.15)',
+    borderWidth: 1,
+    borderColor: '#FBBF24',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 6,
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' as any } : {}),
+  },
+  autodebitBtnText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#FBBF24',
+  },
+  markPaidBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(52, 211, 153, 0.15)',
+    borderWidth: 1,
+    borderColor: '#34D399',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 6,
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' as any } : {}),
+  },
+  markPaidBtnText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#34D399',
   },
 });
