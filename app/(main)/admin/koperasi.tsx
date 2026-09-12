@@ -71,11 +71,13 @@ interface LoanRequest {
 
 interface MemberKopItem {
   id: string;
+  altId?: string;
   mid: string;
   kopMemberId?: string | null;
   nama: string;
   chapter: string;
   email: string;
+  altEmail?: string;
   phone: string;
   simpananPokok: number;
   simpananWajib: number;
@@ -182,19 +184,21 @@ const INITIAL_MEMBERS: MemberKopItem[] = [
     buktiTransferUri: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=600&auto=format&fit=crop&q=80',
   },
   {
-    id: 'mem_006',
+    id: '2089ee31-71e8-43d7-bb76-d218c10f932d',
+    altId: 'mem_006',
     mid: 'MBINA-JBR-2026-000002',
     kopMemberId: 'KOP-JBR-2026-000002',
     nama: 'Ayesha Fairuz Fajr',
     chapter: 'MBC Bandung',
-    email: 'ayesha.fairuz@mbc-bandung.org',
+    email: 'afairuzfajr@gmail.com',
+    altEmail: 'ayesha.fairuz@mbc-bandung.org',
     phone: '082129709696',
     simpananPokok: 100000,
     simpananWajib: 50000,
     tabunganSukarela: 225000,
     status: 'active',
     tanggalDaftar: '2026-09-12',
-    lastPaidWajibMonth: '2026-09',
+    lastPaidWajibMonth: currentMonthKey,
     bankPengirim: 'Bank Mandiri',
     namaPengirim: 'Ayesha Fairuz Fajr',
     rekeningPengirim: '137-00-1234567-8',
