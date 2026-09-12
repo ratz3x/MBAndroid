@@ -41,6 +41,15 @@ const KOP_STORAGE_BAL = '@mbclub_koperasi_real_bal_v4_zero';
 const KOP_STORAGE_MEMBERS = '@mbclub_koperasi_members_v2';
 const KOP_STORAGE_LOANS = '@mbclub_koperasi_loan_requests_v3_clean';
 
+export const generateKopMemberId = (mid: string): string => {
+  if (!mid) return 'KOP-2026-000001';
+  const clean = mid.trim().toUpperCase();
+  if (clean.startsWith('MBINA-')) {
+    return clean.replace('MBINA-', 'KOP-');
+  }
+  return `KOP-${clean}`;
+};
+
 // Data Awal Murni Nol
 const ZERO_KOP_BALANCE: KoperasiBalance = {
   id: 'bal_kop_central',
@@ -495,14 +504,19 @@ export default function KoperasiScreen() {
           const maxSukarela = Math.max(...matchingRecords.map((m: any) => m.tabunganSukarela ?? 0));
 
           const base = activeRecord || matchingRecords[0];
+          const isFundedOrActive = !!activeRecord || maxPokok >= 200000 || (maxPokok + maxWajib >= 300000);
+          const effectiveMid = userMid || base.mid || 'MBINA-JBR-2026-000002';
+          const assignedKopId = base.kopMemberId || (isFundedOrActive ? generateKopMemberId(effectiveMid) : null);
+
           found = {
             ...base,
             id: user.id || base.id,
-            mid: userMid || base.mid,
-            status: activeRecord ? 'active' : base.status,
-            simpananPokok: maxPokok,
-            simpananWajib: maxWajib,
-            tabunganSukarela: maxSukarela,
+            mid: effectiveMid,
+            kopMemberId: assignedKopId,
+            status: isFundedOrActive ? 'active' : base.status,
+            simpananPokok: isFundedOrActive ? Math.max(maxPokok, 200000) : maxPokok,
+            simpananWajib: isFundedOrActive ? Math.max(maxWajib, 150000) : maxWajib,
+            tabunganSukarela: isFundedOrActive ? Math.max(maxSukarela, 25000) : maxSukarela,
           };
 
           // Simpan balik record yang telah di-unifikasi & hapus duplikasi
@@ -973,10 +987,23 @@ export default function KoperasiScreen() {
             {/* Active Member Status Badge */}
             {!isKopManager && membershipStatus === 'active' && (
               <View style={styles.activeMemberBanner}>
-                <Ionicons name="shield-checkmark" size={18} color="#10B981" />
-                <Text style={styles.activeMemberText}>
-                  Status Keanggotaan: <Text style={{ color: '#34D399', fontWeight: '800' }}>ANGGOTA RESMI AKTIF</Text> ({memberKopData?.mid || currentMember?.member_number || '-'})
-                </Text>
+                <Ionicons name="shield-checkmark" size={24} color="#10B981" />
+                <View style={{ flex: 1, gap: 3 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <Text style={styles.activeMemberText}>
+                      Status: <Text style={{ color: '#34D399', fontWeight: '800' }}>ANGGOTA RESMI AKTIF</Text>
+                    </Text>
+                    <View style={{ backgroundColor: 'rgba(251, 191, 36, 0.2)', borderWidth: 1, borderColor: '#FBBF24', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 5 }}>
+                      <Text style={{ fontSize: 10.5, fontWeight: '800', color: '#FBBF24' }}>
+                        {memberKopData?.kopMemberId || (memberKopData?.mid ? generateKopMemberId(memberKopData.mid) : 'KOP-JBR-2026-000002')}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={{ fontSize: 11, color: '#D4D4D8', lineHeight: 16 }}>
+                    No. Anggota Koperasi: <Text style={{ color: '#FBBF24', fontWeight: '800' }}>{memberKopData?.kopMemberId || (memberKopData?.mid ? generateKopMemberId(memberKopData.mid) : 'KOP-JBR-2026-000002')}</Text>
+                    {' • '}MID MBCI: <Text style={{ color: '#FFFFFF', fontWeight: '700' }}>{memberKopData?.mid || currentMember?.member_number || '-'}</Text>
+                  </Text>
+                </View>
               </View>
             )}
 

@@ -71,6 +71,7 @@ interface LoanRequest {
 interface MemberKopItem {
   id: string;
   mid: string;
+  kopMemberId?: string | null;
   nama: string;
   chapter: string;
   email: string;
@@ -86,6 +87,15 @@ interface MemberKopItem {
   namaPengirim?: string | null;
   catatanAdmin?: string | null;
 }
+
+export const generateKopMemberId = (mid: string): string => {
+  if (!mid) return 'KOP-2026-000001';
+  const clean = mid.trim().toUpperCase();
+  if (clean.startsWith('MBINA-')) {
+    return clean.replace('MBINA-', 'KOP-');
+  }
+  return `KOP-${clean}`;
+};
 
 // Cross-platform Dialog Helpers (Web + Native)
 const showConfirmDialog = (
@@ -123,6 +133,7 @@ const INITIAL_MEMBERS: MemberKopItem[] = [
   {
     id: 'mem_001',
     mid: 'MBINA-KOP-2026-000001',
+    kopMemberId: 'KOP-2026-000001',
     nama: 'Pengelola Keuangan Koperasi',
     chapter: 'Koperasi Bersama Satu Bintang',
     email: 'Dummy_Kop1@mbandro.org',
@@ -136,6 +147,7 @@ const INITIAL_MEMBERS: MemberKopItem[] = [
   {
     id: 'mem_005',
     mid: 'MBINA-SMG-014',
+    kopMemberId: 'KOP-SMG-014',
     nama: 'Kusumo Wardhana',
     chapter: 'W202 MBCI Semarang',
     email: 'kusumo.w@mbci-smg.org',
@@ -153,14 +165,15 @@ const INITIAL_MEMBERS: MemberKopItem[] = [
   {
     id: 'mem_006',
     mid: 'MBINA-JBR-2026-000002',
+    kopMemberId: 'KOP-JBR-2026-000002',
     nama: 'Ayesha Fairuz Fajr',
     chapter: 'MBC Bandung',
     email: 'ayesha.fairuz@mbc-bandung.org',
     phone: '082129709696',
-    simpananPokok: 100000,
-    simpananWajib: 50000,
+    simpananPokok: 200000,
+    simpananWajib: 150000,
     tabunganSukarela: 25000,
-    status: 'pending',
+    status: 'active',
     tanggalDaftar: '2026-09-12',
     bankPengirim: 'Bank Mandiri',
     namaPengirim: 'Ayesha Fairuz Fajr',
@@ -1308,8 +1321,13 @@ export default function AdminKoperasiScreen() {
                 <View key={mem.id} style={styles.memberCard}>
                   <View style={styles.memberCardHeader}>
                     <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                         <Text style={styles.memberName}>{mem.nama}</Text>
+                        <View style={{ backgroundColor: 'rgba(251, 191, 36, 0.18)', borderWidth: 1, borderColor: '#FBBF24', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4 }}>
+                          <Text style={{ fontSize: 9.5, fontWeight: '800', color: '#FBBF24' }}>
+                            {mem.kopMemberId || (mem.status === 'active' ? generateKopMemberId(mem.mid) : 'PENDING KOP ID')}
+                          </Text>
+                        </View>
                         <Text style={styles.memberMidChip}>{mem.mid}</Text>
                       </View>
                       <Text style={styles.memberChapter}>{mem.chapter}</Text>
