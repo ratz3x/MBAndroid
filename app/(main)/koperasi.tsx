@@ -28,13 +28,15 @@ import { MetallicButton } from '../../src/components/ui/MetallicButton';
 import { Colors, Typography, Spacing, Radius, CommonStyles } from '../../src/constants/theme';
 import { formatRupiah, formatDateTime } from '../../src/utils/helpers';
 import { useAuth, KOP_USER_ID } from '../../src/context/AuthContext';
+import { useProfile } from '../../src/hooks/useProfile';
 import type { KoperasiBalance, KoperasiTransaction } from '../../src/types/database.types';
 
 const KOPERASI_LOGO = require('../../assets/images/logo-koperasi.jpg');
 
-// Storage keys baru murni dari Nol (No dummy data)
+// Storage keys
 const KOP_STORAGE_TX = '@mbclub_koperasi_real_txs_v4_zero';
 const KOP_STORAGE_BAL = '@mbclub_koperasi_real_bal_v4_zero';
+const KOP_STORAGE_MEMBERS = '@mbclub_koperasi_members_v2';
 
 // Data Awal Murni Nol
 const ZERO_KOP_BALANCE: KoperasiBalance = {
@@ -96,6 +98,20 @@ export default function KoperasiScreen() {
   const [showTxModal, setShowTxModal] = useState(false);
   const [showShuModal, setShowShuModal] = useState(false);
   const [showMidModal, setShowMidModal] = useState(false);
+  const [showRegisterModal, setShowRegisterModal] = useState(false);
+
+  // Membership & Registration State
+  const { member: currentMember } = useProfile(user?.id);
+  const [membershipStatus, setMembershipStatus] = useState<'unregistered' | 'pending' | 'active'>('unregistered');
+  const [memberKopData, setMemberKopData] = useState<any>(null);
+
+  // Form Registration State
+  const [regMid, setRegMid] = useState('');
+  const [regName, setRegName] = useState('');
+  const [regChapter, setRegChapter] = useState('');
+  const [regPhone, setRegPhone] = useState('');
+  const [regSukarela, setRegSukarela] = useState('25000');
+  const [regSubmitting, setRegSubmitting] = useState(false);
 
   // Form State for Recording Simpan Pinjam
   const [txSubtype, setTxSubtype] = useState<'pokok' | 'wajib' | 'sukarela' | 'talangan' | 'pinjaman' | 'cicilan'>('wajib');
@@ -104,10 +120,74 @@ export default function KoperasiScreen() {
   const [txMemberMid, setTxMemberMid] = useState('');
   const [txSubmitting, setTxSubmitting] = useState(false);
 
+  const openRegisterModal = () => {
+    setRegMid(currentMember?.member_number || '');
+    setRegName(profile?.full_name || '');
+    setRegChapter(currentMember?.chapter || 'MB Club Indonesia');
+    setRegPhone(profile?.phone || '');
+    setRegSukarela('25000');
+    setShowRegisterModal(true);
+  };
+
+  const handleRegisterSubmit = async () => {
+    if (!regMid.trim()) {
+      Alert.alert('Perhatian', 'Nomor Member ID (MID) wajib diisi.');
+      return;
+    }
+    if (!regName.trim()) {
+      Alert.alert('Perhatian', 'Nama lengkap wajib diisi.');
+      return;
+    }
+    const numSukarela = parseInt(regSukarela.replace(/[^0-9]/g, ''), 10) || 0;
+    if (numSukarela < 25000) {
+      Alert.alert('Perhatian', 'Tabungan Sukarela minimal Rp 25.000.');
+      return;
+    }
+
+    setRegSubmitting(true);
+    try {
+      const rawMem = await AsyncStorage.getItem(KOP_STORAGE_MEMBERS);
+      let memList = rawMem ? JSON.parse(rawMem) : [];
+
+      const newMemberItem = {
+        id: user?.id || `mem_${Date.now()}`,
+        mid: regMid.trim().toUpperCase(),
+        nama: regName.trim(),
+        chapter: regChapter.trim() || 'MB Club Indonesia',
+        email: user?.email || '',
+        phone: regPhone.trim() || '081298765432',
+        simpananPokok: 100000,
+        simpananWajib: 50000,
+        tabunganSukarela: numSukarela,
+        status: 'pending' as const,
+        tanggalDaftar: new Date().toISOString().split('T')[0],
+      };
+
+      // Simpan ke list anggota (pending)
+      memList = [newMemberItem, ...memList.filter((m: any) => m.id !== user?.id && m.mid !== newMemberItem.mid)];
+      await AsyncStorage.setItem(KOP_STORAGE_MEMBERS, JSON.stringify(memList));
+
+      setMembershipStatus('pending');
+      setMemberKopData(newMemberItem);
+      setShowRegisterModal(false);
+
+      const totalInitial = 100000 + 50000 + numSukarela;
+      Alert.alert(
+        'Pendaftaran Berhasil Terkirim! 🎉',
+        `Pendaftaran keanggotaan Koperasi Bersama Satu Bintang telah dicatat.\n\nRincian Setoran Awal:\n• Simpanan Pokok: Rp 100.000\n• Iuran Wajib: Rp 50.000\n• Tabungan Sukarela: ${formatRupiah(numSukarela)}\n• Total Setoran: ${formatRupiah(totalInitial)}\n\nSilakan transfer ke Rekening Bank Mandiri 137-00-1234567-8 a.n. Koperasi Bersama Satu Bintang. Pengelola Keuangan akan memverifikasi mutasi bank dan mengaktifkan akun Anda.`
+      );
+    } catch {
+      Alert.alert('Gagal', 'Terjadi kesalahan saat memproses pendaftaran.');
+    } finally {
+      setRegSubmitting(false);
+    }
+  };
+
   const loadData = async () => {
     if (!user) return;
 
     if (isKopManager) {
+      setMembershipStatus('active');
       try {
         const rawBal = await AsyncStorage.getItem(KOP_STORAGE_BAL);
         if (rawBal) {
@@ -134,15 +214,57 @@ export default function KoperasiScreen() {
       return;
     }
 
-    // Regular member from Supabase
+    // Regular member: check KOP_STORAGE_MEMBERS
     try {
-      const [{ data: b }, { data: t }] = await Promise.all([
-        supabase.from('koperasi_balances').select('*').eq('member_id', user.id).maybeSingle(),
-        supabase.from('koperasi_transactions').select('*').eq('member_id', user.id).order('created_at', { ascending: false }).limit(10),
-      ]);
-      setBalance(b ?? ZERO_KOP_BALANCE);
-      setTransactions(t ?? []);
+      const rawMem = await AsyncStorage.getItem(KOP_STORAGE_MEMBERS);
+      if (rawMem) {
+        const memList = JSON.parse(rawMem);
+        const userMid = currentMember?.member_number?.toUpperCase();
+        const userEmail = user?.email?.toLowerCase();
+        const found = memList.find((m: any) =>
+          (m.id && m.id === user.id) ||
+          (userEmail && m.email && m.email.toLowerCase() === userEmail) ||
+          (userMid && m.mid && m.mid.toUpperCase() === userMid)
+        );
+        if (found) {
+          setMembershipStatus(found.status);
+          setMemberKopData(found);
+          const memBal: KoperasiBalance = {
+            id: `bal_${found.id}`,
+            member_id: found.id,
+            simpanan_pokok: found.simpananPokok || 100000,
+            simpanan_wajib: found.simpananWajib || 50000,
+            simpanan_sukarela: found.tabunganSukarela || 0,
+            total_balance: (found.simpananPokok || 100000) + (found.simpananWajib || 50000) + (found.tabunganSukarela || 0),
+            active_loan: 0,
+            loan_remaining: 0,
+            updated_at: new Date().toISOString(),
+          };
+          setBalance(memBal);
+        } else {
+          setMembershipStatus('unregistered');
+          setBalance(ZERO_KOP_BALANCE);
+        }
+      } else {
+        setMembershipStatus('unregistered');
+        setBalance(ZERO_KOP_BALANCE);
+      }
+
+      // Check transactions
+      const rawTx = await AsyncStorage.getItem(KOP_STORAGE_TX);
+      if (rawTx) {
+        const allTxs: KoperasiTransaction[] = JSON.parse(rawTx);
+        const userMid = currentMember?.member_number?.toUpperCase();
+        const myTxs = allTxs.filter((t) =>
+          (userMid && t.description && t.description.includes(userMid)) ||
+          t.member_id === user.id
+        );
+        setTransactions(myTxs);
+      } else {
+        setTransactions([]);
+      }
     } catch {
+      setMembershipStatus('unregistered');
       setBalance(ZERO_KOP_BALANCE);
       setTransactions([]);
     } finally {
@@ -428,6 +550,93 @@ export default function KoperasiScreen() {
               </View>
             )}
 
+            {/* Registration Prompt for Unregistered Members */}
+            {!isKopManager && membershipStatus === 'unregistered' && (
+              <View style={styles.registerPromptCard}>
+                <View style={styles.registerPromptHeader}>
+                  <View style={styles.goldStarBadge}>
+                    <Ionicons name="star" size={18} color="#000" />
+                  </View>
+                  <View style={{ flex: 1, marginLeft: 10 }}>
+                    <Text style={styles.registerPromptTitle}>Pendaftaran Anggota Koperasi</Text>
+                    <Text style={styles.registerPromptSubtitle}>
+                      Koperasi Bersama Satu Bintang • MB Club Indonesia
+                    </Text>
+                  </View>
+                  <View style={styles.unregChip}>
+                    <Text style={styles.unregChipText}>BELUM TERDAFTAR</Text>
+                  </View>
+                </View>
+
+                <Text style={styles.registerPromptDesc}>
+                  Daftarkan akun Anda untuk menikmati fasilitas pinjaman lunak bunga rendah <Text style={{ color: '#FBBF24', fontWeight: '700' }}>6% flat p.a. (PMK No. 49/2025)</Text>, dana talangan touring/servis, dan pembagian dividen tahunan <Text style={{ color: '#FBBF24', fontWeight: '700' }}>bunga 1% SHU</Text>.
+                </Text>
+
+                <View style={styles.registerFeeBoxes}>
+                  <View style={styles.feeBox}>
+                    <Text style={styles.feeBoxLabel}>Simpanan Pokok</Text>
+                    <Text style={styles.feeBoxVal}>Rp 100.000</Text>
+                    <Text style={styles.feeBoxNote}>1x saat daftar</Text>
+                  </View>
+                  <View style={styles.feeBox}>
+                    <Text style={styles.feeBoxLabel}>Iuran Wajib</Text>
+                    <Text style={styles.feeBoxVal}>Rp 50.000</Text>
+                    <Text style={styles.feeBoxNote}>per bulan</Text>
+                  </View>
+                  <View style={styles.feeBox}>
+                    <Text style={styles.feeBoxLabel}>Tabungan Sukarela</Text>
+                    <Text style={styles.feeBoxVal}>Min. Rp 25.000</Text>
+                    <Text style={styles.feeBoxNote}>bebas/fleksibel</Text>
+                  </View>
+                </View>
+
+                <Pressable
+                  onPress={openRegisterModal}
+                  style={styles.openRegisterBtn}
+                >
+                  <Ionicons name="person-add" size={16} color="#000" />
+                  <Text style={styles.openRegisterBtnText}>Daftar Jadi Anggota Koperasi Sekarang</Text>
+                  <Ionicons name="chevron-forward" size={16} color="#000" />
+                </Pressable>
+              </View>
+            )}
+
+            {/* Pending Verification Banner */}
+            {!isKopManager && membershipStatus === 'pending' && (
+              <View style={styles.pendingMemberBanner}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Ionicons name="time" size={24} color="#FBBF24" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.pendingTitle}>Pendaftaran Sedang Diverifikasi</Text>
+                    <Text style={styles.pendingSubtitle}>
+                      Pengelola Koperasi sedang memverifikasi setoran awal keanggotaan Anda.
+                    </Text>
+                  </View>
+                  <View style={styles.pendingChip}>
+                    <Text style={styles.pendingChipText}>MENUNGGU VERIFIKASI</Text>
+                  </View>
+                </View>
+
+                <View style={styles.pendingDetailsBox}>
+                  <Text style={styles.pendingDetailText}>
+                    • MID Terdaftar: <Text style={{ color: '#FBBF24', fontWeight: '700' }}>{memberKopData?.mid || currentMember?.member_number || '-'}</Text>{'\n'}
+                    • Setoran Awal: Pokok (Rp 100rb) + Wajib (Rp 50rb) + Sukarela ({formatRupiah(memberKopData?.tabunganSukarela || 25000)}){'\n'}
+                    • Rekening Tujuan: <Text style={{ color: '#FDE68A', fontWeight: '700' }}>Bank Mandiri 137-00-1234567-8</Text> a.n. Koperasi Bersama Satu Bintang
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            {/* Active Member Status Badge */}
+            {!isKopManager && membershipStatus === 'active' && (
+              <View style={styles.activeMemberBanner}>
+                <Ionicons name="shield-checkmark" size={18} color="#10B981" />
+                <Text style={styles.activeMemberText}>
+                  Status Keanggotaan: <Text style={{ color: '#34D399', fontWeight: '800' }}>ANGGOTA RESMI AKTIF</Text> ({memberKopData?.mid || currentMember?.member_number || '-'})
+                </Text>
+              </View>
+            )}
+
             {/* Saldo Simpan Pinjam Card */}
             <LuxuryCard variant="gold" style={styles.balanceCard}>
               <View style={styles.balanceHeader}>
@@ -565,19 +774,50 @@ export default function KoperasiScreen() {
                 </>
               ) : (
                 <>
-                  <LuxuryCard
-                    onPress={() => Alert.alert(
-                      'Syarat Keanggotaan & Setoran',
-                      'Ketentuan Anggota Koperasi Bersama Satu Bintang:\n1. Memiliki Member Number (MID resmi MBCI)\n2. Mendaftarkan akun di Koperasi\n3. Setoran Simpanan:\n • Simpanan Pokok: Rp 100.000 (awal)\n • Iuran Wajib: Rp 50.000 / bulan\n • Tabungan Sukarela: Minimal Rp 25.000\n\nHak Anggota: Mendapatkan Bunga 1% dari SHU tahunan.\n\nTransfer ke Rekening Resmi Koperasi: Bank Mandiri 137-00-1234567-8 a.n. Koperasi Bersama Satu Bintang.'
-                    )}
-                    style={styles.actionCard}
-                    padding={12}
-                  >
-                    <View style={[styles.actionIcon, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
-                      <Ionicons name="wallet-outline" size={22} color="#10B981" />
-                    </View>
-                    <Text style={styles.actionLabel}>Setor Simpanan Wajib</Text>
-                  </LuxuryCard>
+                  {membershipStatus === 'unregistered' ? (
+                    <LuxuryCard
+                      onPress={openRegisterModal}
+                      style={styles.actionCard}
+                      padding={12}
+                    >
+                      <View style={[styles.actionIcon, { backgroundColor: 'rgba(251, 191, 36, 0.2)' }]}>
+                        <Ionicons name="person-add" size={22} color="#FBBF24" />
+                      </View>
+                      <Text style={[styles.actionLabel, { color: '#FDE68A', fontWeight: '800' }]}>
+                        Daftar Anggota Koperasi
+                      </Text>
+                    </LuxuryCard>
+                  ) : membershipStatus === 'pending' ? (
+                    <LuxuryCard
+                      onPress={() => Alert.alert(
+                        'Status Pendaftaran Anda',
+                        `Pendaftaran Anda atas nama ${memberKopData?.nama || profile?.full_name} (${memberKopData?.mid || currentMember?.member_number || '-'}) sedang dalam proses verifikasi mutasi bank oleh Pengelola Koperasi.\n\nRekening Koperasi: Bank Mandiri 137-00-1234567-8 a.n. Koperasi Bersama Satu Bintang.`
+                      )}
+                      style={styles.actionCard}
+                      padding={12}
+                    >
+                      <View style={[styles.actionIcon, { backgroundColor: 'rgba(245, 158, 11, 0.2)' }]}>
+                        <Ionicons name="hourglass-outline" size={22} color="#F59E0B" />
+                      </View>
+                      <Text style={[styles.actionLabel, { color: '#FBBF24', fontWeight: '700' }]}>
+                        Status Verifikasi (Pending)
+                      </Text>
+                    </LuxuryCard>
+                  ) : (
+                    <LuxuryCard
+                      onPress={() => Alert.alert(
+                        'Setor Simpanan Wajib / Sukarela',
+                        'Transfer setoran berkala ke:\nBank Mandiri 137-00-1234567-8 a.n. Koperasi Bersama Satu Bintang\nBerita: SETORAN - [MID] - [NAMA].\n\nPengelola Keuangan akan memverifikasi dan membukukan mutasi ke saldo simpanan Anda.'
+                      )}
+                      style={styles.actionCard}
+                      padding={12}
+                    >
+                      <View style={[styles.actionIcon, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
+                        <Ionicons name="wallet-outline" size={22} color="#10B981" />
+                      </View>
+                      <Text style={styles.actionLabel}>Setor Simpanan Berkala</Text>
+                    </LuxuryCard>
+                  )}
 
                   <LuxuryCard
                     onPress={() => Alert.alert(
@@ -975,6 +1215,146 @@ export default function KoperasiScreen() {
               <MetallicButton
                 label="Tutup E-Statement"
                 onPress={() => setShowMidModal(false)}
+                variant="silver"
+                size="md"
+              />
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── MODAL 4: FORMULIR PENDAFTARAN ANGGOTA KOPERASI ────────────── */}
+      <Modal visible={showRegisterModal} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>Formulir Pendaftaran Anggota</Text>
+                <Text style={styles.modalSubtitle}>Koperasi Bersama Satu Bintang • MBCI</Text>
+              </View>
+              <Pressable onPress={() => setShowRegisterModal(false)} hitSlop={8}>
+                <Ionicons name="close" size={22} color="#E4E4E7" />
+              </Pressable>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 520 }}>
+              {/* Syarat Keanggotaan Banner */}
+              <View style={styles.midInfoBox}>
+                <Ionicons name="information-circle" size={22} color="#FBBF24" />
+                <Text style={styles.midInfoText}>
+                  Syarat menjadi anggota Koperasi Bersama Satu Bintang:{'\n'}
+                  1. Mempunyai Member Number (MID resmi MBCI){'\n'}
+                  2. Mendaftarkan akun di Koperasi{'\n'}
+                  3. Membayar Simpanan Pokok Rp 100.000, Iuran Wajib Rp 50.000, dan Tabungan Sukarela min. Rp 25.000{'\n'}
+                  ✓ Berhak mendapatkan Bunga 1% dari SHU tahunan
+                </Text>
+              </View>
+
+              {/* Input MID */}
+              <Text style={styles.inputLabel}>Nomor Member ID (MID) Resmi MBCI *</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={regMid}
+                onChangeText={setRegMid}
+                placeholder="Contoh: MBINA-JKT-042"
+                placeholderTextColor="#71717A"
+                autoCapitalize="characters"
+              />
+
+              {/* Input Nama Lengkap */}
+              <Text style={styles.inputLabel}>Nama Lengkap Sesuai KTA *</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={regName}
+                onChangeText={setRegName}
+                placeholder="Contoh: Bambang Soedarmono"
+                placeholderTextColor="#71717A"
+              />
+
+              {/* Input Chapter */}
+              <Text style={styles.inputLabel}>Chapter / Club Asal *</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={regChapter}
+                onChangeText={setRegChapter}
+                placeholder="Contoh: W124 MBCI Jakarta"
+                placeholderTextColor="#71717A"
+              />
+
+              {/* Input Telepon */}
+              <Text style={styles.inputLabel}>Nomor WhatsApp / Telepon *</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={regPhone}
+                onChangeText={setRegPhone}
+                placeholder="Contoh: 081298765432"
+                placeholderTextColor="#71717A"
+                keyboardType="phone-pad"
+              />
+
+              {/* Komposisi Setoran Awal */}
+              <View style={styles.regSummaryBox}>
+                <Text style={styles.regSummaryTitle}>RINCIAN KOMITMEN SETORAN AWAL:</Text>
+                <View style={styles.reportRow}>
+                  <Text style={styles.reportRowLabel}>• Simpanan Pokok (1x diawal):</Text>
+                  <Text style={[styles.reportRowVal, { color: '#60A5FA' }]}>Rp 100.000</Text>
+                </View>
+                <View style={styles.reportRow}>
+                  <Text style={styles.reportRowLabel}>• Iuran Wajib (Bulan ke-1):</Text>
+                  <Text style={[styles.reportRowVal, { color: '#34D399' }]}>Rp 50.000</Text>
+                </View>
+
+                <View style={{ marginTop: 8 }}>
+                  <Text style={styles.inputLabel}>• Tabungan Sukarela Awal (Min. Rp 25.000):</Text>
+                  <TextInput
+                    style={styles.modalInput}
+                    value={regSukarela}
+                    onChangeText={(val) => {
+                      const cleaned = val.replace(/[^0-9]/g, '');
+                      setRegSukarela(cleaned);
+                    }}
+                    placeholder="25000"
+                    placeholderTextColor="#71717A"
+                    keyboardType="numeric"
+                  />
+                </View>
+
+                {(() => {
+                  const sukarelaNum = parseInt(regSukarela.replace(/[^0-9]/g, ''), 10) || 0;
+                  const totalInitial = 100000 + 50000 + sukarelaNum;
+                  return (
+                    <View style={[styles.reportRow, { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)', paddingTop: 8, marginTop: 8 }]}>
+                      <Text style={[styles.reportRowLabel, { color: '#FAFAFA', fontWeight: '800' }]}>Total Transfer Setoran Awal:</Text>
+                      <Text style={[styles.reportRowVal, { color: '#FBBF24', fontSize: 16, fontWeight: '800' }]}>
+                        {formatRupiah(totalInitial)}
+                      </Text>
+                    </View>
+                  );
+                })()}
+              </View>
+
+              {/* Bank Mandiri Transfer Box */}
+              <View style={styles.regBankBox}>
+                <Text style={styles.regBankTitle}>REKENING RESMI REKENING PENAMPUNG:</Text>
+                <Text style={styles.regBankAcc}>Bank Mandiri: 137-00-1234567-8</Text>
+                <Text style={styles.regBankNote}>a.n. Koperasi Bersama Satu Bintang</Text>
+                <Text style={[styles.regBankNote, { marginTop: 4, color: '#D4D4D8' }]}>
+                  Berita Transfer: DAFTAR KOP - {regMid || '[MID]'} - {regName || '[NAMA]'}
+                </Text>
+              </View>
+
+              <View style={{ height: 16 }} />
+              <MetallicButton
+                label={regSubmitting ? "Mengirim Pendaftaran..." : "Kirim Pendaftaran & Setoran Awal"}
+                onPress={handleRegisterSubmit}
+                variant="gold"
+                size="lg"
+                disabled={regSubmitting}
+              />
+              <View style={{ height: 8 }} />
+              <MetallicButton
+                label="Batal"
+                onPress={() => setShowRegisterModal(false)}
                 variant="silver"
                 size="md"
               />
@@ -1454,5 +1834,203 @@ const styles = StyleSheet.create({
     color: '#D4D4D8',
     flex: 1,
     lineHeight: 16,
+  },
+
+  // ── Registration Prompt & Status Styles ─────────────────────────
+  registerPromptCard: {
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: 'rgba(25, 23, 16, 0.95)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(251, 191, 36, 0.4)',
+    marginBottom: 14,
+  },
+  registerPromptHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  goldStarBadge: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#FBBF24',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  registerPromptTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#FAFAFA',
+    letterSpacing: 0.3,
+  },
+  registerPromptSubtitle: {
+    fontSize: 11,
+    color: '#FDE68A',
+    marginTop: 1,
+  },
+  unregChip: {
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.4)',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  unregChipText: {
+    fontSize: 8,
+    fontWeight: '800',
+    color: '#FBBF24',
+  },
+  registerPromptDesc: {
+    fontSize: 11.5,
+    color: '#D4D4D8',
+    lineHeight: 18,
+    marginVertical: 8,
+  },
+  registerFeeBoxes: {
+    flexDirection: 'row',
+    gap: 8,
+    marginVertical: 10,
+  },
+  feeBox: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 10,
+    padding: 8,
+    alignItems: 'center',
+  },
+  feeBoxLabel: {
+    fontSize: 9.5,
+    color: '#A1A1AA',
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  feeBoxVal: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FBBF24',
+    marginVertical: 3,
+    textAlign: 'center',
+  },
+  feeBoxNote: {
+    fontSize: 8.5,
+    color: '#71717A',
+    textAlign: 'center',
+  },
+  openRegisterBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#FBBF24',
+    paddingVertical: 11,
+    borderRadius: 10,
+    marginTop: 6,
+  },
+  openRegisterBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#000',
+    letterSpacing: 0.3,
+  },
+  pendingMemberBanner: {
+    padding: 14,
+    borderRadius: 14,
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.35)',
+    marginBottom: 14,
+  },
+  pendingTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#FBBF24',
+  },
+  pendingSubtitle: {
+    fontSize: 11,
+    color: '#D4D4D8',
+    marginTop: 2,
+  },
+  pendingChip: {
+    backgroundColor: 'rgba(245, 158, 11, 0.2)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  pendingChipText: {
+    fontSize: 8,
+    fontWeight: '800',
+    color: '#FBBF24',
+  },
+  pendingDetailsBox: {
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 10,
+  },
+  pendingDetailText: {
+    fontSize: 11,
+    color: '#E4E4E7',
+    lineHeight: 18,
+  },
+  activeMemberBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.35)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    marginBottom: 12,
+  },
+  activeMemberText: {
+    fontSize: 11.5,
+    color: '#E4E4E7',
+    flex: 1,
+  },
+  regSummaryBox: {
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 12,
+  },
+  regSummaryTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#FBBF24',
+    marginBottom: 8,
+    letterSpacing: 0.5,
+  },
+  regBankBox: {
+    backgroundColor: 'rgba(251, 191, 36, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(251, 191, 36, 0.25)',
+    borderRadius: 10,
+    padding: 12,
+    marginTop: 12,
+  },
+  regBankTitle: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#FBBF24',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  regBankAcc: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  regBankNote: {
+    fontSize: 11,
+    color: '#A1A1AA',
+    marginTop: 2,
   },
 });
