@@ -418,7 +418,7 @@ export default function SponsorshipScreen() {
             onPress={() => setActiveTab('dashboard')}
             style={[styles.tabButton, activeTab === 'dashboard' && styles.tabButtonActive]}
           >
-            <Ionicons name="ribbon" size={16} color={activeTab === 'dashboard' ? '#FBBF24' : '#71717A'} />
+            <Ionicons name="ribbon" size={16} color={activeTab === 'dashboard' ? '#FFFFFF' : '#71717A'} />
             <Text style={[styles.tabText, activeTab === 'dashboard' && styles.tabTextActive]}>
               Dashboard Saya
             </Text>
@@ -431,7 +431,7 @@ export default function SponsorshipScreen() {
             onPress={() => setActiveTab('direktori')}
             style={[styles.tabButton, activeTab === 'direktori' && styles.tabButtonActive]}
           >
-            <Ionicons name="ribbon-outline" size={16} color={activeTab === 'direktori' ? '#FBBF24' : '#71717A'} />
+            <Ionicons name="ribbon-outline" size={16} color={activeTab === 'direktori' ? '#FFFFFF' : '#71717A'} />
             <Text style={[styles.tabText, activeTab === 'direktori' && styles.tabTextActive]}>
               Direktori Mitra
             </Text>
@@ -444,7 +444,7 @@ export default function SponsorshipScreen() {
             onPress={() => setActiveTab('kelola')}
             style={[styles.tabButton, activeTab === 'kelola' && styles.tabButtonActive]}
           >
-            <Ionicons name="shield-checkmark-outline" size={16} color={activeTab === 'kelola' ? '#FBBF24' : '#71717A'} />
+            <Ionicons name="shield-checkmark-outline" size={16} color={activeTab === 'kelola' ? '#FFFFFF' : '#71717A'} />
             <Text style={[styles.tabText, activeTab === 'kelola' && styles.tabTextActive]}>
               Kelola Sponsor
             </Text>
@@ -461,7 +461,7 @@ export default function SponsorshipScreen() {
       {activeTab === 'dashboard' && isSponsor && (
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           {loading ? (
-            <ActivityIndicator size="large" color="#FBBF24" style={{ marginTop: 40 }} />
+            <ActivityIndicator size="large" color="#E4E4E7" style={{ marginTop: 40 }} />
           ) : sponsorSelf ? (() => {
             const todayStr = new Date().toISOString().split('T')[0];
             const isExpired = sponsorSelf.contract_end < todayStr;
@@ -472,22 +472,22 @@ export default function SponsorshipScreen() {
             return (
               <>
                 {/* Header kartu identitas sponsor */}
-                <View style={{ backgroundColor: '#0F0F11', borderWidth: 1, borderColor: 'rgba(251,191,36,0.35)', borderRadius: 16, padding: 16, marginBottom: 14 }}>
+                <View style={{ backgroundColor: '#141518', borderWidth: 1, borderColor: isExpired ? 'rgba(239,68,68,0.4)' : '#2D3139', borderRadius: 16, padding: 16, marginBottom: 14 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 }}>
                     {sponsorSelf.logo_url ? (
                       <Image source={{ uri: sponsorSelf.logo_url }} style={{ width: 52, height: 52, borderRadius: 10 }} />
                     ) : (
-                      <View style={{ width: 52, height: 52, borderRadius: 10, backgroundColor: 'rgba(251,191,36,0.12)', alignItems: 'center', justifyContent: 'center' }}>
-                        <Ionicons name="ribbon" size={26} color="#FBBF24" />
+                      <View style={{ width: 52, height: 52, borderRadius: 10, backgroundColor: '#1E2024', borderWidth: 1, borderColor: '#2E3138', alignItems: 'center', justifyContent: 'center' }}>
+                        <Ionicons name="ribbon-outline" size={26} color="#E4E4E7" />
                       </View>
                     )}
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontSize: 10, color: '#71717A', fontWeight: '600', letterSpacing: 1 }}>MITRA SPONSOR RESMI MB INA</Text>
                       <Text style={{ fontSize: 16, color: '#FAFAFA', fontWeight: '800' }} numberOfLines={1}>{sponsorSelf.name}</Text>
-                      <Text style={{ fontSize: 12, color: '#FBBF24', fontWeight: '600' }}>{sponsorSelf.sponsor_id} • {sponsorSelf.category}</Text>
+                      <Text style={{ fontSize: 12, color: '#C5A059', fontWeight: '600' }}>{sponsorSelf.sponsor_id} • {sponsorSelf.category}</Text>
                     </View>
-                    <View style={{ backgroundColor: isExpired ? 'rgba(239,68,68,0.15)' : 'rgba(52,211,153,0.15)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, borderWidth: 0.5, borderColor: isExpired ? '#EF4444' : '#34D399' }}>
-                      <Text style={{ fontSize: 10, fontWeight: '700', color: isExpired ? '#EF4444' : '#34D399' }}>
+                    <View style={{ backgroundColor: isExpired ? 'rgba(239,68,68,0.15)' : 'rgba(16,185,129,0.15)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, borderWidth: 0.5, borderColor: isExpired ? '#EF4444' : '#10B981' }}>
+                      <Text style={{ fontSize: 10, fontWeight: '700', color: isExpired ? '#EF4444' : '#10B981' }}>
                         {isExpired ? '🔴 EXPIRED' : '🟢 AKTIF'}
                       </Text>
                     </View>
@@ -505,30 +505,71 @@ export default function SponsorshipScreen() {
                       <Ionicons name="calendar-outline" size={14} color="#A1A1AA" />
                       <Text style={{ fontSize: 12, color: '#A1A1AA' }}>
                         Masa: {sponsorSelf.contract_start} s/d {sponsorSelf.contract_end}
-                        {!isExpired && <Text style={{ color: '#34D399', fontWeight: '600' }}> ({remainingDays} hari lagi)</Text>}
+                        {!isExpired && <Text style={{ color: '#10B981', fontWeight: '600' }}> ({remainingDays} hari lagi)</Text>}
                       </Text>
                     </View>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <Ionicons name="storefront-outline" size={14} color={sponsorSelf.lapak_id ? '#FBBF24' : '#52525B'} />
+                      <Ionicons name="storefront-outline" size={14} color={sponsorSelf.lapak_id ? '#A1A1AA' : '#52525B'} />
                       <Text style={{ fontSize: 12, color: '#A1A1AA' }}>
-                        Lapak: <Text style={{ color: sponsorSelf.lapak_id ? '#FBBF24' : '#52525B' }}>{sponsorSelf.lapak_id || 'Belum ada'}</Text>
-                        {sponsorSelf.lapak_id && <Text style={{ color: isExpired ? '#EF4444' : '#34D399' }}> ({isExpired ? 'Berakhir' : 'Aktif'})</Text>}
+                        Lapak: <Text style={{ color: sponsorSelf.lapak_id ? '#FFFFFF' : '#52525B' }}>{sponsorSelf.lapak_id || 'Belum ada'}</Text>
+                        {sponsorSelf.lapak_id && <Text style={{ color: isExpired ? '#EF4444' : '#10B981' }}> ({isExpired ? 'Berakhir' : 'Aktif'})</Text>}
                       </Text>
                     </View>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <Ionicons name="chatbubble-ellipses-outline" size={14} color={sponsorSelf.has_forum_access ? '#34D399' : '#52525B'} />
-                      <Text style={{ fontSize: 12, color: sponsorSelf.has_forum_access ? '#34D399' : '#52525B' }}>
+                      <Ionicons name="chatbubble-ellipses-outline" size={14} color={sponsorSelf.has_forum_access ? '#10B981' : '#52525B'} />
+                      <Text style={{ fontSize: 12, color: sponsorSelf.has_forum_access ? '#10B981' : '#52525B' }}>
                         Forum: {sponsorSelf.has_forum_access ? 'Akses Penuh Aktif' : 'Terkunci (Jatuh Tempo)'}
                       </Text>
                     </View>
                     {sponsorSelf.website_url ? (
                       <Pressable onPress={() => Linking.openURL(sponsorSelf!.website_url!)} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                        <Ionicons name="globe-outline" size={14} color="#60A5FA" />
-                        <Text style={{ fontSize: 12, color: '#60A5FA', textDecorationLine: 'underline' }}>{sponsorSelf.website_url}</Text>
+                        <Ionicons name="globe-outline" size={14} color="#A1A1AA" />
+                        <Text style={{ fontSize: 12, color: '#E4E4E7', textDecorationLine: 'underline' }}>{sponsorSelf.website_url}</Text>
                       </Pressable>
                     ) : null}
                   </View>
                 </View>
+
+                {/* Status pending renewal atau tombol perpanjang */}
+                {sponsorSelf.pending_renewal ? (
+                  <View style={{ backgroundColor: '#18191D', borderWidth: 1, borderColor: '#2D3139', borderRadius: 12, padding: 14, marginBottom: 14 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                      <Ionicons name="time-outline" size={18} color="#A1A1AA" />
+                      <Text style={{ fontSize: 13, fontWeight: '700', color: '#F4F4F5' }}>Menunggu Persetujuan Admin</Text>
+                    </View>
+                    <Text style={{ fontSize: 12, color: '#D4D4D8' }}>
+                      Perpanjangan +{sponsorSelf.pending_renewal.months} Bulan telah diajukan.{'\n'}
+                      Tagihan: <Text style={{ color: '#FFFFFF', fontWeight: '700' }}>Rp {sponsorSelf.pending_renewal.fee.toLocaleString('id-ID')}</Text>
+                    </Text>
+                    <Text style={{ fontSize: 11, color: '#71717A', marginTop: 4 }}>
+                      Diajukan: {new Date(sponsorSelf.pending_renewal.requested_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })}
+                    </Text>
+                    <Pressable
+                      onPress={() => handleOpenRenewModal(sponsorSelf!)}
+                      style={{ marginTop: 8, backgroundColor: '#27272A', paddingVertical: 6, paddingHorizontal: 10, borderRadius: 6, alignSelf: 'flex-start' }}
+                    >
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: '#E4E4E7' }}>Ubah / Upload Ulang Bukti Transfer</Text>
+                    </Pressable>
+                  </View>
+                ) : (
+                  <Pressable
+                    onPress={() => handleOpenRenewModal(sponsorSelf!)}
+                    style={({ pressed }) => ({
+                      backgroundColor: pressed ? '#D4D4D8' : '#E4E4E7',
+                      borderRadius: 12,
+                      paddingVertical: 14, paddingHorizontal: 16,
+                      flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
+                      marginBottom: 14,
+                    })}
+                  >
+                    <Ionicons name="refresh" size={18} color="#09090B" />
+                    <Text style={{ color: '#09090B', fontSize: 14, fontWeight: '800' }}>
+                      {sponsorSelf.last_notification?.type === 'REJECTED'
+                        ? 'Ajukan Ulang Perpanjangan Sewa Lapak'
+                        : 'Perpanjang Sewa Lapak'}
+                    </Text>
+                  </Pressable>
+                )}
 
                 {/* Banner Notifikasi Status Pengajuan Terakhir (Disetujui / Ditolak) */}
                 {sponsorSelf.last_notification && (
@@ -592,46 +633,6 @@ export default function SponsorshipScreen() {
                   </View>
                 )}
 
-                {/* Status pending renewal atau tombol perpanjang */}
-                {sponsorSelf.pending_renewal ? (
-                  <View style={{ backgroundColor: 'rgba(251,191,36,0.08)', borderWidth: 1, borderColor: '#FBBF24', borderRadius: 12, padding: 14, marginBottom: 14 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                      <Ionicons name="time" size={18} color="#FBBF24" />
-                      <Text style={{ fontSize: 13, fontWeight: '700', color: '#FBBF24' }}>Menunggu Persetujuan Admin</Text>
-                    </View>
-                    <Text style={{ fontSize: 12, color: '#D4D4D8' }}>
-                      Perpanjangan +{sponsorSelf.pending_renewal.months} Bulan telah diajukan.{'\n'}
-                      Tagihan: <Text style={{ color: '#FBBF24', fontWeight: '700' }}>Rp {sponsorSelf.pending_renewal.fee.toLocaleString('id-ID')}</Text>
-                    </Text>
-                    <Text style={{ fontSize: 11, color: '#71717A', marginTop: 4 }}>
-                      Diajukan: {new Date(sponsorSelf.pending_renewal.requested_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })}
-                    </Text>
-                    <Pressable
-                      onPress={() => handleOpenRenewModal(sponsorSelf!)}
-                      style={{ marginTop: 8, backgroundColor: 'rgba(251,191,36,0.2)', paddingVertical: 6, paddingHorizontal: 10, borderRadius: 6, alignSelf: 'flex-start' }}
-                    >
-                      <Text style={{ fontSize: 11, fontWeight: '700', color: '#FBBF24' }}>Ubah / Upload Ulang Bukti Transfer</Text>
-                    </Pressable>
-                  </View>
-                ) : (
-                  <Pressable
-                    onPress={() => handleOpenRenewModal(sponsorSelf!)}
-                    style={({ pressed }) => ({
-                      backgroundColor: pressed ? 'rgba(251,191,36,0.25)' : 'rgba(251,191,36,0.12)',
-                      borderWidth: 1, borderColor: '#FBBF24', borderRadius: 12,
-                      paddingVertical: 14, paddingHorizontal: 16,
-                      flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
-                      marginBottom: 14,
-                    })}
-                  >
-                    <Ionicons name="refresh" size={18} color="#FBBF24" />
-                    <Text style={{ color: '#FBBF24', fontSize: 14, fontWeight: '800' }}>
-                      {sponsorSelf.last_notification?.type === 'REJECTED'
-                        ? 'Ajukan Ulang Perpanjangan Sewa Lapak'
-                        : 'Perpanjang Sewa Lapak (Wajib Bayar)'}
-                    </Text>
-                  </Pressable>
-                )}
 
                 {/* Deskripsi & penawaran */}
                 {sponsorSelf.description && (
@@ -737,7 +738,7 @@ export default function SponsorshipScreen() {
                     </View>
                   </View>
                   <Text style={styles.sponsorCat}>
-                    {item.category} • No. KTA: <Text style={{ color: '#FBBF24' }}>{item.sponsor_id}</Text>
+                    {item.category} • No. KTA: <Text style={{ color: '#C5A059' }}>{item.sponsor_id}</Text>
                   </Text>
                 </View>
               </View>
@@ -756,12 +757,12 @@ export default function SponsorshipScreen() {
               {/* Hak Fasilitas Badges */}
               <View style={styles.facilityRow}>
                 <View style={styles.facilityBadge}>
-                  <Ionicons name="storefront-outline" size={12} color="#FBBF24" />
+                  <Ionicons name="storefront-outline" size={12} color="#A1A1AA" />
                   <Text style={styles.facilityBadgeText}>Lapak Toko Aktif</Text>
                 </View>
                 <View style={styles.facilityBadge}>
-                  <Ionicons name="chatbubbles-outline" size={12} color="#60A5FA" />
-                  <Text style={[styles.facilityBadgeText, { color: '#60A5FA' }]}>Forum Terverifikasi</Text>
+                  <Ionicons name="chatbubbles-outline" size={12} color="#A1A1AA" />
+                  <Text style={styles.facilityBadgeText}>Forum Terverifikasi</Text>
                 </View>
               </View>
 
@@ -800,15 +801,15 @@ export default function SponsorshipScreen() {
                     <Text style={styles.kpiLabel}>Total Mitra</Text>
                     <Text style={styles.kpiValue}>{sponsors.length}</Text>
                   </View>
-                  <View style={[styles.kpiBox, { borderColor: pendingCount > 0 ? '#FBBF24' : 'rgba(251, 191, 36, 0.4)' }]}>
-                    <Text style={[styles.kpiLabel, { color: '#FBBF24' }]}>Perpanjangan Pending</Text>
-                    <Text style={[styles.kpiValue, { color: '#FBBF24' }]}>
+                  <View style={[styles.kpiBox, { borderColor: pendingCount > 0 ? '#E4E4E7' : '#27272A' }]}>
+                    <Text style={[styles.kpiLabel, { color: pendingCount > 0 ? '#FFFFFF' : '#71717A' }]}>Perpanjangan Pending</Text>
+                    <Text style={[styles.kpiValue, { color: pendingCount > 0 ? '#FFFFFF' : '#71717A' }]}>
                       {pendingCount}
                     </Text>
                   </View>
-                  <View style={[styles.kpiBox, { borderColor: 'rgba(52, 211, 153, 0.4)' }]}>
-                    <Text style={[styles.kpiLabel, { color: '#34D399' }]}>Hak Forum Aktif</Text>
-                    <Text style={[styles.kpiValue, { color: '#34D399' }]}>
+                  <View style={[styles.kpiBox, { borderColor: '#27272A' }]}>
+                    <Text style={[styles.kpiLabel, { color: '#A1A1AA' }]}>Hak Forum Aktif</Text>
+                    <Text style={[styles.kpiValue, { color: '#F4F4F5' }]}>
                       {sponsors.filter((s) => s.has_forum_access).length}
                     </Text>
                   </View>
@@ -816,15 +817,15 @@ export default function SponsorshipScreen() {
 
                 {/* Banner Pengajuan Perpanjangan Menunggu Verifikasi */}
                 {pendingCount > 0 && (
-                  <View style={{ backgroundColor: 'rgba(251,191,36,0.12)', borderWidth: 1.5, borderColor: '#FBBF24', borderRadius: 12, padding: 14, marginBottom: 14 }}>
+                  <View style={{ backgroundColor: '#18191D', borderWidth: 1, borderColor: '#2D3139', borderRadius: 12, padding: 14, marginBottom: 14 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                      <Ionicons name="time" size={20} color="#FBBF24" />
-                      <Text style={{ fontSize: 14, fontWeight: '800', color: '#FBBF24' }}>
-                        ⚠️ {pendingCount} PENGAJUAN PERPANJANGAN MENUNGGU VERIFIKASI
+                      <Ionicons name="time-outline" size={20} color="#A1A1AA" />
+                      <Text style={{ fontSize: 14, fontWeight: '800', color: '#F4F4F5' }}>
+                        {pendingCount} PENGAJUAN PERPANJANGAN MENUNGGU VERIFIKASI
                       </Text>
                     </View>
                     <Text style={{ fontSize: 12, color: '#D4D4D8', lineHeight: 18 }}>
-                      Sponsor telah mengunggah bukti transfer pembayaran sewa. Tekan tombol <Text style={{ color: '#FBBF24', fontWeight: '700' }}>"Review Bukti & Setujui"</Text> pada kartu sponsor di bawah ini untuk memverifikasi struk transfer.
+                      Sponsor telah mengunggah bukti transfer pembayaran sewa. Tekan tombol <Text style={{ color: '#FFFFFF', fontWeight: '700' }}>"Review Bukti & Setujui"</Text> pada kartu sponsor di bawah ini untuk memverifikasi struk transfer.
                     </Text>
                   </View>
                 )}
@@ -875,17 +876,17 @@ export default function SponsorshipScreen() {
           </View>
 
           {/* Panduan Alur Verifikasi Perpanjangan Sponsor */}
-          <View style={{ backgroundColor: 'rgba(59,130,246,0.06)', borderWidth: 1, borderColor: 'rgba(59,130,246,0.25)', borderRadius: 10, padding: 12, marginBottom: 14 }}>
+          <View style={{ backgroundColor: '#141518', borderWidth: 1, borderColor: '#27272A', borderRadius: 10, padding: 12, marginBottom: 14 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-              <Ionicons name="information-circle-outline" size={16} color="#60A5FA" />
-              <Text style={{ fontSize: 12, fontWeight: '700', color: '#60A5FA' }}>
+              <Ionicons name="information-circle-outline" size={16} color="#A1A1AA" />
+              <Text style={{ fontSize: 12, fontWeight: '700', color: '#F4F4F5' }}>
                 Alur Verifikasi Perpanjangan Sewa Lapak & Kemitraan Sponsor:
               </Text>
             </View>
             <Text style={{ fontSize: 11, color: '#A1A1AA', lineHeight: 18 }}>
               1. Sponsor mengajukan perpanjangan dari halaman <Text style={{ color: '#FAFAFA', fontWeight: '700' }}>Profil</Text> mereka.{'\n'}
               2. Sponsor wajib melampirkan foto / link bukti transfer ke Bank Mandiri 137-00-1234567-8 a.n. MERCEDES-BENZ CLUB INDONESIA.{'\n'}
-              3. Setelah diajukan, tombol kuning <Text style={{ color: '#FBBF24', fontWeight: '700' }}>[🔍 Review Bukti & Setujui]</Text> akan otomatis muncul di kartu sponsor di bawah ini untuk Admin memverifikasi.
+              3. Setelah diajukan, tombol <Text style={{ color: '#FFFFFF', fontWeight: '700' }}>[📋 Review Bukti & Setujui]</Text> akan otomatis muncul di kartu sponsor di bawah ini untuk Admin memverifikasi.
             </Text>
           </View>
 
@@ -904,7 +905,7 @@ export default function SponsorshipScreen() {
                     {s.logo_url ? (
                       <Image source={{ uri: s.logo_url }} style={styles.logoImg} />
                     ) : (
-                      <Ionicons name="ribbon" size={22} color="#FBBF24" />
+                      <Ionicons name="ribbon-outline" size={22} color="#E4E4E7" />
                     )}
                   </View>
                   <View style={{ flex: 1 }}>
@@ -964,8 +965,8 @@ export default function SponsorshipScreen() {
                       </View>
 
                       <View style={styles.benefitStatusItem}>
-                        <Ionicons name="storefront-outline" size={13} color={isExpired ? '#71717A' : '#FBBF24'} />
-                        <Text style={[styles.benefitStatusText, { color: isExpired ? '#71717A' : '#FBBF24' }]}>
+                        <Ionicons name="storefront-outline" size={13} color={isExpired ? '#71717A' : '#A1A1AA'} />
+                        <Text style={[styles.benefitStatusText, { color: isExpired ? '#71717A' : '#E4E4E7' }]}>
                           Lapak: {s.lapak_id || 'LPK-SPN-2026-001'} ({isExpired ? 'Masa Sewa Berakhir' : 'Gratis 3 Bulan Aktif'})
                         </Text>
                       </View>
@@ -981,17 +982,17 @@ export default function SponsorshipScreen() {
                       {s.pending_renewal ? (
                         <View
                           style={{
-                            backgroundColor: 'rgba(251, 191, 36, 0.08)',
+                            backgroundColor: '#18191D',
                             borderWidth: 1,
-                            borderColor: '#FBBF24',
+                            borderColor: '#2D3139',
                             borderRadius: 8,
                             padding: 10,
                             marginTop: 10,
                           }}
                         >
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                            <Ionicons name="time" size={16} color="#FBBF24" />
-                            <Text style={{ fontSize: 12, fontWeight: '700', color: '#FBBF24', flex: 1 }}>
+                            <Ionicons name="time-outline" size={16} color="#A1A1AA" />
+                            <Text style={{ fontSize: 12, fontWeight: '700', color: '#F4F4F5', flex: 1 }}>
                               Pengajuan Perpanjangan ({s.pending_renewal.months} Bulan) Menunggu Verifikasi Admin
                             </Text>
                           </View>
@@ -1008,7 +1009,7 @@ export default function SponsorshipScreen() {
                             <Pressable
                               onPress={() => handleOpenReviewProof(s)}
                               style={{
-                                backgroundColor: '#FBBF24',
+                                backgroundColor: '#E4E4E7',
                                 paddingHorizontal: 12,
                                 paddingVertical: 6,
                                 borderRadius: 6,
@@ -1071,7 +1072,7 @@ export default function SponsorshipScreen() {
             <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 20 }} showsVerticalScrollIndicator={false}>
               {/* Auto Generated Member Number Preview */}
               <View style={styles.ktaGeneratedBox}>
-                <Ionicons name="id-card" size={20} color="#FBBF24" />
+                <Ionicons name="id-card" size={20} color="#E4E4E7" />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.ktaGeneratedLabel}>Nomor KTA Sponsor Resmi (Otomatis):</Text>
                   <Text style={styles.ktaGeneratedValue}>{nextMemberNumber}</Text>
@@ -1147,7 +1148,7 @@ export default function SponsorshipScreen() {
                 <View style={styles.benefitItem}>
                   <Ionicons name="checkmark-circle" size={16} color="#34D399" />
                   <Text style={styles.benefitItemText}>
-                    <Text style={{ fontWeight: '700', color: '#FBBF24' }}>GRATIS Sewa Lapak Toko selama 3 Bulan</Text> (Kode Lapak: LPK-SPN-2026-XXX)
+                    <Text style={{ fontWeight: '700', color: '#FFFFFF' }}>GRATIS Sewa Lapak Toko selama 3 Bulan</Text> (Kode Lapak: LPK-SPN-2026-XXX)
                   </Text>
                 </View>
                 <View style={styles.benefitItem}>
@@ -1186,7 +1187,7 @@ export default function SponsorshipScreen() {
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Text style={styles.fieldLabel}>Logo URL</Text>
                 <Pressable onPress={handleFillDemoLogo}>
-                  <Text style={{ color: '#FBBF24', fontSize: 11, fontWeight: '600' }}>+ Isi Contoh Logo</Text>
+                  <Text style={{ color: '#C5A059', fontSize: 11, fontWeight: '600' }}>+ Isi Contoh Logo</Text>
                 </Pressable>
               </View>
               <TextInput
@@ -1209,8 +1210,8 @@ export default function SponsorshipScreen() {
               {/* ── Akun Login Sponsor ───────────────────────────── */}
               <View style={{ height: 0.5, backgroundColor: '#27272A', marginVertical: 14 }} />
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                <Ionicons name="key-outline" size={16} color="#60A5FA" />
-                <Text style={{ fontSize: 13, fontWeight: '700', color: '#60A5FA' }}>
+                <Ionicons name="key-outline" size={16} color="#A1A1AA" />
+                <Text style={{ fontSize: 13, fontWeight: '700', color: '#FFFFFF' }}>
                   Akun Login Sponsor (Mobile App)
                 </Text>
               </View>
@@ -1235,7 +1236,7 @@ export default function SponsorshipScreen() {
               {!formEmail.trim() && formName.trim() && (
                 <Text style={{ fontSize: 10, color: '#71717A', marginTop: -8, marginBottom: 10 }}>
                   Kosongkan untuk auto-generate:{' '}
-                  <Text style={{ color: '#FBBF24' }}>
+                  <Text style={{ color: '#E4E4E7' }}>
                     sponsor_{formName.trim().toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 15)}@mbandro.org
                   </Text>
                 </Text>
@@ -1250,7 +1251,7 @@ export default function SponsorshipScreen() {
                 onChangeText={setFormPassword}
               />
               <Text style={{ fontSize: 10, color: '#71717A', marginBottom: 14 }}>
-                Default: <Text style={{ color: '#FBBF24', fontFamily: 'monospace' }}>spn@20252027</Text>
+                Default: <Text style={{ color: '#E4E4E7', fontFamily: 'monospace' }}>spn@20252027</Text>
               </Text>
 
               <View style={styles.modalActionRow}>
@@ -1291,7 +1292,7 @@ export default function SponsorshipScreen() {
             <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 16 }} showsVerticalScrollIndicator={false}>
               {targetRenewSponsor && (
                 <View style={[styles.ktaGeneratedBox, { marginBottom: 12 }]}>
-                  <Ionicons name="business" size={20} color="#FBBF24" />
+                  <Ionicons name="business" size={20} color="#E4E4E7" />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.ktaGeneratedLabel}>Mitra Sponsor:</Text>
                     <Text style={[styles.ktaGeneratedValue, { fontSize: 13 }]}>
@@ -1321,7 +1322,7 @@ export default function SponsorshipScreen() {
               </View>
 
               {/* Rincian Tarif Sewa (Sponsor Tanpa Diskon) */}
-              <View style={[styles.benefitPackageCard, { backgroundColor: 'rgba(251, 191, 36, 0.08)', borderColor: 'rgba(251, 191, 36, 0.3)' }]}>
+              <View style={[styles.benefitPackageCard, { backgroundColor: '#18191D', borderColor: '#27272A' }]}>
                 <Text style={styles.benefitPackageTitle}>💰 Rincian Biaya Sewa Lapak & Forum:</Text>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
                   <Text style={{ fontSize: 12, color: '#D4D4D8' }}>Tarif Dasar Sewa:</Text>
@@ -1337,8 +1338,8 @@ export default function SponsorshipScreen() {
                 </View>
                 <View style={[styles.hairline, { marginVertical: 6 }]} />
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Text style={{ fontSize: 13, color: '#FBBF24', fontWeight: '700' }}>Total Yang Harus Dibayar:</Text>
-                  <Text style={{ fontSize: 16, color: '#FBBF24', fontWeight: '800' }}>
+                  <Text style={{ fontSize: 13, color: '#FFFFFF', fontWeight: '700' }}>Total Yang Harus Dibayar:</Text>
+                  <Text style={{ fontSize: 16, color: '#FFFFFF', fontWeight: '800' }}>
                     Rp {(renewMonths * 5000).toLocaleString('id-ID')}
                   </Text>
                 </View>
@@ -1348,10 +1349,10 @@ export default function SponsorshipScreen() {
               </View>
 
               {/* Info Rekening Pembayaran */}
-              <View style={[styles.benefitPackageCard, { backgroundColor: '#18181B', borderColor: '#27272A', marginTop: 10 }]}>
-                <Text style={[styles.benefitPackageTitle, { color: '#60A5FA' }]}>🏦 Rekening Resmi Pembayaran MB INA:</Text>
+              <View style={[styles.benefitPackageCard, { backgroundColor: '#18191D', borderColor: '#27272A', marginTop: 10 }]}>
+                <Text style={[styles.benefitPackageTitle, { color: '#FFFFFF' }]}>🏦 Rekening Resmi Pembayaran MB INA:</Text>
                 <Text style={{ fontSize: 12, color: '#E4E4E7', fontWeight: '700' }}>Bank Mandiri</Text>
-                <Text style={{ fontSize: 14, color: '#FBBF24', fontWeight: '800', fontFamily: 'monospace' }}>
+                <Text style={{ fontSize: 14, color: '#FFFFFF', fontWeight: '800', fontFamily: 'monospace' }}>
                   137-00-1234567-8
                 </Text>
                 <Text style={{ fontSize: 11, color: '#A1A1AA' }}>a.n. MERCEDES-BENZ CLUB INDONESIA</Text>
@@ -1371,9 +1372,9 @@ export default function SponsorshipScreen() {
                   style={{
                     backgroundColor: renewProof.trim()
                       ? 'rgba(52, 211, 153, 0.08)'
-                      : 'rgba(251, 191, 36, 0.06)',
+                      : 'rgba(255, 255, 255, 0.03)',
                     borderWidth: 1.5,
-                    borderColor: renewProof.trim() ? '#34D399' : '#FBBF24',
+                    borderColor: renewProof.trim() ? '#34D399' : '#3F3F46',
                     borderRadius: 8,
                     borderStyle: 'dashed',
                     paddingVertical: 16,
@@ -1387,13 +1388,13 @@ export default function SponsorshipScreen() {
                   <Ionicons
                     name={renewProof.trim() ? 'checkmark-circle' : 'cloud-upload-outline'}
                     size={26}
-                    color={renewProof.trim() ? '#34D399' : '#FBBF24'}
+                    color={renewProof.trim() ? '#34D399' : '#A1A1AA'}
                   />
                   <View style={{ flex: 1 }}>
                     <Text style={{
                       fontSize: 13,
                       fontWeight: '700',
-                      color: renewProof.trim() ? '#34D399' : '#FBBF24',
+                      color: renewProof.trim() ? '#34D399' : '#FFFFFF',
                     }}>
                       {renewProof.trim() ? '✓ Bukti Transfer Terlampir' : 'Upload Bukti Transfer'}
                     </Text>
@@ -1404,12 +1405,12 @@ export default function SponsorshipScreen() {
                     </Text>
                   </View>
                   <View style={{
-                    backgroundColor: renewProof.trim() ? '#34D399' : '#FBBF24',
+                    backgroundColor: renewProof.trim() ? '#34D399' : '#27272A',
                     paddingHorizontal: 12,
                     paddingVertical: 6,
                     borderRadius: 6,
                   }}>
-                    <Text style={{ fontSize: 11, fontWeight: '700', color: '#09090B' }}>
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: renewProof.trim() ? '#09090B' : '#E4E4E7' }}>
                       {renewProof.trim() ? 'Ganti' : 'Pilih'}
                     </Text>
                   </View>
@@ -1510,7 +1511,7 @@ export default function SponsorshipScreen() {
               {targetReviewSponsor?.pending_renewal && (
                 <View>
                   <View style={[styles.ktaGeneratedBox, { marginBottom: 12 }]}>
-                    <Ionicons name="business" size={20} color="#FBBF24" />
+                    <Ionicons name="business" size={20} color="#E4E4E7" />
                     <View style={{ flex: 1 }}>
                       <Text style={styles.ktaGeneratedLabel}>Pemohon Perpanjangan:</Text>
                       <Text style={[styles.ktaGeneratedValue, { fontSize: 14 }]}>
@@ -1536,8 +1537,8 @@ export default function SponsorshipScreen() {
                       </Text>
                     </View>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Text style={{ fontSize: 13, color: '#FBBF24', fontWeight: '700' }}>Nominal Transfer:</Text>
-                      <Text style={{ fontSize: 16, color: '#FBBF24', fontWeight: '800' }}>
+                      <Text style={{ fontSize: 13, color: '#FFFFFF', fontWeight: '700' }}>Nominal Transfer:</Text>
+                      <Text style={{ fontSize: 16, color: '#FFFFFF', fontWeight: '800' }}>
                         Rp {targetReviewSponsor.pending_renewal.fee.toLocaleString('id-ID')}
                       </Text>
                     </View>
@@ -1634,21 +1635,21 @@ const styles = StyleSheet.create({
     color: '#71717A',
   },
   tabTextActive: {
-    color: '#FBBF24',
+    color: '#FFFFFF',
     fontWeight: '700',
   },
   adminBadgePill: {
-    backgroundColor: 'rgba(251, 191, 36, 0.15)',
+    backgroundColor: '#27272A',
     paddingHorizontal: 5,
     paddingVertical: 1,
     borderRadius: 4,
     borderWidth: 0.5,
-    borderColor: '#FBBF24',
+    borderColor: '#3F3F46',
   },
   adminBadgePillText: {
     fontSize: 8,
     fontWeight: '800',
-    color: '#FBBF24',
+    color: '#D4D4D8',
   },
 
   hero: { alignItems: 'center', marginBottom: Spacing.base, gap: Spacing.xs },
@@ -1693,7 +1694,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#1E1E24', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6,
     borderWidth: 1, borderColor: '#2E2E38',
   },
-  facilityBadgeText: { fontSize: 10, color: '#FBBF24', fontWeight: '600' },
+  facilityBadgeText: { fontSize: 10, color: '#D4D4D8', fontWeight: '600' },
   websiteBtn: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginTop: 6 },
   websiteBtnText: { fontSize: Typography.xs, color: Colors.status.info },
 
@@ -1714,16 +1715,16 @@ const styles = StyleSheet.create({
   kpiValue: { fontSize: 18, fontWeight: '800', color: '#F4F4F5', marginTop: 2 },
 
   btnAddSponsor: {
-    backgroundColor: '#FBBF24', borderRadius: 10, paddingVertical: 12, alignItems: 'center',
+    backgroundColor: '#E4E4E7', borderRadius: 10, paddingVertical: 12, alignItems: 'center',
     flexDirection: 'row', justifyContent: 'center', gap: 6, marginBottom: 14,
   },
   btnAddSponsorText: { color: '#09090B', fontWeight: '800', fontSize: 13 },
 
   benefitNoticeBox: {
-    backgroundColor: 'rgba(251, 191, 36, 0.08)', borderWidth: 1, borderColor: '#FBBF24',
+    backgroundColor: '#18181B', borderWidth: 1, borderColor: '#27272A',
     borderRadius: 10, padding: 12, marginBottom: 16, flexDirection: 'row', gap: 10,
   },
-  benefitNoticeTitle: { color: '#FBBF24', fontSize: 12, fontWeight: '800', marginBottom: 4 },
+  benefitNoticeTitle: { color: '#FFFFFF', fontSize: 12, fontWeight: '800', marginBottom: 4 },
   benefitNoticeDesc: { color: '#D4D4D8', fontSize: 11, lineHeight: 17 },
 
   adminSponsorCard: {
@@ -1731,11 +1732,11 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: '#27272A',
   },
   adminSponsorLogo: {
-    width: 44, height: 44, borderRadius: 10, backgroundColor: 'rgba(251, 191, 36, 0.1)',
+    width: 44, height: 44, borderRadius: 10, backgroundColor: '#27272A',
     alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderWidth: 0.5, borderColor: '#3F3F46',
   },
   adminSponsorName: { color: '#F4F4F5', fontWeight: '700', fontSize: 14 },
-  adminSponsorKTA: { color: '#FBBF24', fontSize: 11, marginTop: 1, fontWeight: '600' },
+  adminSponsorKTA: { color: '#C5A059', fontSize: 11, marginTop: 1, fontWeight: '600' },
   adminSponsorPic: { color: '#71717A', fontSize: 11, marginTop: 1 },
   hairline: { height: 1, backgroundColor: '#27272A' },
   benefitStatusRow: { gap: 4 },
@@ -1757,11 +1758,11 @@ const styles = StyleSheet.create({
 
   ktaGeneratedBox: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: 'rgba(251, 191, 36, 0.12)', borderWidth: 1, borderColor: '#FBBF24',
+    backgroundColor: '#18191D', borderWidth: 1, borderColor: '#2D3139',
     borderRadius: 10, padding: 12, marginBottom: 12,
   },
   ktaGeneratedLabel: { color: '#D4D4D8', fontSize: 11 },
-  ktaGeneratedValue: { color: '#FBBF24', fontSize: 15, fontWeight: '800', marginTop: 1 },
+  ktaGeneratedValue: { color: '#FFFFFF', fontSize: 15, fontWeight: '800', marginTop: 1 },
 
   fieldLabel: { color: '#E4E4E7', fontSize: 12, fontWeight: '600', marginBottom: 5, marginTop: 8 },
   fieldInput: {
@@ -1773,23 +1774,23 @@ const styles = StyleSheet.create({
     backgroundColor: '#18181B', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20,
     marginRight: 6, borderWidth: 1, borderColor: '#27272A',
   },
-  filterChipActive: { borderColor: '#FBBF24', backgroundColor: 'rgba(251, 191, 36, 0.15)' },
+  filterChipActive: { borderColor: '#E4E4E7', backgroundColor: '#27272A' },
   filterChipText: { color: '#71717A', fontSize: 11 },
-  filterChipTextActive: { color: '#FBBF24', fontWeight: '700' },
+  filterChipTextActive: { color: '#FFFFFF', fontWeight: '700' },
 
   subChip: {
     backgroundColor: '#18181B', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 12,
     borderWidth: 1, borderColor: '#27272A',
   },
-  subChipActive: { borderColor: '#FBBF24', backgroundColor: 'rgba(251, 191, 36, 0.15)' },
+  subChipActive: { borderColor: '#E4E4E7', backgroundColor: '#27272A' },
   subChipText: { color: '#71717A', fontSize: 11 },
-  subChipTextActive: { color: '#FBBF24', fontWeight: '700' },
+  subChipTextActive: { color: '#FFFFFF', fontWeight: '700' },
 
   benefitPackageCard: {
     backgroundColor: '#18181B', borderRadius: 10, padding: 12, marginVertical: 10,
     borderWidth: 1, borderColor: '#3F3F46', gap: 6,
   },
-  benefitPackageTitle: { color: '#FBBF24', fontWeight: '700', fontSize: 12, marginBottom: 2 },
+  benefitPackageTitle: { color: '#FFFFFF', fontWeight: '700', fontSize: 12, marginBottom: 2 },
   benefitItem: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
   benefitItemText: { color: '#D4D4D8', fontSize: 11, flex: 1, lineHeight: 16 },
 
@@ -1799,7 +1800,7 @@ const styles = StyleSheet.create({
   },
   modalBtnCancelText: { color: '#A1A1AA', fontWeight: '700', fontSize: 13 },
   modalBtnSubmit: {
-    flex: 2, backgroundColor: '#FBBF24', paddingVertical: 12, borderRadius: 10, alignItems: 'center',
+    flex: 2, backgroundColor: '#E4E4E7', paddingVertical: 12, borderRadius: 10, alignItems: 'center',
   },
   modalBtnSubmitText: { color: '#09090B', fontWeight: '800', fontSize: 13 },
 });

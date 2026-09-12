@@ -436,9 +436,9 @@ export default function ProfilScreen() {
           );
           return (
             <View style={{
-              backgroundColor: '#0F0F11',
+              backgroundColor: '#141518',
               borderWidth: 1,
-              borderColor: isExpired ? 'rgba(239,68,68,0.4)' : 'rgba(251,191,36,0.35)',
+              borderColor: isExpired ? 'rgba(239,68,68,0.4)' : '#2D3139',
               borderRadius: 16,
               padding: 16,
               marginBottom: 14,
@@ -447,11 +447,11 @@ export default function ProfilScreen() {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 }}>
                 <View style={{
                   width: 36, height: 36, borderRadius: 18,
-                  backgroundColor: 'rgba(251,191,36,0.12)',
-                  borderWidth: 1, borderColor: 'rgba(251,191,36,0.3)',
+                  backgroundColor: '#1E2024',
+                  borderWidth: 1, borderColor: '#2E3138',
                   alignItems: 'center', justifyContent: 'center',
                 }}>
-                  <Ionicons name="ribbon" size={18} color="#FBBF24" />
+                  <Ionicons name="ribbon-outline" size={18} color="#E4E4E7" />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: 10, color: '#71717A', fontWeight: '600', letterSpacing: 1 }}>
@@ -462,12 +462,12 @@ export default function ProfilScreen() {
                   </Text>
                 </View>
                 <View style={{
-                  backgroundColor: isExpired ? 'rgba(239,68,68,0.15)' : 'rgba(52,211,153,0.15)',
+                  backgroundColor: isExpired ? 'rgba(239,68,68,0.15)' : 'rgba(16,185,129,0.15)',
                   paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6,
                   borderWidth: 0.5,
-                  borderColor: isExpired ? '#EF4444' : '#34D399',
+                  borderColor: isExpired ? '#EF4444' : '#10B981',
                 }}>
-                  <Text style={{ fontSize: 10, fontWeight: '700', color: isExpired ? '#EF4444' : '#34D399' }}>
+                  <Text style={{ fontSize: 10, fontWeight: '700', color: isExpired ? '#EF4444' : '#10B981' }}>
                     {isExpired ? '🔴 EXPIRED' : `🟢 AKTIF`}
                   </Text>
                 </View>
@@ -476,9 +476,9 @@ export default function ProfilScreen() {
               {/* Detail baris */}
               <View style={{ gap: 5 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Ionicons name="id-card-outline" size={13} color="#FBBF24" />
+                  <Ionicons name="id-card-outline" size={13} color="#A1A1AA" />
                   <Text style={{ fontSize: 12, color: '#A1A1AA' }}>
-                    KTA: <Text style={{ color: '#FBBF24', fontWeight: '700' }}>{sponsorData.sponsor_id}</Text>
+                    KTA: <Text style={{ color: '#FFFFFF', fontWeight: '700' }}>{sponsorData.sponsor_id}</Text>
                     {' '}• {sponsorData.category}
                   </Text>
                 </View>
@@ -487,22 +487,22 @@ export default function ProfilScreen() {
                   <Text style={{ fontSize: 12, color: '#A1A1AA' }}>
                     Masa: {sponsorData.contract_start} s/d {sponsorData.contract_end}
                     {!isExpired && (
-                      <Text style={{ color: '#34D399', fontWeight: '600' }}> ({remainingDays} hari lagi)</Text>
+                      <Text style={{ color: '#10B981', fontWeight: '600' }}> ({remainingDays} hari lagi)</Text>
                     )}
                   </Text>
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Ionicons name="storefront-outline" size={13} color={isExpired ? '#71717A' : '#FBBF24'} />
+                  <Ionicons name="storefront-outline" size={13} color={isExpired ? '#71717A' : '#A1A1AA'} />
                   <Text style={{ fontSize: 12, color: isExpired ? '#71717A' : '#A1A1AA' }}>
-                    Lapak: <Text style={{ color: isExpired ? '#71717A' : '#FBBF24' }}>
+                    Lapak: <Text style={{ color: isExpired ? '#71717A' : '#FFFFFF', fontWeight: '600' }}>
                       {sponsorData.lapak_id || '-'}
                     </Text>
                     {' '}({isExpired ? 'Berakhir' : 'Aktif'})
                   </Text>
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Ionicons name="chatbubble-ellipses-outline" size={13} color={isExpired ? '#71717A' : '#34D399'} />
-                  <Text style={{ fontSize: 12, color: isExpired ? '#71717A' : '#34D399' }}>
+                  <Ionicons name="chatbubble-ellipses-outline" size={13} color={isExpired ? '#71717A' : '#10B981'} />
+                  <Text style={{ fontSize: 12, color: isExpired ? '#71717A' : '#10B981' }}>
                     Forum: {isExpired ? 'Terkunci (Jatuh Tempo)' : 'Akses Penuh Aktif'}
                   </Text>
                 </View>
@@ -513,9 +513,9 @@ export default function ProfilScreen() {
                 <View style={{
                   backgroundColor: sponsorData.last_notification.type === 'REJECTED'
                     ? 'rgba(239,68,68,0.1)'
-                    : 'rgba(52,211,153,0.1)',
+                    : 'rgba(16,185,129,0.1)',
                   borderWidth: 1,
-                  borderColor: sponsorData.last_notification.type === 'REJECTED' ? '#EF4444' : '#34D399',
+                  borderColor: sponsorData.last_notification.type === 'REJECTED' ? '#EF4444' : '#10B981',
                   borderRadius: 10,
                   padding: 10,
                   marginTop: 10,
@@ -525,9 +525,9 @@ export default function ProfilScreen() {
                       <Ionicons
                         name={sponsorData.last_notification.type === 'REJECTED' ? 'close-circle' : 'checkmark-circle'}
                         size={16}
-                        color={sponsorData.last_notification.type === 'REJECTED' ? '#F87171' : '#34D399'}
+                        color={sponsorData.last_notification.type === 'REJECTED' ? '#F87171' : '#10B981'}
                       />
-                      <Text style={{ fontSize: 12, fontWeight: '700', color: sponsorData.last_notification.type === 'REJECTED' ? '#F87171' : '#34D399' }}>
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: sponsorData.last_notification.type === 'REJECTED' ? '#F87171' : '#10B981' }}>
                         {sponsorData.last_notification.title}
                       </Text>
                     </View>
@@ -553,14 +553,14 @@ export default function ProfilScreen() {
               <View style={{ marginTop: 12 }}>
                 {sponsorData.pending_renewal ? (
                   <View style={{
-                    backgroundColor: 'rgba(251,191,36,0.08)',
-                    borderWidth: 1, borderColor: '#FBBF24',
+                    backgroundColor: '#18191D',
+                    borderWidth: 1, borderColor: '#2D3139',
                     borderRadius: 8, padding: 10,
                     flexDirection: 'row', alignItems: 'center', gap: 8,
                   }}>
-                    <Ionicons name="time" size={16} color="#FBBF24" />
+                    <Ionicons name="time-outline" size={16} color="#A1A1AA" />
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 12, fontWeight: '700', color: '#FBBF24' }}>
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: '#F4F4F5' }}>
                         Menunggu Persetujuan Admin
                       </Text>
                       <Text style={{ fontSize: 11, color: '#D4D4D8', marginTop: 2 }}>
@@ -570,20 +570,20 @@ export default function ProfilScreen() {
                     </View>
                     <Pressable
                       onPress={handleOpenRenewModal}
-                      style={{ backgroundColor: 'rgba(251,191,36,0.2)', paddingVertical: 4, paddingHorizontal: 8, borderRadius: 6 }}
+                      style={{ backgroundColor: '#27272A', paddingVertical: 4, paddingHorizontal: 8, borderRadius: 6 }}
                     >
-                      <Text style={{ fontSize: 10, fontWeight: '700', color: '#FBBF24' }}>Ubah Bukti</Text>
+                      <Text style={{ fontSize: 10, fontWeight: '700', color: '#E4E4E7' }}>Ubah Bukti</Text>
                     </Pressable>
                   </View>
                 ) : (
                   <Pressable
                     onPress={handleOpenRenewModal}
                     style={({ pressed }) => ({
-                      backgroundColor: pressed
-                        ? (sponsorData.last_notification?.type === 'REJECTED' ? 'rgba(239,68,68,0.25)' : 'rgba(251,191,36,0.25)')
-                        : (sponsorData.last_notification?.type === 'REJECTED' ? 'rgba(239,68,68,0.15)' : 'rgba(251,191,36,0.12)'),
-                      borderWidth: 1,
-                      borderColor: sponsorData.last_notification?.type === 'REJECTED' ? '#EF4444' : '#FBBF24',
+                      backgroundColor: sponsorData.last_notification?.type === 'REJECTED'
+                        ? (pressed ? 'rgba(239,68,68,0.25)' : 'rgba(239,68,68,0.15)')
+                        : (pressed ? '#D4D4D8' : '#E4E4E7'),
+                      borderWidth: sponsorData.last_notification?.type === 'REJECTED' ? 1 : 0,
+                      borderColor: '#EF4444',
                       borderRadius: 8, paddingVertical: 10, paddingHorizontal: 14,
                       flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
                     })}
@@ -591,12 +591,16 @@ export default function ProfilScreen() {
                     <Ionicons
                       name={sponsorData.last_notification?.type === 'REJECTED' ? 'refresh-circle' : 'refresh'}
                       size={15}
-                      color={sponsorData.last_notification?.type === 'REJECTED' ? '#F87171' : '#FBBF24'}
+                      color={sponsorData.last_notification?.type === 'REJECTED' ? '#F87171' : '#09090B'}
                     />
-                    <Text style={{ color: sponsorData.last_notification?.type === 'REJECTED' ? '#F87171' : '#FBBF24', fontSize: 13, fontWeight: '700' }}>
+                    <Text style={{
+                      color: sponsorData.last_notification?.type === 'REJECTED' ? '#F87171' : '#09090B',
+                      fontSize: 13,
+                      fontWeight: '700',
+                    }}>
                       {sponsorData.last_notification?.type === 'REJECTED'
                         ? 'Ajukan Ulang Perpanjangan (Upload Struk Baru)'
-                        : 'Perpanjang Sewa Lapak (Wajib Bayar)'}
+                        : 'Perpanjang Sewa Lapak'}
                     </Text>
                   </Pressable>
                 )}
@@ -639,7 +643,7 @@ export default function ProfilScreen() {
                 )}
               </Pressable>
               <View style={styles.pointsPillBox}>
-                <Ionicons name="star" size={12} color="#FBBF24" />
+                <Ionicons name="star" size={12} color="#C5A059" />
                 <Text style={styles.pointsCountText}>{tierData?.points ?? 0}</Text>
                 <Text style={styles.pointsCountLabel}>Poin</Text>
               </View>
@@ -673,11 +677,11 @@ export default function ProfilScreen() {
               <Text style={styles.tierBenefitItemText}>Diskon Lapak {tierConfig.sewaDiscount}%</Text>
             </View>
             <View style={styles.tierBenefitItem}>
-              <Ionicons name="shield-checkmark-outline" size={12} color="#10B981" />
+              <Ionicons name="shield-checkmark-outline" size={12} color="#E4E4E7" />
               <Text style={styles.tierBenefitItemText}>Event 100% Gratis</Text>
             </View>
             <View style={styles.tierBenefitItem}>
-              <Ionicons name="car-outline" size={12} color="#60A5FA" />
+              <Ionicons name="car-outline" size={12} color="#E4E4E7" />
               <Text style={styles.tierBenefitItemText}>Slot Display</Text>
             </View>
           </View>
@@ -988,9 +992,9 @@ export default function ProfilScreen() {
                         disabled={adminSyncing}
                       >
                         {adminSyncing ? (
-                          <ActivityIndicator size="small" color="#FBBF24" />
+                          <ActivityIndicator size="small" color="#D4D4D8" />
                         ) : (
-                          <Ionicons name="refresh" size={13} color="#FBBF24" />
+                          <Ionicons name="refresh" size={13} color="#D4D4D8" />
                         )}
                         <Text style={styles.modalAdminResetBtnText}>Reset Semua Member</Text>
                       </Pressable>
@@ -1007,8 +1011,8 @@ export default function ProfilScreen() {
                 </Text>
 
                 <View style={styles.ruleItem}>
-                  <View style={[styles.ruleBadge, { backgroundColor: 'rgba(59, 130, 246, 0.15)' }]}>
-                    <Text style={[styles.rulePoints, { color: '#60A5FA' }]}>+100</Text>
+                  <View style={styles.ruleBadge}>
+                    <Text style={styles.rulePoints}>+100</Text>
                   </View>
                   <View style={styles.ruleTextCol}>
                     <Text style={styles.ruleTitle}>Kehadiran di Event Resmi Komunitas</Text>
@@ -1017,8 +1021,8 @@ export default function ProfilScreen() {
                 </View>
 
                 <View style={styles.ruleItem}>
-                  <View style={[styles.ruleBadge, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
-                    <Text style={[styles.rulePoints, { color: '#34D399' }]}>+25</Text>
+                  <View style={styles.ruleBadge}>
+                    <Text style={styles.rulePoints}>+25</Text>
                   </View>
                   <View style={styles.ruleTextCol}>
                     <Text style={styles.ruleTitle}>Bonus Membawa Keluarga / Saudara / Teman</Text>
@@ -1027,8 +1031,8 @@ export default function ProfilScreen() {
                 </View>
 
                 <View style={styles.ruleItem}>
-                  <View style={[styles.ruleBadge, { backgroundColor: 'rgba(245, 158, 11, 0.15)' }]}>
-                    <Text style={[styles.rulePoints, { color: '#FBBF24' }]}>+10</Text>
+                  <View style={styles.ruleBadge}>
+                    <Text style={styles.rulePoints}>+10</Text>
                   </View>
                   <View style={styles.ruleTextCol}>
                     <Text style={styles.ruleTitle}>Ulasan Toko Sponsor Resmi</Text>
@@ -1037,8 +1041,8 @@ export default function ProfilScreen() {
                 </View>
 
                 <View style={styles.ruleItem}>
-                  <View style={[styles.ruleBadge, { backgroundColor: 'rgba(168, 85, 247, 0.15)' }]}>
-                    <Text style={[styles.rulePoints, { color: '#C084FC' }]}>+5</Text>
+                  <View style={styles.ruleBadge}>
+                    <Text style={styles.rulePoints}>+5</Text>
                   </View>
                   <View style={styles.ruleTextCol}>
                     <Text style={styles.ruleTitle}>Ulasan Toko Anggota (Member)</Text>
@@ -1047,8 +1051,8 @@ export default function ProfilScreen() {
                 </View>
 
                 <View style={styles.ruleItem}>
-                  <View style={[styles.ruleBadge, { backgroundColor: 'rgba(212, 212, 216, 0.15)' }]}>
-                    <Text style={[styles.rulePoints, { color: '#E4E4E7' }]}>+1</Text>
+                  <View style={styles.ruleBadge}>
+                    <Text style={styles.rulePoints}>+1</Text>
                   </View>
                   <View style={styles.ruleTextCol}>
                     <Text style={styles.ruleTitle}>Aktivitas Forum Diskusi</Text>
@@ -1057,8 +1061,8 @@ export default function ProfilScreen() {
                 </View>
 
                 <View style={styles.ruleItem}>
-                  <View style={[styles.ruleBadge, { backgroundColor: 'rgba(251, 191, 36, 0.15)' }]}>
-                    <Text style={[styles.rulePoints, { color: '#FBBF24' }]}>+Sewa</Text>
+                  <View style={styles.ruleBadge}>
+                    <Text style={styles.rulePoints}>+Sewa</Text>
                   </View>
                   <View style={styles.ruleTextCol}>
                     <Text style={styles.ruleTitle}>Poin Sewa Lapak Toko Resmi</Text>
@@ -1489,20 +1493,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 14,
-    backgroundColor: 'rgba(251, 191, 36, 0.08)',
+    backgroundColor: '#18191D',
     borderWidth: 1,
-    borderColor: 'rgba(251, 191, 36, 0.25)',
+    borderColor: '#2D3139',
     gap: 4,
   },
   pointsCountText: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#FBBF24',
+    color: '#F4F4F5',
   },
   pointsCountLabel: {
     fontSize: 10,
     fontWeight: '600',
-    color: '#FBBF24',
+    color: '#9CA3AF',
   },
   progressBarContainer: {
     marginTop: 14,
@@ -1686,10 +1690,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     minWidth: 46,
+    backgroundColor: '#1E2024',
+    borderWidth: 1,
+    borderColor: '#2E3138',
   },
   rulePoints: {
     fontSize: 12,
     fontWeight: '800',
+    color: '#F4F4F5',
   },
   ruleTextCol: {
     flex: 1,
@@ -1805,16 +1813,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: 'rgba(251, 191, 36, 0.12)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     paddingHorizontal: 9,
     paddingVertical: 4.5,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: 'rgba(251, 191, 36, 0.3)',
+    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
   modalAdminResetBtnText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#FBBF24',
+    color: '#D4D4D8',
   },
 });

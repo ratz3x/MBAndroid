@@ -40,7 +40,7 @@ export const TIER_CONFIG: Record<MemberTier, TierInfo> = {
     title: 'Star Explorer',
     minPoints: 0,
     maxPoints: 600,
-    badgeColor: '#CD7F32',
+    badgeColor: '#A77B57',
     sewaDiscount: 5,
     privileges: [
       'Akses KTA Digital resmi',
@@ -54,7 +54,7 @@ export const TIER_CONFIG: Record<MemberTier, TierInfo> = {
     title: 'Star Voyager',
     minPoints: 601,
     maxPoints: 1400,
-    badgeColor: '#E4E4E7',
+    badgeColor: '#D4D4D8',
     sewaDiscount: 10,
     privileges: [
       'Seluruh benefit tier Bronze',
@@ -68,7 +68,7 @@ export const TIER_CONFIG: Record<MemberTier, TierInfo> = {
     title: 'Star Ambassador',
     minPoints: 1401,
     maxPoints: 3200,
-    badgeColor: '#FBBF24',
+    badgeColor: '#C5A059',
     sewaDiscount: 15,
     privileges: [
       'Seluruh benefit tier Silver',
@@ -83,7 +83,7 @@ export const TIER_CONFIG: Record<MemberTier, TierInfo> = {
     title: 'Star Legend / VIP Pillar',
     minPoints: 3201,
     maxPoints: 999999,
-    badgeColor: '#38BDF8',
+    badgeColor: '#E2E8F0',
     sewaDiscount: 20,
     privileges: [
       'Seluruh benefit tier Gold',

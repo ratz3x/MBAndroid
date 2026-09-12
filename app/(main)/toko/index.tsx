@@ -1504,15 +1504,15 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   filterChipActive: {
-    backgroundColor: 'rgba(251, 191, 36, 0.15)',
-    borderColor: '#FBBF24',
+    backgroundColor: '#27272A',
+    borderColor: '#E4E4E7',
   },
   filterChipText: {
     fontSize: 11,
     color: '#A1A1AA',
   },
   filterChipTextActive: {
-    color: '#FBBF24',
+    color: '#FFFFFF',
     fontWeight: '700',
   },
   subChip: {
@@ -1610,7 +1610,7 @@ const styles = StyleSheet.create({
   gridPrice: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#FBBF24',
+    color: '#C5A059',
     marginTop: 4,
   },
   gridStoreRow: {
@@ -1884,7 +1884,7 @@ const styles = StyleSheet.create({
   calcTotalFee: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#FBBF24',
+    color: '#FFFFFF',
     fontFamily: 'monospace',
   },
   calcMonthlySub: {
@@ -1898,7 +1898,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: 'rgba(255, 255, 255, 0.03)',
     borderWidth: 1,
-    borderColor: 'rgba(251, 191, 36, 0.25)',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     marginBottom: 14,
   },
   bankTitle: {
@@ -1916,14 +1916,14 @@ const styles = StyleSheet.create({
   bankMandiriText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#60A5FA',
+    color: '#FFFFFF',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   bankNumberText: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#FBBF24',
+    color: '#FFFFFF',
     fontFamily: 'monospace',
     letterSpacing: 1.2,
     marginTop: 2,
@@ -1964,15 +1964,15 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 8,
-    backgroundColor: 'rgba(251, 191, 36, 0.08)',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderWidth: 1,
-    borderColor: 'rgba(251, 191, 36, 0.25)',
+    borderColor: 'rgba(255, 255, 255, 0.15)',
     marginTop: 6,
   },
   btnAttachProofText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#FBBF24',
+    color: '#E4E4E7',
   },
   proofAttachedBox: {
     flexDirection: 'row',
@@ -2001,15 +2001,15 @@ const styles = StyleSheet.create({
     gap: 10,
     padding: 12,
     borderRadius: 10,
-    backgroundColor: 'rgba(251, 191, 36, 0.06)',
+    backgroundColor: '#18191D',
     borderWidth: 1,
-    borderColor: 'rgba(251, 191, 36, 0.2)',
+    borderColor: '#2D3139',
     marginBottom: 16,
   },
   rewardNoticeTitle: {
     fontSize: 11.5,
     fontWeight: '700',
-    color: '#FBBF24',
+    color: '#FFFFFF',
     marginBottom: 2,
   },
   rewardNoticeText: {
@@ -2110,7 +2110,7 @@ const styles = StyleSheet.create({
   myProdPrice: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#FBBF24',
+    color: '#C5A059',
     marginTop: 2,
   },
   myProdMeta: {
@@ -2130,7 +2130,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: 'rgba(255, 255, 255, 0.03)',
     borderWidth: 1,
-    borderColor: 'rgba(251, 191, 36, 0.25)',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     marginBottom: 10,
   },
   interactLapakName: {
@@ -2183,11 +2183,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,
-    backgroundColor: 'rgba(251, 191, 36, 0.1)',
+    backgroundColor: '#1E2024',
+    borderWidth: 1,
+    borderColor: '#2E3138',
   },
   reviewedBadgeText: {
     fontSize: 10,
-    color: '#FBBF24',
+    color: '#D4D4D8',
     fontWeight: '600',
   },
   reviewCard: {
@@ -2289,13 +2291,13 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   starPickerBtnActive: {
-    backgroundColor: '#FBBF24',
-    borderColor: '#FBBF24',
+    backgroundColor: '#C5A059',
+    borderColor: '#C5A059',
   },
   starPickerText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#FBBF24',
+    color: '#C5A059',
   },
   starPickerTextActive: {
     color: '#09090B',
