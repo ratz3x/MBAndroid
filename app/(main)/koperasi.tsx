@@ -133,7 +133,7 @@ export default function KoperasiScreen() {
 
   // Membership & Registration State
   const { member: currentMember } = useProfile(user?.id);
-  const [membershipStatus, setMembershipStatus] = useState<'unregistered' | 'pending' | 'active'>('unregistered');
+  const [membershipStatus, setMembershipStatus] = useState<'unregistered' | 'pending' | 'active' | 'rejected'>('unregistered');
   const [memberKopData, setMemberKopData] = useState<any>(null);
 
   // Form Registration State
@@ -734,6 +734,32 @@ export default function KoperasiScreen() {
                     • Rekening Tujuan: <Text style={{ color: '#FDE68A', fontWeight: '700' }}>Bank Mandiri 137-00-1234567-8</Text> a.n. Koperasi Bersama Satu Bintang
                   </Text>
                 </View>
+              </View>
+            )}
+
+            {/* Rejected Verification Banner */}
+            {!isKopManager && membershipStatus === 'rejected' && (
+              <View style={styles.rejectedMemberBanner}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Ionicons name="close-circle" size={24} color="#EF4444" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.rejectedTitle}>Pendaftaran Belum Disetujui</Text>
+                    <Text style={styles.rejectedSubtitle}>
+                      {memberKopData?.catatanAdmin || 'Bukti transfer tidak valid atau dana setoran belum diterima di mutasi rekening kas Mandiri koperasi.'}
+                    </Text>
+                  </View>
+                  <View style={styles.rejectedChip}>
+                    <Text style={styles.rejectedChipText}>DITOLAK</Text>
+                  </View>
+                </View>
+
+                <Pressable
+                  onPress={openRegisterModal}
+                  style={styles.reRegisterBtn}
+                >
+                  <Ionicons name="refresh" size={14} color="#FFF" />
+                  <Text style={styles.reRegisterBtnText}>Unggah Ulang Bukti Transfer</Text>
+                </Pressable>
               </View>
             )}
 
@@ -2158,6 +2184,55 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#E4E4E7',
     lineHeight: 18,
+  },
+  rejectedMemberBanner: {
+    padding: 14,
+    borderRadius: 14,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.35)',
+    marginBottom: 14,
+  },
+  rejectedTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#EF4444',
+  },
+  rejectedSubtitle: {
+    fontSize: 11,
+    color: '#D4D4D8',
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  rejectedChip: {
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  rejectedChipText: {
+    fontSize: 8,
+    fontWeight: '800',
+    color: '#EF4444',
+  },
+  reRegisterBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    borderWidth: 1,
+    borderColor: '#EF4444',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginTop: 10,
+    alignSelf: 'flex-start',
+  },
+  reRegisterBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FFF',
   },
   activeMemberBanner: {
     flexDirection: 'row',

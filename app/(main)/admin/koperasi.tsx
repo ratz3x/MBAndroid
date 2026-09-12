@@ -72,12 +72,13 @@ interface MemberKopItem {
   simpananPokok: number;
   simpananWajib: number;
   tabunganSukarela: number;
-  status: 'active' | 'pending';
+  status: 'active' | 'pending' | 'rejected';
   tanggalDaftar: string;
   buktiTransferUri?: string | null;
   bankPengirim?: string | null;
   rekeningPengirim?: string | null;
   namaPengirim?: string | null;
+  catatanAdmin?: string | null;
 }
 
 // Cross-platform Dialog Helpers (Web + Native)
@@ -619,6 +620,38 @@ export default function AdminKoperasiScreen() {
           showAlertDialog('Gagal', 'Terjadi kesalahan saat memverifikasi anggota.');
         }
       }
+    );
+  };
+
+  // Tolak Verifikasi Pendaftaran Anggota Baru
+  const handleRejectMember = (targetMember: MemberKopItem) => {
+    showConfirmDialog(
+      'Konfirmasi Penolakan Pendaftaran',
+      `Tolak pendaftaran keanggotaan ${targetMember.nama} (${targetMember.mid})?\n\nAlasan: Bukti transfer pembayaran tidak sesuai / mutasi dana belum diterima pada rekening kas Bank Mandiri koperasi.`,
+      async () => {
+        try {
+          const updated = members.map((m) =>
+            m.id === targetMember.id
+              ? {
+                  ...m,
+                  status: 'rejected' as const,
+                  catatanAdmin: 'Bukti transfer tidak valid atau mutasi pembayaran belum diterima rekening kas koperasi.',
+                }
+              : m
+          );
+          setMembers(updated);
+          await AsyncStorage.setItem(KOP_STORAGE_MEMBERS, JSON.stringify(updated));
+          setSelectedProofMember(null);
+          showAlertDialog(
+            'Pendaftaran Ditolak',
+            `Pendaftaran keanggotaan ${targetMember.nama} (${targetMember.mid}) telah ditolak.`
+          );
+        } catch (err) {
+          showAlertDialog('Gagal', 'Terjadi kesalahan sistem saat menolak pendaftaran.');
+        }
+      },
+      'Ya, Tolak',
+      'Batal'
     );
   };
 
@@ -1219,11 +1252,22 @@ export default function AdminKoperasiScreen() {
                         styles.memberStatusBadge,
                         mem.status === 'active'
                           ? styles.memberStatusActive
+                          : mem.status === 'rejected'
+                          ? styles.memberStatusRejected
                           : styles.memberStatusPending,
                       ]}
                     >
-                      <Text style={styles.memberStatusText}>
-                        {mem.status === 'active' ? 'AKTIF' : 'MENUNGGU VERIFIKASI'}
+                      <Text
+                        style={[
+                          styles.memberStatusText,
+                          mem.status === 'rejected' && { color: '#EF4444' },
+                        ]}
+                      >
+                        {mem.status === 'active'
+                          ? 'AKTIF'
+                          : mem.status === 'rejected'
+                          ? 'DITOLAK'
+                          : 'MENUNGGU VERIFIKASI'}
                       </Text>
                     </View>
                   </View>
@@ -1250,7 +1294,7 @@ export default function AdminKoperasiScreen() {
                   </View>
 
                   {/* Bukti Transfer Setoran Awal Card Section */}
-                  {(mem.buktiTransferUri || mem.bankPengirim || mem.status === 'pending') && (
+                  {(mem.buktiTransferUri || mem.bankPengirim || mem.status === 'pending' || mem.status === 'rejected') && (
                     <View style={styles.memberProofBox}>
                       <View style={styles.memberProofHeader}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -1262,21 +1306,46 @@ export default function AdminKoperasiScreen() {
                             styles.proofVerifiedBadge,
                             mem.status === 'active'
                               ? styles.proofVerifiedActive
+                              : mem.status === 'rejected'
+                              ? styles.proofVerifiedRejected
                               : styles.proofVerifiedPending,
                           ]}
                         >
                           <Ionicons
-                            name={mem.status === 'active' ? 'checkmark-circle' : 'alert-circle'}
+                            name={
+                              mem.status === 'active'
+                                ? 'checkmark-circle'
+                                : mem.status === 'rejected'
+                                ? 'close-circle'
+                                : 'alert-circle'
+                            }
                             size={11}
-                            color={mem.status === 'active' ? '#34D399' : '#FBBF24'}
+                            color={
+                              mem.status === 'active'
+                                ? '#34D399'
+                                : mem.status === 'rejected'
+                                ? '#EF4444'
+                                : '#FBBF24'
+                            }
                           />
                           <Text
                             style={[
                               styles.proofVerifiedText,
-                              { color: mem.status === 'active' ? '#34D399' : '#FBBF24' },
+                              {
+                                color:
+                                  mem.status === 'active'
+                                    ? '#34D399'
+                                    : mem.status === 'rejected'
+                                    ? '#EF4444'
+                                    : '#FBBF24',
+                              },
                             ]}
                           >
-                            {mem.status === 'active' ? 'Terverifikasi' : 'Perlu Verifikasi'}
+                            {mem.status === 'active'
+                              ? 'Terverifikasi'
+                              : mem.status === 'rejected'
+                              ? 'Ditolak'
+                              : 'Perlu Verifikasi'}
                           </Text>
                         </View>
                       </View>
@@ -1330,6 +1399,15 @@ export default function AdminKoperasiScreen() {
                           </Pressable>
                         </View>
                       </View>
+
+                      {mem.status === 'rejected' && (
+                        <View style={styles.rejectReasonBox}>
+                          <Ionicons name="alert-circle" size={13} color="#EF4444" />
+                          <Text style={styles.rejectReasonText}>
+                            Alasan Penolakan: {mem.catatanAdmin || 'Bukti transfer tidak valid atau belum masuk ke rekening kas koperasi.'}
+                          </Text>
+                        </View>
+                      )}
                     </View>
                   )}
 
@@ -1345,11 +1423,35 @@ export default function AdminKoperasiScreen() {
                           <Text style={styles.checkProofBtnText}>Cek Bukti</Text>
                         </Pressable>
                         <Pressable
+                          onPress={() => handleRejectMember(mem)}
+                          style={styles.rejectMemberBtn}
+                        >
+                          <Ionicons name="close" size={13} color="#EF4444" />
+                          <Text style={styles.rejectMemberBtnText}>Tolak</Text>
+                        </Pressable>
+                        <Pressable
                           onPress={() => handleApproveMember(mem)}
                           style={styles.verifyMemberBtn}
                         >
                           <Ionicons name="checkmark-done" size={14} color="#000" />
                           <Text style={styles.verifyMemberBtnText}>Verifikasi & Bukukan</Text>
+                        </Pressable>
+                      </View>
+                    ) : mem.status === 'rejected' ? (
+                      <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+                        <Pressable
+                          onPress={() => setSelectedProofMember(mem)}
+                          style={styles.checkProofBtn}
+                        >
+                          <Ionicons name="eye" size={12} color="#A1A1AA" />
+                          <Text style={[styles.checkProofBtnText, { color: '#A1A1AA' }]}>Cek Bukti</Text>
+                        </Pressable>
+                        <Pressable
+                          onPress={() => handleApproveMember(mem)}
+                          style={[styles.verifyMemberBtn, { backgroundColor: 'rgba(52, 211, 153, 0.18)', borderWidth: 1, borderColor: '#34D399' }]}
+                        >
+                          <Ionicons name="refresh" size={12} color="#34D399" />
+                          <Text style={[styles.verifyMemberBtnText, { color: '#34D399' }]}>Verifikasi Ulang</Text>
                         </Pressable>
                       </View>
                     ) : (
@@ -1958,25 +2060,45 @@ export default function AdminKoperasiScreen() {
                   </View>
 
                   {/* Actions */}
-                  <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
+                  <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>
                     <Pressable
                       onPress={() => setSelectedProofMember(null)}
-                      style={[styles.loanRejectBtn, { flex: 1, paddingVertical: 12 }]}
+                      style={[
+                        styles.loanRejectBtn,
+                        {
+                          flex: 1,
+                          paddingVertical: 12,
+                          backgroundColor: 'rgba(255, 255, 255, 0.06)',
+                          borderColor: 'rgba(255, 255, 255, 0.1)',
+                        },
+                      ]}
                     >
-                      <Text style={styles.loanRejectText}>Tutup</Text>
+                      <Text style={[styles.loanRejectText, { color: '#A1A1AA' }]}>Tutup</Text>
                     </Pressable>
                     {selectedProofMember.status === 'pending' && (
-                      <Pressable
-                        onPress={() => {
-                          const mem = selectedProofMember;
-                          setSelectedProofMember(null);
-                          handleApproveMember(mem);
-                        }}
-                        style={[styles.loanApproveBtn, { flex: 2, paddingVertical: 12 }]}
-                      >
-                        <Ionicons name="checkmark-done-circle" size={18} color="#000" />
-                        <Text style={styles.loanApproveText}>Verifikasi & Bukukan</Text>
-                      </Pressable>
+                      <>
+                        <Pressable
+                          onPress={() => {
+                            const mem = selectedProofMember;
+                            handleRejectMember(mem);
+                          }}
+                          style={[styles.loanRejectBtn, { flex: 1, paddingVertical: 12 }]}
+                        >
+                          <Ionicons name="close-circle" size={16} color="#EF4444" />
+                          <Text style={styles.loanRejectText}>Tolak</Text>
+                        </Pressable>
+                        <Pressable
+                          onPress={() => {
+                            const mem = selectedProofMember;
+                            setSelectedProofMember(null);
+                            handleApproveMember(mem);
+                          }}
+                          style={[styles.loanApproveBtn, { flex: 1.5, paddingVertical: 12 }]}
+                        >
+                          <Ionicons name="checkmark-done-circle" size={18} color="#000" />
+                          <Text style={styles.loanApproveText}>Verifikasi & Bukukan</Text>
+                        </Pressable>
+                      </>
                     )}
                   </View>
                 </ScrollView>
@@ -2605,6 +2727,11 @@ const styles = StyleSheet.create({
   memberStatusPending: {
     backgroundColor: 'rgba(251, 191, 36, 0.15)',
   },
+  memberStatusRejected: {
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+  },
   memberStatusText: {
     fontSize: 9,
     fontWeight: '800',
@@ -2655,6 +2782,40 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '800',
     color: '#000',
+  },
+  rejectMemberBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.4)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+  },
+  rejectMemberBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#EF4444',
+  },
+  rejectReasonBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.25)',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginTop: 8,
+  },
+  rejectReasonText: {
+    fontSize: 11,
+    color: '#FCA5A5',
+    flex: 1,
+    lineHeight: 16,
   },
   addDepositBtn: {
     flexDirection: 'row',
@@ -2978,6 +3139,9 @@ const styles = StyleSheet.create({
   },
   proofVerifiedPending: {
     backgroundColor: 'rgba(251, 191, 36, 0.15)',
+  },
+  proofVerifiedRejected: {
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
   },
   proofVerifiedText: {
     fontSize: 9.5,
