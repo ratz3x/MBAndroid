@@ -206,6 +206,13 @@ export default function KoperasiScreen() {
   const [wajibNameSender, setWajibNameSender] = useState('');
   const [wajibSubmitting, setWajibSubmitting] = useState(false);
 
+  // Kategori Setoran Simpanan Kas Koperasi
+  const [transferCategory, setTransferCategory] = useState<'wajib' | 'sukarela' | 'paket' | 'cicilan'>('wajib');
+  const [transferWajibMonths, setTransferWajibMonths] = useState<number>(1);
+  const [transferSukarelaAmount, setTransferSukarelaAmount] = useState('50000');
+  const [transferPaketSukarela, setTransferPaketSukarela] = useState('225000');
+  const [transferCicilanAmount, setTransferCicilanAmount] = useState('500000');
+
   // Membership & Registration State
   const { member: currentMember } = useProfile(user?.id);
   const [membershipStatus, setMembershipStatus] = useState<'unregistered' | 'pending' | 'active' | 'rejected'>('unregistered');
@@ -383,6 +390,27 @@ export default function KoperasiScreen() {
     }
   };
 
+  const openTransferModal = (category: 'wajib' | 'sukarela' | 'paket' | 'cicilan' = 'wajib') => {
+    setTransferCategory(category);
+    setWajibBankSender(memberKopData?.bankPengirim || 'Bank Mandiri');
+    setWajibRekSender(memberKopData?.rekeningPengirim || '');
+    setWajibNameSender(memberKopData?.namaPengirim || memberKopData?.nama || profile?.full_name || '');
+    setWajibTransferProofUri(null);
+    setShowPayWajibBankModal(true);
+  };
+
+  const handleCopyRekening = () => {
+    try {
+      if (Platform.OS === 'web' && typeof navigator !== 'undefined' && (navigator as any).clipboard) {
+        (navigator as any).clipboard.writeText('1370012345678');
+      }
+    } catch (_) {}
+    showAlertDialog(
+      'Nomor Rekening Disalin 📋',
+      'Bank Mandiri: 137-00-1234567-8\na.n. Koperasi Bersama Satu Bintang\n\nNomor rekening kas koperasi telah berhasil disalin.'
+    );
+  };
+
   const handlePayWajibFromSukarela = () => {
     const sukarelaBal = memberKopData?.tabunganSukarela ?? 0;
     if (sukarelaBal < 50000) {
@@ -451,12 +479,54 @@ export default function KoperasiScreen() {
 
   const handlePayWajibBankSubmit = async () => {
     if (!wajibTransferProofUri) {
-      showAlertDialog('Bukti Transfer Belum Dipilih', 'Mohon lampirkan foto/screenshot bukti transfer setoran simpanan wajib.');
+      showAlertDialog(
+        'Bukti Transfer Belum Dilampirkan',
+        'Mohon unggah foto / screenshot bukti transfer pembayaran ke rekening Bank Mandiri Koperasi agar mutasi kas dapat diverifikasi.'
+      );
+      return;
+    }
+
+    let numWajib = 0;
+    let numSukarela = 0;
+    let numCicilan = 0;
+    let descLabel = '';
+
+    if (transferCategory === 'wajib') {
+      numWajib = 50000 * transferWajibMonths;
+      descLabel = `Simpanan Wajib (${transferWajibMonths} Bulan - ${formatRupiah(numWajib)})`;
+    } else if (transferCategory === 'sukarela') {
+      numSukarela = parseInt(transferSukarelaAmount.replace(/[^0-9]/g, ''), 10) || 0;
+      if (numSukarela < 25000) {
+        showAlertDialog('Perhatian', 'Setoran Tabungan Sukarela minimal Rp 25.000.');
+        return;
+      }
+      descLabel = `Tabungan Sukarela (${formatRupiah(numSukarela)})`;
+    } else if (transferCategory === 'paket') {
+      numWajib = 50000;
+      numSukarela = parseInt(transferPaketSukarela.replace(/[^0-9]/g, ''), 10) || 0;
+      if (numSukarela < 25000) {
+        showAlertDialog('Perhatian', 'Porsi Tabungan Sukarela minimal Rp 25.000.');
+        return;
+      }
+      descLabel = `Paket Seluruh Simpanan (Wajib Rp 50.000 + Sukarela ${formatRupiah(numSukarela)})`;
+    } else if (transferCategory === 'cicilan') {
+      numCicilan = parseInt(transferCicilanAmount.replace(/[^0-9]/g, ''), 10) || 0;
+      if (numCicilan <= 0) {
+        showAlertDialog('Perhatian', 'Masukkan nominal angsuran pinjaman yang valid.');
+        return;
+      }
+      descLabel = `Angsuran Cicilan Pinjaman (${formatRupiah(numCicilan)})`;
+    }
+
+    const totalAmount = numWajib + numSukarela + numCicilan;
+    if (totalAmount <= 0) {
+      showAlertDialog('Perhatian', 'Total nominal transfer harus lebih dari Rp 0.');
       return;
     }
 
     setWajibSubmitting(true);
     try {
+      // 1. Update Member Balance
       const rawMem = await AsyncStorage.getItem(KOP_STORAGE_MEMBERS);
       if (rawMem) {
         const memList = JSON.parse(rawMem);
@@ -465,9 +535,13 @@ export default function KoperasiScreen() {
           if (m.id === user?.id || (userMid && m.mid && m.mid.trim().toUpperCase() === userMid)) {
             return {
               ...m,
-              simpananWajib: (m.simpananWajib || 0) + 50000,
-              lastPaidWajibMonth: currentMonthKey,
+              simpananWajib: (m.simpananWajib || 0) + numWajib,
+              tabunganSukarela: (m.tabunganSukarela || 0) + numSukarela,
+              lastPaidWajibMonth: numWajib > 0 ? currentMonthKey : m.lastPaidWajibMonth,
               wajibProofUri: wajibTransferProofUri,
+              bankPengirim: wajibBankSender || m.bankPengirim,
+              rekeningPengirim: wajibRekSender || m.rekeningPengirim,
+              namaPengirim: wajibNameSender || m.namaPengirim,
             };
           }
           return m;
@@ -475,17 +549,18 @@ export default function KoperasiScreen() {
         await AsyncStorage.setItem(KOP_STORAGE_MEMBERS, JSON.stringify(updated));
       }
 
-      // Catat transaksi mutasi
+      // 2. Catat transaksi mutasi
       const rawTx = await AsyncStorage.getItem(KOP_STORAGE_TX);
       const allTxs = rawTx ? JSON.parse(rawTx) : [];
+      const refNum = `TX-SETOR-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
       const newTx: KoperasiTransaction = {
-        id: `tx_wajib_bank_${Date.now()}`,
+        id: `tx_setor_bank_${Date.now()}`,
         member_id: user?.id || KOP_USER_ID,
-        type: 'simpanan',
-        amount: 50000,
+        type: transferCategory === 'cicilan' ? 'cicilan' : 'simpanan',
+        amount: totalAmount,
         status: 'completed',
-        description: `[Simpanan Wajib] Transfer Bank Mandiri MID: ${memberKopData?.mid || '-'} (${memberKopData?.nama || profile?.full_name}) — Periode ${getMonthNameIndo(currentMonthKey)}`,
-        reference_number: `TX-WAJIB-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+        description: `[Transfer Bank Mandiri] ${descLabel} — MID: ${memberKopData?.mid || '-'} (${memberKopData?.nama || profile?.full_name}) via ${wajibBankSender} ${wajibRekSender}`,
+        reference_number: refNum,
         due_date: null,
         processed_by: user?.id || KOP_USER_ID,
         processed_at: new Date().toISOString(),
@@ -494,13 +569,28 @@ export default function KoperasiScreen() {
       };
       await AsyncStorage.setItem(KOP_STORAGE_TX, JSON.stringify([newTx, ...allTxs]));
 
+      // 3. Update Saldo Kas Koperasi
+      const rawBal = await AsyncStorage.getItem(KOP_STORAGE_BAL);
+      if (rawBal) {
+        const balData = JSON.parse(rawBal);
+        balData.simpanan_wajib = (balData.simpanan_wajib || 0) + numWajib;
+        balData.simpanan_sukarela = (balData.simpanan_sukarela || 0) + numSukarela;
+        balData.total_balance = (balData.total_balance || 0) + totalAmount;
+        if (numCicilan > 0) {
+          balData.active_loan = Math.max(0, (balData.active_loan || 0) - numCicilan);
+          balData.loan_remaining = Math.max(0, (balData.loan_remaining || 0) - numCicilan);
+        }
+        balData.updated_at = new Date().toISOString();
+        await AsyncStorage.setItem(KOP_STORAGE_BAL, JSON.stringify(balData));
+      }
+
       setShowPayWajibBankModal(false);
       setWajibTransferProofUri(null);
       await loadData();
 
       showAlertDialog(
         'Bukti Setoran Terkirim! 🎉',
-        `Pembayaran Simpanan Wajib periode ${getMonthNameIndo(currentMonthKey)} sebesar Rp 50.000 telah tercatat dan bukti transfer dikirimkan ke Pengelola Koperasi.`
+        `Pembayaran ${descLabel} senilai ${formatRupiah(totalAmount)} telah berhasil dicatat ke Rekening Kas Koperasi Bersama Satu Bintang.\n\nNomor Referensi: ${refNum}\nSaldo simpanan Anda otomatis bertambah dan tercatat pada Buku Tabungan Digital (E-Passbook).`
       );
     } catch {
       showAlertDialog('Gagal', 'Terjadi kesalahan saat memproses bukti setoran.');
@@ -1433,6 +1523,50 @@ export default function KoperasiScreen() {
                   </Text>
                 </View>
               </View>
+
+              {!isKopManager && membershipStatus === 'active' && (
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>
+                  <Pressable
+                    onPress={() => openTransferModal('wajib')}
+                    style={{
+                      flex: 1,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                      backgroundColor: '#FBBF24',
+                      paddingVertical: 10,
+                      paddingHorizontal: 12,
+                      borderRadius: 8,
+                    }}
+                  >
+                    <Ionicons name="card" size={15} color="#000" />
+                    <Text style={{ fontSize: 12.5, fontWeight: '800', color: '#000' }}>
+                      Transfer & Setor Simpanan
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => openTransferModal('sukarela')}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                      backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                      borderWidth: 1,
+                      borderColor: 'rgba(255, 255, 255, 0.15)',
+                      paddingVertical: 10,
+                      paddingHorizontal: 12,
+                      borderRadius: 8,
+                    }}
+                  >
+                    <Ionicons name="add-circle-outline" size={15} color="#FAFAFA" />
+                    <Text style={{ fontSize: 12.5, fontWeight: '700', color: '#FAFAFA' }}>
+                      Setor Sukarela
+                    </Text>
+                  </Pressable>
+                </View>
+              )}
             </LuxuryCard>
 
             {/* Akses Cepat Buku Rekening Koperasi Digital */}
@@ -1522,7 +1656,7 @@ export default function KoperasiScreen() {
                             </Pressable>
                           )}
                           <Pressable
-                            onPress={() => setShowPayWajibBankModal(true)}
+                            onPress={() => openTransferModal('wajib')}
                             style={styles.payWajibBankBtn}
                           >
                             <Ionicons name="card-outline" size={15} color="#FBBF24" />
@@ -1530,17 +1664,31 @@ export default function KoperasiScreen() {
                           </Pressable>
                         </View>
                       ) : (
-                        <View style={styles.wajibPaidMetaRow}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                            <Ionicons name="calendar-outline" size={12} color="#A1A1AA" />
-                            <Text style={styles.wajibPaidMetaText}>Periode: {currentMonthLabel}</Text>
+                        <View style={{ marginTop: 6, gap: 8 }}>
+                          <View style={styles.wajibPaidMetaRow}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                              <Ionicons name="calendar-outline" size={12} color="#A1A1AA" />
+                              <Text style={styles.wajibPaidMetaText}>Periode: {currentMonthLabel}</Text>
+                            </View>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                              <Ionicons name="wallet-outline" size={12} color="#34D399" />
+                              <Text style={[styles.wajibPaidMetaText, { color: '#34D399', fontWeight: '700' }]}>
+                                Saldo Sukarela: {formatRupiah(sukarelaBalance)}
+                              </Text>
+                            </View>
                           </View>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                            <Ionicons name="wallet-outline" size={12} color="#34D399" />
-                            <Text style={[styles.wajibPaidMetaText, { color: '#34D399', fontWeight: '700' }]}>
-                              Saldo Sukarela Tersedia: {formatRupiah(sukarelaBalance)}
+                          <Pressable
+                            onPress={() => openTransferModal('sukarela')}
+                            style={[
+                              styles.payWajibBankBtn,
+                              { borderColor: 'rgba(52, 211, 153, 0.4)', backgroundColor: 'rgba(52, 211, 153, 0.08)' }
+                            ]}
+                          >
+                            <Ionicons name="add-circle-outline" size={15} color="#34D399" />
+                            <Text style={[styles.payWajibBankBtnText, { color: '#34D399' }]}>
+                              Setor Tabungan Sukarela via Bank Mandiri
                             </Text>
-                          </View>
+                          </Pressable>
                         </View>
                       )}
                     </View>
@@ -1680,22 +1828,16 @@ export default function KoperasiScreen() {
                   ) : (
                     <LuxuryCard
                       onPress={() => {
-                        const isPokokLunas = memberKopData?.status === 'active' || (memberKopData?.simpananPokok ?? 0) >= 100000;
                         const isWajibPaid = memberKopData?.lastPaidWajibMonth === currentMonthKey || (memberKopData?.simpananWajib ?? 0) >= 50000;
-                        const targetSubtype = isWajibPaid ? 'sukarela' : 'wajib';
-                        setTxSubtype(targetSubtype);
-                        setTxAmount(targetSubtype === 'wajib' ? '50000' : '25000');
-                        setTxMemberMid(memberKopData?.mid || currentMember?.member_number || '');
-                        setTxDesc(`Setoran ${targetSubtype === 'wajib' ? 'Simpanan Wajib' : 'Tabungan Sukarela'} (${memberKopData?.nama || profile?.full_name || ''})`);
-                        setShowTxModal(true);
+                        openTransferModal(isWajibPaid ? 'sukarela' : 'wajib');
                       }}
                       style={styles.actionCard}
                       padding={12}
                     >
                       <View style={[styles.actionIcon, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
-                        <Ionicons name="wallet-outline" size={22} color="#10B981" />
+                        <Ionicons name="card-outline" size={22} color="#10B981" />
                       </View>
-                      <Text style={styles.actionLabel}>Setor Simpanan Berkala</Text>
+                      <Text style={styles.actionLabel}>Transfer Simpanan Koperasi</Text>
                     </LuxuryCard>
                   )}
 
@@ -2428,7 +2570,7 @@ export default function KoperasiScreen() {
       </Modal>
 
       {/* ============================================================ */}
-      {/* MODAL: BAYAR SIMPANAN WAJIB VIA TRANSFER BANK                 */}
+      {/* MODAL: FORMULIR TRANSFER & SETORAN SIMPANAN KOPERASI          */}
       {/* ============================================================ */}
       <Modal
         visible={showPayWajibBankModal}
@@ -2437,11 +2579,14 @@ export default function KoperasiScreen() {
         onRequestClose={() => setShowPayWajibBankModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { maxHeight: '90%' }]}>
+          <View style={[styles.modalCard, { maxHeight: '92%' }]}>
             <View style={styles.modalHeader}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Ionicons name="card" size={20} color="#FBBF24" />
-                <Text style={styles.modalTitle}>Bayar Simpanan Wajib</Text>
+                <Ionicons name="card" size={22} color="#FBBF24" />
+                <View>
+                  <Text style={styles.modalTitle}>Transfer & Setor Simpanan</Text>
+                  <Text style={styles.modalSubtitle}>Koperasi Bersama Satu Bintang • MB Club Indonesia</Text>
+                </View>
               </View>
               <Pressable onPress={() => setShowPayWajibBankModal(false)} hitSlop={8}>
                 <Ionicons name="close" size={22} color="#A1A1AA" />
@@ -2449,36 +2594,286 @@ export default function KoperasiScreen() {
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
-              {/* Rekening Tujuan */}
+              {/* Rekening Tujuan Kas Koperasi */}
               <View style={styles.regBankBox}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Ionicons name="business" size={16} color="#FBBF24" />
-                  <Text style={styles.regBankTitle}>REKENING TUJUAN KAS KOPERASI:</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Ionicons name="business" size={16} color="#FBBF24" />
+                    <Text style={styles.regBankTitle}>REKENING TUJUAN KAS KOPERASI:</Text>
+                  </View>
+                  <Pressable
+                    onPress={handleCopyRekening}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 4,
+                      backgroundColor: '#FBBF24',
+                      paddingHorizontal: 8,
+                      paddingVertical: 3,
+                      borderRadius: 6,
+                    }}
+                  >
+                    <Ionicons name="copy-outline" size={12} color="#000" />
+                    <Text style={{ fontSize: 10.5, fontWeight: '800', color: '#000' }}>Salin No. Rek</Text>
+                  </Pressable>
                 </View>
                 <Text style={styles.regBankAcc}>Bank Mandiri: 137-00-1234567-8</Text>
                 <Text style={styles.regBankNote}>a.n. Koperasi Bersama Satu Bintang</Text>
+                <Text style={{ fontSize: 10, color: '#71717A', marginTop: 4 }}>
+                  Kantor: Office 88 Kota Kasablanka Unit 16B, Jakarta Selatan
+                </Text>
               </View>
 
-              <View style={[styles.regSummaryBox, { marginTop: 12 }]}>
-                <Text style={styles.regSummaryTitle}>RINCIAN TAGIHAN BULANAN:</Text>
-                <View style={styles.reportRow}>
-                  <Text style={styles.reportRowLabel}>• Periode Tagihan:</Text>
-                  <Text style={styles.reportRowVal}>{getMonthNameIndo(currentMonthKey)}</Text>
-                </View>
-                <View style={styles.reportRow}>
-                  <Text style={styles.reportRowLabel}>• Jenis Iuran:</Text>
-                  <Text style={styles.reportRowVal}>Simpanan Wajib Bulanan</Text>
-                </View>
-                <View style={[styles.reportRow, { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)', paddingTop: 6, marginTop: 4 }]}>
-                  <Text style={[styles.reportRowLabel, { color: '#FFF', fontWeight: '700' }]}>Total Transfer:</Text>
-                  <Text style={[styles.reportRowVal, { color: '#FBBF24', fontSize: 16, fontWeight: '800' }]}>
-                    Rp 50.000
+              {/* Kategori Pilihan Setoran */}
+              <Text style={[styles.inputLabel, { marginTop: 14 }]}>Pilih Kategori Setoran Simpanan</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                {[
+                  { key: 'wajib' as const, label: 'Simpanan Wajib' },
+                  { key: 'sukarela' as const, label: 'Tabungan Sukarela' },
+                  { key: 'paket' as const, label: 'Paket Seluruh Simpanan' },
+                  { key: 'cicilan' as const, label: 'Angsuran Pinjaman' },
+                ].map((item) => {
+                  const isSel = transferCategory === item.key;
+                  return (
+                    <Pressable
+                      key={item.key}
+                      onPress={() => setTransferCategory(item.key)}
+                      style={[
+                        {
+                          paddingHorizontal: 12,
+                          paddingVertical: 7,
+                          borderRadius: 8,
+                          backgroundColor: isSel ? 'rgba(251, 191, 36, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                          borderWidth: 1,
+                          borderColor: isSel ? '#FBBF24' : 'rgba(255, 255, 255, 0.1)',
+                        }
+                      ]}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 11.5,
+                          fontWeight: isSel ? '800' : '600',
+                          color: isSel ? '#FBBF24' : '#D4D4D8',
+                        }}
+                      >
+                        {item.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              {/* Opsi Berdasarkan Kategori */}
+              {transferCategory === 'wajib' && (
+                <View style={[styles.regSummaryBox, { marginTop: 6 }]}>
+                  <Text style={styles.regSummaryTitle}>PILIH PERIODE SIMPANAN WAJIB (RP 50.000 / BLN):</Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                    {[
+                      { months: 1, label: '1 Bulan (Rp 50rb)' },
+                      { months: 3, label: '3 Bulan (Rp 150rb)' },
+                      { months: 6, label: '6 Bulan (Rp 300rb)' },
+                      { months: 12, label: '12 Bulan / 1 Thn (Rp 600rb)' },
+                    ].map((m) => {
+                      const isSel = transferWajibMonths === m.months;
+                      return (
+                        <Pressable
+                          key={m.months}
+                          onPress={() => setTransferWajibMonths(m.months)}
+                          style={[
+                            {
+                              flex: 1,
+                              minWidth: '45%',
+                              paddingVertical: 8,
+                              paddingHorizontal: 8,
+                              borderRadius: 6,
+                              alignItems: 'center',
+                              backgroundColor: isSel ? 'rgba(52, 211, 153, 0.2)' : 'rgba(255, 255, 255, 0.04)',
+                              borderWidth: 1,
+                              borderColor: isSel ? '#34D399' : 'rgba(255, 255, 255, 0.1)',
+                            }
+                          ]}
+                        >
+                          <Text style={{ fontSize: 11, fontWeight: '700', color: isSel ? '#34D399' : '#A1A1AA' }}>
+                            {m.label}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                  <Text style={{ fontSize: 10.5, color: '#A1A1AA' }}>
+                    * Simpanan Wajib adalah iuran bulanan tetap anggota. Pembayaran di muka membebaskan Anda dari tagihan hingga periode yang dipilih.
                   </Text>
+                </View>
+              )}
+
+              {transferCategory === 'sukarela' && (
+                <View style={[styles.regSummaryBox, { marginTop: 6 }]}>
+                  <Text style={styles.regSummaryTitle}>SETOR TABUNGAN SUKARELA (MIN. RP 25.000):</Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                    {['50000', '100000', '250000', '500000', '1000000'].map((amt) => {
+                      const isSel = transferSukarelaAmount === amt;
+                      return (
+                        <Pressable
+                          key={amt}
+                          onPress={() => setTransferSukarelaAmount(amt)}
+                          style={[
+                            {
+                              paddingHorizontal: 10,
+                              paddingVertical: 6,
+                              borderRadius: 6,
+                              backgroundColor: isSel ? 'rgba(96, 165, 250, 0.25)' : 'rgba(255, 255, 255, 0.05)',
+                              borderWidth: 1,
+                              borderColor: isSel ? '#60A5FA' : 'rgba(255, 255, 255, 0.1)',
+                            }
+                          ]}
+                        >
+                          <Text style={{ fontSize: 11, fontWeight: '700', color: isSel ? '#60A5FA' : '#D4D4D8' }}>
+                            {formatRupiah(parseInt(amt, 10))}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                  <Text style={[styles.inputLabel, { marginTop: 4 }]}>Nominal Lainnya (Rp):</Text>
+                  <TextInput
+                    style={styles.modalInput}
+                    value={transferSukarelaAmount}
+                    onChangeText={setTransferSukarelaAmount}
+                    placeholder="Minimal 25000"
+                    placeholderTextColor="#71717A"
+                    keyboardType="numeric"
+                  />
+                  <Text style={{ fontSize: 10.5, color: '#A1A1AA', marginTop: 4 }}>
+                    * Tabungan Sukarela berhak atas bagi hasil SHU 1% dan dapat ditarik sewaktu-waktu.
+                  </Text>
+                </View>
+              )}
+
+              {transferCategory === 'paket' && (
+                <View style={[styles.regSummaryBox, { marginTop: 6 }]}>
+                  <Text style={styles.regSummaryTitle}>PAKET SELURUH SIMPANAN (WAJIB + SUKARELA):</Text>
+                  <View style={styles.reportRow}>
+                    <Text style={styles.reportRowLabel}>• Simpanan Wajib (Bulan Berjalan):</Text>
+                    <Text style={[styles.reportRowVal, { color: '#34D399', fontWeight: '700' }]}>Rp 50.000</Text>
+                  </View>
+                  <View style={{ marginTop: 8 }}>
+                    <Text style={styles.inputLabel}>Porsi Tabungan Sukarela (Rp):</Text>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                      {['50000', '150000', '225000', '500000'].map((amt) => {
+                        const isSel = transferPaketSukarela === amt;
+                        return (
+                          <Pressable
+                            key={amt}
+                            onPress={() => setTransferPaketSukarela(amt)}
+                            style={[
+                              {
+                                paddingHorizontal: 10,
+                                paddingVertical: 5,
+                                borderRadius: 6,
+                                backgroundColor: isSel ? 'rgba(251, 191, 36, 0.25)' : 'rgba(255, 255, 255, 0.05)',
+                                borderWidth: 1,
+                                borderColor: isSel ? '#FBBF24' : 'rgba(255, 255, 255, 0.1)',
+                              }
+                            ]}
+                          >
+                            <Text style={{ fontSize: 11, fontWeight: '700', color: isSel ? '#FBBF24' : '#D4D4D8' }}>
+                              {formatRupiah(parseInt(amt, 10))}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                    <TextInput
+                      style={styles.modalInput}
+                      value={transferPaketSukarela}
+                      onChangeText={setTransferPaketSukarela}
+                      placeholder="Contoh: 225000"
+                      placeholderTextColor="#71717A"
+                      keyboardType="numeric"
+                    />
+                  </View>
+                  <Text style={{ fontSize: 10.5, color: '#A1A1AA', marginTop: 4 }}>
+                    * Seluruh simpanan (Wajib + Sukarela) dapat ditransfer sekaligus dalam satu bukti transfer.
+                  </Text>
+                </View>
+              )}
+
+              {transferCategory === 'cicilan' && (
+                <View style={[styles.regSummaryBox, { marginTop: 6 }]}>
+                  <Text style={styles.regSummaryTitle}>ANGSURAN CICILAN PINJAMAN (PMK 49):</Text>
+                  <Text style={styles.inputLabel}>Nominal Angsuran (Rp):</Text>
+                  <TextInput
+                    style={styles.modalInput}
+                    value={transferCicilanAmount}
+                    onChangeText={setTransferCicilanAmount}
+                    placeholder="Contoh: 500000"
+                    placeholderTextColor="#71717A"
+                    keyboardType="numeric"
+                  />
+                  <Text style={{ fontSize: 10.5, color: '#A1A1AA', marginTop: 4 }}>
+                    * Pembayaran cicilan pokok dan jasa pinjaman lunak 6% flat per tahun.
+                  </Text>
+                </View>
+              )}
+
+              {/* Total Ditransfer Box */}
+              {(() => {
+                let totalNom = 0;
+                if (transferCategory === 'wajib') totalNom = 50000 * transferWajibMonths;
+                else if (transferCategory === 'sukarela') totalNom = parseInt(transferSukarelaAmount.replace(/[^0-9]/g, ''), 10) || 0;
+                else if (transferCategory === 'paket') totalNom = 50000 + (parseInt(transferPaketSukarela.replace(/[^0-9]/g, ''), 10) || 0);
+                else if (transferCategory === 'cicilan') totalNom = parseInt(transferCicilanAmount.replace(/[^0-9]/g, ''), 10) || 0;
+
+                return (
+                  <View style={[styles.regSummaryBox, { marginTop: 12, backgroundColor: 'rgba(251, 191, 36, 0.12)', borderColor: 'rgba(251, 191, 36, 0.35)' }]}>
+                    <View style={styles.reportRow}>
+                      <Text style={[styles.reportRowLabel, { color: '#FFF', fontWeight: '700', fontSize: 13 }]}>TOTAL TRANSFER BANK:</Text>
+                      <Text style={[styles.reportRowVal, { color: '#FBBF24', fontSize: 18, fontWeight: '800' }]}>
+                        {formatRupiah(totalNom)}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })()}
+
+              {/* Data Rekening Pengirim (Anggota) */}
+              <Text style={[styles.inputLabel, { marginTop: 14 }]}>Data Rekening Pengirim (Anggota)</Text>
+              <View style={{ gap: 8 }}>
+                <View>
+                  <Text style={{ fontSize: 10.5, color: '#A1A1AA', marginBottom: 3 }}>Bank Pengirim:</Text>
+                  <TextInput
+                    style={styles.modalInput}
+                    value={wajibBankSender}
+                    onChangeText={setWajibBankSender}
+                    placeholder="Contoh: Bank Mandiri / BCA / BRI"
+                    placeholderTextColor="#71717A"
+                  />
+                </View>
+                <View>
+                  <Text style={{ fontSize: 10.5, color: '#A1A1AA', marginBottom: 3 }}>Nomor Rekening Pengirim:</Text>
+                  <TextInput
+                    style={styles.modalInput}
+                    value={wajibRekSender}
+                    onChangeText={setWajibRekSender}
+                    placeholder="Nomor rekening pengirim"
+                    placeholderTextColor="#71717A"
+                    keyboardType="numeric"
+                  />
+                </View>
+                <View>
+                  <Text style={{ fontSize: 10.5, color: '#A1A1AA', marginBottom: 3 }}>Nama Pemilik Rekening:</Text>
+                  <TextInput
+                    style={styles.modalInput}
+                    value={wajibNameSender}
+                    onChangeText={setWajibNameSender}
+                    placeholder="Nama pemilik rekening"
+                    placeholderTextColor="#71717A"
+                  />
                 </View>
               </View>
 
               {/* Upload Bukti */}
-              <Text style={[styles.inputLabel, { marginTop: 14 }]}>Upload Bukti Transfer Bank (Rp 50.000) *</Text>
+              <Text style={[styles.inputLabel, { marginTop: 14 }]}>Upload Bukti Transfer Bank Mandiri *</Text>
               <Pressable
                 onPress={handlePickWajibProof}
                 style={[
@@ -2507,7 +2902,7 @@ export default function KoperasiScreen() {
                       Pilih Foto / Bukti Transfer
                     </Text>
                     <Text style={{ fontSize: 11, color: '#A1A1AA', textAlign: 'center' }}>
-                      Format JPG, PNG atau Screenshot Mobile Banking
+                      Format JPG, PNG atau Screenshot Mobile Banking Mandiri/ATM
                     </Text>
                   </View>
                 )}
@@ -2515,7 +2910,7 @@ export default function KoperasiScreen() {
 
               <View style={{ height: 16 }} />
               <MetallicButton
-                label={wajibSubmitting ? "Mengirim Konfirmasi..." : "Konfirmasi Pembayaran (Rp 50.000)"}
+                label={wajibSubmitting ? "Mengirim Konfirmasi..." : "Kirim Konfirmasi Transfer ke Koperasi"}
                 onPress={handlePayWajibBankSubmit}
                 variant="gold"
                 size="lg"
