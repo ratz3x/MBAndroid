@@ -16,6 +16,7 @@ import {
   Modal,
   TextInput,
   RefreshControl,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -168,24 +169,67 @@ export default function KoperasiScreen() {
   };
 
   const handlePickProof = async () => {
+    // 1. Web Implementation: Direct HTML5 file input with synchronous click for bulletproof browser compatibility
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      try {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.style.display = 'none';
+        document.body.appendChild(input);
+
+        input.onchange = (e: any) => {
+          const file = e.target?.files?.[0];
+          if (file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+              const base64Uri = event.target?.result as string;
+              if (base64Uri) {
+                setTransferProofUri(base64Uri);
+              }
+              try {
+                document.body.removeChild(input);
+              } catch (_) {}
+            };
+            reader.onerror = () => {
+              try {
+                document.body.removeChild(input);
+              } catch (_) {}
+              showAlertDialog('Gagal Membaca File', 'Tidak dapat memuat berkas gambar bukti transfer.');
+            };
+            reader.readAsDataURL(file);
+          } else {
+            try {
+              document.body.removeChild(input);
+            } catch (_) {}
+          }
+        };
+
+        // Trigger OS file browser dialog immediately
+        input.click();
+      } catch (err: any) {
+        showAlertDialog('Gagal Memilih Foto', err?.message || 'Terjadi kesalahan saat membuka pemilih berkas.');
+      }
+      return;
+    }
+
+    // 2. Mobile Native (Android / iOS)
     try {
-      if (Platform.OS !== 'web') {
-        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (status !== 'granted') {
-          Alert.alert('Izin Ditolak', 'Izin galeri diperlukan untuk memilih foto bukti transfer.');
-          return;
-        }
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        showAlertDialog('Izin Ditolak', 'Izin galeri diperlukan untuk memilih foto bukti transfer.');
+        return;
       }
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
+        allowsEditing: false,
         quality: 0.8,
       });
       if (!result.canceled && result.assets && result.assets.length > 0) {
         setTransferProofUri(result.assets[0].uri);
       }
     } catch (err: any) {
-      showAlertDialog('Gagal Memilih Foto', err.message || 'Terjadi kesalahan saat memilih berkas.');
+      showAlertDialog('Gagal Memilih Foto', err?.message || 'Terjadi kesalahan saat memilih berkas.');
     }
   };
 
@@ -2190,6 +2234,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     alignItems: 'center',
     justifyContent: 'center',
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' as any } : {}),
   },
   uploadProofIconCircle: {
     width: 48,
@@ -2249,6 +2294,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 6,
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' as any } : {}),
   },
   changeProofBtnText: {
     fontSize: 11,

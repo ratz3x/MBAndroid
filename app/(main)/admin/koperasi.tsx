@@ -127,45 +127,6 @@ const INITIAL_MEMBERS: MemberKopItem[] = [
     tanggalDaftar: '2026-01-01',
   },
   {
-    id: 'mem_002',
-    mid: 'MBINA-JKT-042',
-    nama: 'Bambang Soedarmono',
-    chapter: 'W124 MBCI Jakarta',
-    email: 'bambang.w124@gmail.com',
-    phone: '081122334455',
-    simpananPokok: 100000,
-    simpananWajib: 300000,
-    tabunganSukarela: 3800000,
-    status: 'active',
-    tanggalDaftar: '2026-03-15',
-  },
-  {
-    id: 'mem_003',
-    mid: 'MBINA-BDG-019',
-    nama: 'Hendra Gunawan',
-    chapter: 'W210 MBCI Bandung',
-    email: 'hendra.gunawan@yahoo.co.id',
-    phone: '081398877665',
-    simpananPokok: 100000,
-    simpananWajib: 250000,
-    tabunganSukarela: 6150000,
-    status: 'active',
-    tanggalDaftar: '2026-04-10',
-  },
-  {
-    id: 'mem_004',
-    mid: 'MBINA-SBY-088',
-    nama: 'Arya Pratama',
-    chapter: 'MBCI Chapter Surabaya',
-    email: 'arya.pratama@mbcisby.id',
-    phone: '081700998811',
-    simpananPokok: 100000,
-    simpananWajib: 450000,
-    tabunganSukarela: 12250000,
-    status: 'active',
-    tanggalDaftar: '2026-02-01',
-  },
-  {
     id: 'mem_005',
     mid: 'MBINA-SMG-014',
     nama: 'Kusumo Wardhana',
@@ -346,17 +307,17 @@ export default function AdminKoperasiScreen() {
         await AsyncStorage.setItem(KOP_STORAGE_LOANS, JSON.stringify([]));
       }
 
-      // 4. Members
+      // 4. Members (Purge any legacy dummy members)
       const rawMembers = await AsyncStorage.getItem(KOP_STORAGE_MEMBERS);
+      const dummyMids = new Set(['MBINA-JKT-042', 'MBINA-BDG-019', 'MBINA-SBY-088']);
       if (rawMembers) {
         const parsed: MemberKopItem[] = JSON.parse(rawMembers);
-        const existingMids = new Set(parsed.map((m) => m.mid.toUpperCase()));
-        const missing = INITIAL_MEMBERS.filter((m) => !existingMids.has(m.mid.toUpperCase()));
-        const merged = [...parsed, ...missing];
+        const filtered = parsed.filter((m) => !dummyMids.has(m.mid.toUpperCase()));
+        const existingMids = new Set(filtered.map((m) => m.mid.toUpperCase()));
+        const missing = INITIAL_MEMBERS.filter((m) => !existingMids.has(m.mid.toUpperCase()) && !dummyMids.has(m.mid.toUpperCase()));
+        const merged = [...filtered, ...missing];
         setMembers(merged);
-        if (missing.length > 0) {
-          await AsyncStorage.setItem(KOP_STORAGE_MEMBERS, JSON.stringify(merged));
-        }
+        await AsyncStorage.setItem(KOP_STORAGE_MEMBERS, JSON.stringify(merged));
       } else {
         setMembers(INITIAL_MEMBERS);
         await AsyncStorage.setItem(KOP_STORAGE_MEMBERS, JSON.stringify(INITIAL_MEMBERS));
