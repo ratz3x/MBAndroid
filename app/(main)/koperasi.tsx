@@ -206,12 +206,8 @@ export default function KoperasiScreen() {
   const [wajibNameSender, setWajibNameSender] = useState('');
   const [wajibSubmitting, setWajibSubmitting] = useState(false);
 
-  // Kategori Setoran Simpanan Kas Koperasi
-  const [transferCategory, setTransferCategory] = useState<'wajib' | 'sukarela' | 'paket' | 'cicilan'>('wajib');
-  const [transferWajibMonths, setTransferWajibMonths] = useState<number>(1);
-  const [transferSukarelaAmount, setTransferSukarelaAmount] = useState('50000');
-  const [transferPaketSukarela, setTransferPaketSukarela] = useState('225000');
-  const [transferCicilanAmount, setTransferCicilanAmount] = useState('500000');
+  // Setoran Kas Koperasi (Alokasi Otomatis: Wajib, Pinjaman, dan Sukarela)
+  const [transferTotalAmount, setTransferTotalAmount] = useState('500000');
 
   // Membership & Registration State
   const { member: currentMember } = useProfile(user?.id);
@@ -390,8 +386,47 @@ export default function KoperasiScreen() {
     }
   };
 
-  const openTransferModal = (category: 'wajib' | 'sukarela' | 'paket' | 'cicilan' = 'wajib') => {
-    setTransferCategory(category);
+  const getTransferBreakdown = (amountStr: string) => {
+    const totalAmount = parseInt((amountStr || '0').replace(/[^0-9]/g, ''), 10) || 0;
+    const isWajibPaid = memberKopData?.lastPaidWajibMonth === currentMonthKey || (memberKopData?.simpananWajib >= 50000 && !memberKopData?.unpaidMonth);
+    
+    // Check active loan
+    const activeLoan = memberLoans.find((l) => l.status === 'confirmed_active' || l.status === 'active');
+    const monthlyInstallment = activeLoan ? Math.round((activeLoan.nominal || 0) / (activeLoan.tenorBulan || 12)) : 0;
+
+    let wajibPortion = 0;
+    if (!isWajibPaid) {
+      wajibPortion = Math.min(50000, totalAmount);
+    }
+    const remAfterWajib = Math.max(0, totalAmount - wajibPortion);
+
+    let loanPortion = 0;
+    if (monthlyInstallment > 0) {
+      loanPortion = Math.min(monthlyInstallment, remAfterWajib);
+    }
+    const remAfterLoan = Math.max(0, remAfterWajib - loanPortion);
+
+    const sukarelaPortion = remAfterLoan;
+
+    return {
+      totalAmount,
+      wajibPortion,
+      loanPortion,
+      sukarelaPortion,
+      isWajibPaid,
+      hasActiveLoan: !!activeLoan,
+    };
+  };
+
+  const openTransferModal = (defaultAmtOrCategory?: string) => {
+    const isWajibPaid = memberKopData?.lastPaidWajibMonth === currentMonthKey || (memberKopData?.simpananWajib >= 50000 && !memberKopData?.unpaidMonth);
+    if (defaultAmtOrCategory === 'wajib' && !isWajibPaid) {
+      setTransferTotalAmount('50000');
+    } else if (defaultAmtOrCategory && !isNaN(parseInt(defaultAmtOrCategory.replace(/[^0-9]/g, ''), 10))) {
+      setTransferTotalAmount(defaultAmtOrCategory);
+    } else {
+      setTransferTotalAmount('500000');
+    }
     setWajibBankSender(memberKopData?.bankPengirim || 'Bank Mandiri');
     setWajibRekSender(memberKopData?.rekeningPengirim || '');
     setWajibNameSender(memberKopData?.namaPengirim || memberKopData?.nama || profile?.full_name || '');
@@ -486,43 +521,13 @@ export default function KoperasiScreen() {
       return;
     }
 
-    let numWajib = 0;
-    let numSukarela = 0;
-    let numCicilan = 0;
-    let descLabel = '';
-
-    if (transferCategory === 'wajib') {
-      numWajib = 50000 * transferWajibMonths;
-      descLabel = `Simpanan Wajib (${transferWajibMonths} Bulan - ${formatRupiah(numWajib)})`;
-    } else if (transferCategory === 'sukarela') {
-      numSukarela = parseInt(transferSukarelaAmount.replace(/[^0-9]/g, ''), 10) || 0;
-      if (numSukarela < 25000) {
-        showAlertDialog('Perhatian', 'Setoran Tabungan Sukarela minimal Rp 25.000.');
-        return;
-      }
-      descLabel = `Tabungan Sukarela (${formatRupiah(numSukarela)})`;
-    } else if (transferCategory === 'paket') {
-      numWajib = 50000;
-      numSukarela = parseInt(transferPaketSukarela.replace(/[^0-9]/g, ''), 10) || 0;
-      if (numSukarela < 25000) {
-        showAlertDialog('Perhatian', 'Porsi Tabungan Sukarela minimal Rp 25.000.');
-        return;
-      }
-      descLabel = `Paket Seluruh Simpanan (Wajib Rp 50.000 + Sukarela ${formatRupiah(numSukarela)})`;
-    } else if (transferCategory === 'cicilan') {
-      numCicilan = parseInt(transferCicilanAmount.replace(/[^0-9]/g, ''), 10) || 0;
-      if (numCicilan <= 0) {
-        showAlertDialog('Perhatian', 'Masukkan nominal angsuran pinjaman yang valid.');
-        return;
-      }
-      descLabel = `Angsuran Cicilan Pinjaman (${formatRupiah(numCicilan)})`;
-    }
-
-    const totalAmount = numWajib + numSukarela + numCicilan;
-    if (totalAmount <= 0) {
-      showAlertDialog('Perhatian', 'Total nominal transfer harus lebih dari Rp 0.');
+    const breakdown = getTransferBreakdown(transferTotalAmount);
+    if (breakdown.totalAmount <= 0) {
+      showAlertDialog('Perhatian', 'Masukkan total nominal transfer yang valid (lebih dari Rp 0).');
       return;
     }
+
+    const { totalAmount, wajibPortion, loanPortion, sukarelaPortion } = breakdown;
 
     setWajibSubmitting(true);
     try {
@@ -535,9 +540,9 @@ export default function KoperasiScreen() {
           if (m.id === user?.id || (userMid && m.mid && m.mid.trim().toUpperCase() === userMid)) {
             return {
               ...m,
-              simpananWajib: (m.simpananWajib || 0) + numWajib,
-              tabunganSukarela: (m.tabunganSukarela || 0) + numSukarela,
-              lastPaidWajibMonth: numWajib > 0 ? currentMonthKey : m.lastPaidWajibMonth,
+              simpananWajib: (m.simpananWajib || 0) + wajibPortion,
+              tabunganSukarela: (m.tabunganSukarela || 0) + sukarelaPortion,
+              lastPaidWajibMonth: wajibPortion >= 50000 ? currentMonthKey : m.lastPaidWajibMonth,
               wajibProofUri: wajibTransferProofUri,
               bankPengirim: wajibBankSender || m.bankPengirim,
               rekeningPengirim: wajibRekSender || m.rekeningPengirim,
@@ -549,17 +554,25 @@ export default function KoperasiScreen() {
         await AsyncStorage.setItem(KOP_STORAGE_MEMBERS, JSON.stringify(updated));
       }
 
-      // 2. Catat transaksi mutasi
+      // 2. Catat transaksi mutasi kas
       const rawTx = await AsyncStorage.getItem(KOP_STORAGE_TX);
       const allTxs = rawTx ? JSON.parse(rawTx) : [];
       const refNum = `TX-SETOR-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+      const descItems = [];
+      if (wajibPortion > 0) descItems.push(`Simpanan Wajib ${formatRupiah(wajibPortion)}`);
+      if (loanPortion > 0) descItems.push(`Angsuran Pinjaman ${formatRupiah(loanPortion)}`);
+      if (sukarelaPortion > 0) descItems.push(`Tabungan Sukarela ${formatRupiah(sukarelaPortion)}`);
+
+      const descLabel = descItems.length > 0 ? descItems.join(', ') : `Setoran Kas ${formatRupiah(totalAmount)}`;
+
       const newTx: KoperasiTransaction = {
         id: `tx_setor_bank_${Date.now()}`,
         member_id: user?.id || KOP_USER_ID,
-        type: transferCategory === 'cicilan' ? 'cicilan' : 'simpanan',
+        type: 'simpanan',
         amount: totalAmount,
         status: 'completed',
-        description: `[Transfer Bank Mandiri] ${descLabel} — MID: ${memberKopData?.mid || '-'} (${memberKopData?.nama || profile?.full_name}) via ${wajibBankSender} ${wajibRekSender}`,
+        description: `[Transfer Bank Mandiri] Total ${formatRupiah(totalAmount)} (Rincian: ${descLabel}) — MID: ${memberKopData?.mid || '-'} (${memberKopData?.nama || profile?.full_name}) via ${wajibBankSender} ${wajibRekSender}`,
         reference_number: refNum,
         due_date: null,
         processed_by: user?.id || KOP_USER_ID,
@@ -573,12 +586,12 @@ export default function KoperasiScreen() {
       const rawBal = await AsyncStorage.getItem(KOP_STORAGE_BAL);
       if (rawBal) {
         const balData = JSON.parse(rawBal);
-        balData.simpanan_wajib = (balData.simpanan_wajib || 0) + numWajib;
-        balData.simpanan_sukarela = (balData.simpanan_sukarela || 0) + numSukarela;
+        balData.simpanan_wajib = (balData.simpanan_wajib || 0) + wajibPortion;
+        balData.simpanan_sukarela = (balData.simpanan_sukarela || 0) + sukarelaPortion;
         balData.total_balance = (balData.total_balance || 0) + totalAmount;
-        if (numCicilan > 0) {
-          balData.active_loan = Math.max(0, (balData.active_loan || 0) - numCicilan);
-          balData.loan_remaining = Math.max(0, (balData.loan_remaining || 0) - numCicilan);
+        if (loanPortion > 0) {
+          balData.active_loan = Math.max(0, (balData.active_loan || 0) - loanPortion);
+          balData.loan_remaining = Math.max(0, (balData.loan_remaining || 0) - loanPortion);
         }
         balData.updated_at = new Date().toISOString();
         await AsyncStorage.setItem(KOP_STORAGE_BAL, JSON.stringify(balData));
@@ -589,8 +602,8 @@ export default function KoperasiScreen() {
       await loadData();
 
       showAlertDialog(
-        'Bukti Setoran Terkirim! 🎉',
-        `Pembayaran ${descLabel} senilai ${formatRupiah(totalAmount)} telah berhasil dicatat ke Rekening Kas Koperasi Bersama Satu Bintang.\n\nNomor Referensi: ${refNum}\nSaldo simpanan Anda otomatis bertambah dan tercatat pada Buku Tabungan Digital (E-Passbook).`
+        'Setoran Berhasil Dikonfirmasi! 🎉',
+        `Pembayaran transfer kas sebesar ${formatRupiah(totalAmount)} telah berhasil dibukukan dengan rincian alokasi otomatis:\n\n• Simpanan Wajib: ${formatRupiah(wajibPortion)}${wajibPortion > 0 ? ' (Lunas Bulan Ini)' : ' (Nihil / Lunas Sebelumnya)'}\n• Angsuran Pinjaman: ${formatRupiah(loanPortion)}${loanPortion > 0 ? ' (Terpotong)' : ' (Nihil)'}\n• Tabungan Sukarela: ${formatRupiah(sukarelaPortion)} (Otomatis Masuk Tabungan)\n\nNomor Referensi: ${refNum}\nSaldo simpanan Anda otomatis bertambah dan tercatat pada Buku Tabungan Digital (E-Passbook).`
       );
     } catch {
       showAlertDialog('Gagal', 'Terjadi kesalahan saat memproses bukti setoran.');
@@ -2624,212 +2637,133 @@ export default function KoperasiScreen() {
                 </Text>
               </View>
 
-              {/* Kategori Pilihan Setoran */}
-              <Text style={[styles.inputLabel, { marginTop: 14 }]}>Pilih Kategori Setoran Simpanan</Text>
+              {/* Input Nominal Transfer */}
+              <Text style={[styles.inputLabel, { marginTop: 14 }]}>
+                Nominal Dana yang Ditransfer ke Kas Koperasi (Rp) *
+              </Text>
+              
+              {/* Preset Chips */}
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
                 {[
-                  { key: 'wajib' as const, label: 'Simpanan Wajib' },
-                  { key: 'sukarela' as const, label: 'Tabungan Sukarela' },
-                  { key: 'paket' as const, label: 'Paket Seluruh Simpanan' },
-                  { key: 'cicilan' as const, label: 'Angsuran Pinjaman' },
-                ].map((item) => {
-                  const isSel = transferCategory === item.key;
+                  { label: 'Rp 50rb (Wajib Saja)', val: '50000' },
+                  { label: 'Rp 100rb', val: '100000' },
+                  { label: 'Rp 250rb', val: '250000' },
+                  { label: 'Rp 500rb', val: '500000' },
+                  { label: 'Rp 1 Juta', val: '1000000' },
+                ].map((chip) => {
+                  const isSel = transferTotalAmount === chip.val;
                   return (
                     <Pressable
-                      key={item.key}
-                      onPress={() => setTransferCategory(item.key)}
-                      style={[
-                        {
-                          paddingHorizontal: 12,
-                          paddingVertical: 7,
-                          borderRadius: 8,
-                          backgroundColor: isSel ? 'rgba(251, 191, 36, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-                          borderWidth: 1,
-                          borderColor: isSel ? '#FBBF24' : 'rgba(255, 255, 255, 0.1)',
-                        }
-                      ]}
+                      key={chip.val}
+                      onPress={() => setTransferTotalAmount(chip.val)}
+                      style={{
+                        paddingHorizontal: 10,
+                        paddingVertical: 6,
+                        borderRadius: 6,
+                        backgroundColor: isSel ? 'rgba(251, 191, 36, 0.25)' : 'rgba(255, 255, 255, 0.05)',
+                        borderWidth: 1,
+                        borderColor: isSel ? '#FBBF24' : 'rgba(255, 255, 255, 0.1)',
+                      }}
                     >
-                      <Text
-                        style={{
-                          fontSize: 11.5,
-                          fontWeight: isSel ? '800' : '600',
-                          color: isSel ? '#FBBF24' : '#D4D4D8',
-                        }}
-                      >
-                        {item.label}
+                      <Text style={{ fontSize: 11, fontWeight: isSel ? '800' : '600', color: isSel ? '#FBBF24' : '#D4D4D8' }}>
+                        {chip.label}
                       </Text>
                     </Pressable>
                   );
                 })}
               </View>
 
-              {/* Opsi Berdasarkan Kategori */}
-              {transferCategory === 'wajib' && (
-                <View style={[styles.regSummaryBox, { marginTop: 6 }]}>
-                  <Text style={styles.regSummaryTitle}>PILIH PERIODE SIMPANAN WAJIB (RP 50.000 / BLN):</Text>
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
-                    {[
-                      { months: 1, label: '1 Bulan (Rp 50rb)' },
-                      { months: 3, label: '3 Bulan (Rp 150rb)' },
-                      { months: 6, label: '6 Bulan (Rp 300rb)' },
-                      { months: 12, label: '12 Bulan / 1 Thn (Rp 600rb)' },
-                    ].map((m) => {
-                      const isSel = transferWajibMonths === m.months;
-                      return (
-                        <Pressable
-                          key={m.months}
-                          onPress={() => setTransferWajibMonths(m.months)}
-                          style={[
-                            {
-                              flex: 1,
-                              minWidth: '45%',
-                              paddingVertical: 8,
-                              paddingHorizontal: 8,
-                              borderRadius: 6,
-                              alignItems: 'center',
-                              backgroundColor: isSel ? 'rgba(52, 211, 153, 0.2)' : 'rgba(255, 255, 255, 0.04)',
-                              borderWidth: 1,
-                              borderColor: isSel ? '#34D399' : 'rgba(255, 255, 255, 0.1)',
-                            }
-                          ]}
-                        >
-                          <Text style={{ fontSize: 11, fontWeight: '700', color: isSel ? '#34D399' : '#A1A1AA' }}>
-                            {m.label}
-                          </Text>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                  <Text style={{ fontSize: 10.5, color: '#A1A1AA' }}>
-                    * Simpanan Wajib adalah iuran bulanan tetap anggota. Pembayaran di muka membebaskan Anda dari tagihan hingga periode yang dipilih.
-                  </Text>
-                </View>
-              )}
+              <TextInput
+                style={styles.modalInput}
+                value={transferTotalAmount}
+                onChangeText={setTransferTotalAmount}
+                placeholder="Contoh: 500000"
+                placeholderTextColor="#71717A"
+                keyboardType="numeric"
+              />
 
-              {transferCategory === 'sukarela' && (
-                <View style={[styles.regSummaryBox, { marginTop: 6 }]}>
-                  <Text style={styles.regSummaryTitle}>SETOR TABUNGAN SUKARELA (MIN. RP 25.000):</Text>
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
-                    {['50000', '100000', '250000', '500000', '1000000'].map((amt) => {
-                      const isSel = transferSukarelaAmount === amt;
-                      return (
-                        <Pressable
-                          key={amt}
-                          onPress={() => setTransferSukarelaAmount(amt)}
-                          style={[
-                            {
-                              paddingHorizontal: 10,
-                              paddingVertical: 6,
-                              borderRadius: 6,
-                              backgroundColor: isSel ? 'rgba(96, 165, 250, 0.25)' : 'rgba(255, 255, 255, 0.05)',
-                              borderWidth: 1,
-                              borderColor: isSel ? '#60A5FA' : 'rgba(255, 255, 255, 0.1)',
-                            }
-                          ]}
-                        >
-                          <Text style={{ fontSize: 11, fontWeight: '700', color: isSel ? '#60A5FA' : '#D4D4D8' }}>
-                            {formatRupiah(parseInt(amt, 10))}
-                          </Text>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                  <Text style={[styles.inputLabel, { marginTop: 4 }]}>Nominal Lainnya (Rp):</Text>
-                  <TextInput
-                    style={styles.modalInput}
-                    value={transferSukarelaAmount}
-                    onChangeText={setTransferSukarelaAmount}
-                    placeholder="Minimal 25000"
-                    placeholderTextColor="#71717A"
-                    keyboardType="numeric"
-                  />
-                  <Text style={{ fontSize: 10.5, color: '#A1A1AA', marginTop: 4 }}>
-                    * Tabungan Sukarela berhak atas bagi hasil SHU 1% dan dapat ditarik sewaktu-waktu.
-                  </Text>
-                </View>
-              )}
-
-              {transferCategory === 'paket' && (
-                <View style={[styles.regSummaryBox, { marginTop: 6 }]}>
-                  <Text style={styles.regSummaryTitle}>PAKET SELURUH SIMPANAN (WAJIB + SUKARELA):</Text>
-                  <View style={styles.reportRow}>
-                    <Text style={styles.reportRowLabel}>• Simpanan Wajib (Bulan Berjalan):</Text>
-                    <Text style={[styles.reportRowVal, { color: '#34D399', fontWeight: '700' }]}>Rp 50.000</Text>
-                  </View>
-                  <View style={{ marginTop: 8 }}>
-                    <Text style={styles.inputLabel}>Porsi Tabungan Sukarela (Rp):</Text>
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
-                      {['50000', '150000', '225000', '500000'].map((amt) => {
-                        const isSel = transferPaketSukarela === amt;
-                        return (
-                          <Pressable
-                            key={amt}
-                            onPress={() => setTransferPaketSukarela(amt)}
-                            style={[
-                              {
-                                paddingHorizontal: 10,
-                                paddingVertical: 5,
-                                borderRadius: 6,
-                                backgroundColor: isSel ? 'rgba(251, 191, 36, 0.25)' : 'rgba(255, 255, 255, 0.05)',
-                                borderWidth: 1,
-                                borderColor: isSel ? '#FBBF24' : 'rgba(255, 255, 255, 0.1)',
-                              }
-                            ]}
-                          >
-                            <Text style={{ fontSize: 11, fontWeight: '700', color: isSel ? '#FBBF24' : '#D4D4D8' }}>
-                              {formatRupiah(parseInt(amt, 10))}
-                            </Text>
-                          </Pressable>
-                        );
-                      })}
-                    </View>
-                    <TextInput
-                      style={styles.modalInput}
-                      value={transferPaketSukarela}
-                      onChangeText={setTransferPaketSukarela}
-                      placeholder="Contoh: 225000"
-                      placeholderTextColor="#71717A"
-                      keyboardType="numeric"
-                    />
-                  </View>
-                  <Text style={{ fontSize: 10.5, color: '#A1A1AA', marginTop: 4 }}>
-                    * Seluruh simpanan (Wajib + Sukarela) dapat ditransfer sekaligus dalam satu bukti transfer.
-                  </Text>
-                </View>
-              )}
-
-              {transferCategory === 'cicilan' && (
-                <View style={[styles.regSummaryBox, { marginTop: 6 }]}>
-                  <Text style={styles.regSummaryTitle}>ANGSURAN CICILAN PINJAMAN (PMK 49):</Text>
-                  <Text style={styles.inputLabel}>Nominal Angsuran (Rp):</Text>
-                  <TextInput
-                    style={styles.modalInput}
-                    value={transferCicilanAmount}
-                    onChangeText={setTransferCicilanAmount}
-                    placeholder="Contoh: 500000"
-                    placeholderTextColor="#71717A"
-                    keyboardType="numeric"
-                  />
-                  <Text style={{ fontSize: 10.5, color: '#A1A1AA', marginTop: 4 }}>
-                    * Pembayaran cicilan pokok dan jasa pinjaman lunak 6% flat per tahun.
-                  </Text>
-                </View>
-              )}
-
-              {/* Total Ditransfer Box */}
+              {/* Rincian Alokasi Dana Otomatis */}
               {(() => {
-                let totalNom = 0;
-                if (transferCategory === 'wajib') totalNom = 50000 * transferWajibMonths;
-                else if (transferCategory === 'sukarela') totalNom = parseInt(transferSukarelaAmount.replace(/[^0-9]/g, ''), 10) || 0;
-                else if (transferCategory === 'paket') totalNom = 50000 + (parseInt(transferPaketSukarela.replace(/[^0-9]/g, ''), 10) || 0);
-                else if (transferCategory === 'cicilan') totalNom = parseInt(transferCicilanAmount.replace(/[^0-9]/g, ''), 10) || 0;
-
+                const breakdown = getTransferBreakdown(transferTotalAmount);
                 return (
-                  <View style={[styles.regSummaryBox, { marginTop: 12, backgroundColor: 'rgba(251, 191, 36, 0.12)', borderColor: 'rgba(251, 191, 36, 0.35)' }]}>
+                  <View style={[styles.regSummaryBox, { marginTop: 12, backgroundColor: 'rgba(251, 191, 36, 0.08)', borderColor: 'rgba(251, 191, 36, 0.3)' }]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <Text style={styles.regSummaryTitle}>RINCIAN PEMBAGIAN DANA (OTOMATIS):</Text>
+                      <View style={{ backgroundColor: 'rgba(52, 211, 153, 0.2)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                        <Text style={{ fontSize: 9.5, fontWeight: '800', color: '#34D399' }}>SISTEM OTOMATIS</Text>
+                      </View>
+                    </View>
+
+                    {/* 1. Simpanan Wajib */}
                     <View style={styles.reportRow}>
-                      <Text style={[styles.reportRowLabel, { color: '#FFF', fontWeight: '700', fontSize: 13 }]}>TOTAL TRANSFER BANK:</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.reportRowLabel}>• Simpanan Wajib (Rp 50.000 / Bln):</Text>
+                        <Text style={{ fontSize: 10.5, color: '#A1A1AA', marginTop: 1 }}>
+                          {breakdown.wajibPortion > 0
+                            ? 'Iuran wajib periode berjalan'
+                            : breakdown.isWajibPaid
+                            ? 'Sudah lunas sebelumnya'
+                            : 'Nihil'}
+                        </Text>
+                      </View>
+                      <View style={{ alignItems: 'flex-end' }}>
+                        <Text style={[styles.reportRowVal, { color: breakdown.wajibPortion > 0 ? '#34D399' : '#A1A1AA', fontWeight: '700', fontSize: 13 }]}>
+                          {formatRupiah(breakdown.wajibPortion)}
+                        </Text>
+                        {breakdown.wajibPortion >= 50000 && (
+                          <Text style={{ fontSize: 9.5, color: '#34D399', fontWeight: '700' }}>✓ LUNAS BULAN INI</Text>
+                        )}
+                        {breakdown.isWajibPaid && breakdown.wajibPortion === 0 && (
+                          <Text style={{ fontSize: 9.5, color: '#34D399', fontWeight: '700' }}>✓ SUDAH LUNAS</Text>
+                        )}
+                      </View>
+                    </View>
+
+                    {/* 2. Angsuran Pinjaman */}
+                    <View style={[styles.reportRow, { marginTop: 8, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)', paddingTop: 6 }]}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.reportRowLabel}>• Angsuran Pinjaman (PMK 49):</Text>
+                        <Text style={{ fontSize: 10.5, color: '#A1A1AA', marginTop: 1 }}>
+                          {breakdown.hasActiveLoan
+                            ? (breakdown.loanPortion > 0 ? 'Cicilan pinjaman berjalan' : 'Tidak ada tagihan')
+                            : 'Tidak ada pinjaman aktif (Nihil)'}
+                        </Text>
+                      </View>
+                      <View style={{ alignItems: 'flex-end' }}>
+                        <Text style={[styles.reportRowVal, { color: breakdown.loanPortion > 0 ? '#FBBF24' : '#71717A', fontWeight: '700', fontSize: 13 }]}>
+                          {formatRupiah(breakdown.loanPortion)}
+                        </Text>
+                        <Text style={{ fontSize: 9.5, color: breakdown.loanPortion > 0 ? '#FBBF24' : '#71717A', fontWeight: '700' }}>
+                          {breakdown.loanPortion > 0 ? 'TERPOTONG' : 'NIHIL (RP 0)'}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* 3. Tabungan Sukarela */}
+                    <View style={[styles.reportRow, { marginTop: 8, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)', paddingTop: 6 }]}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.reportRowLabel}>• Tabungan Sukarela (Kelebihan Dana):</Text>
+                        <Text style={{ fontSize: 10.5, color: '#60A5FA', marginTop: 1 }}>
+                          Kelebihan dana otomatis masuk tabungan Anda
+                        </Text>
+                      </View>
+                      <View style={{ alignItems: 'flex-end' }}>
+                        <Text style={[styles.reportRowVal, { color: '#60A5FA', fontSize: 14, fontWeight: '800' }]}>
+                          {formatRupiah(breakdown.sukarelaPortion)}
+                        </Text>
+                        <Text style={{ fontSize: 9.5, color: '#60A5FA', fontWeight: '700' }}>
+                          {breakdown.sukarelaPortion > 0 ? 'MASUK TABUNGAN' : 'NIHIL'}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Total Row */}
+                    <View style={[styles.reportRow, { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.15)', paddingTop: 8, marginTop: 8 }]}>
+                      <Text style={[styles.reportRowLabel, { color: '#FFF', fontWeight: '800', fontSize: 13 }]}>
+                        TOTAL SETORAN KAS:
+                      </Text>
                       <Text style={[styles.reportRowVal, { color: '#FBBF24', fontSize: 18, fontWeight: '800' }]}>
-                        {formatRupiah(totalNom)}
+                        {formatRupiah(breakdown.totalAmount)}
                       </Text>
                     </View>
                   </View>
