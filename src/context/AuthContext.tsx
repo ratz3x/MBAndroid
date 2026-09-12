@@ -358,7 +358,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // ── Auth Actions ────────────────────────────────────────────
   const signIn = useCallback(async (email: string, password: string) => {
     const cleanEmail = (email || '').trim().toLowerCase();
-    if (cleanEmail === KOP_EMAIL.toLowerCase() && password === KOP_PASSWORD) {
+    if ((cleanEmail === KOP_EMAIL.toLowerCase() || cleanEmail === 'dummy_kop1@gmail.com') && password === KOP_PASSWORD) {
       const kopUser: User = {
         id: KOP_USER_ID,
         app_metadata: { provider: 'email', providers: ['email'] },
