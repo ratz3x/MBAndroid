@@ -270,33 +270,103 @@ export default function KeanggotaanScreen() {
           </LuxuryCard>
         )}
 
-        {/* Benefits */}
-        <Text style={[styles.title, { marginTop: Spacing.xl, marginBottom: Spacing.md }]}>
-          Keuntungan Anggota Resmi
-        </Text>
-        {[
-          { icon: 'ribbon-outline', title: 'KTA Digital', desc: 'Kartu Tanda Anggota dengan QR Code terverifikasi' },
-          { icon: 'calendar-outline', title: 'Akses Event', desc: 'Prioritas pendaftaran event nasional & chapter' },
-          { icon: 'pricetag-outline', title: 'Diskon Eksklusif', desc: 'Potongan harga di ratusan mitra resmi MBCI' },
-          { isLogo: true, title: 'Koperasi', desc: 'Akses layanan simpan-pinjam anggota' },
-          { icon: 'storefront-outline', title: 'Toko Resmi', desc: 'Harga khusus merchandise dan suku cadang' },
-        ].map((benefit) => (
-          <LuxuryCard key={benefit.title} style={styles.benefitCard} padding={14}>
-            <View style={styles.benefitRow}>
-              <View style={styles.benefitIcon}>
-                {(benefit as any).isLogo ? (
-                  <Image source={KOPERASI_LOGO} style={{ width: 24, height: 24, borderRadius: 12 }} resizeMode="contain" />
-                ) : (
-                  <Ionicons name={(benefit as any).icon as any} size={22} color={Colors.brand.gold} />
-                )}
+        {/* Keuntungan Anggota Resmi (Horizontal Interactive Cards) */}
+        <View style={{ marginTop: Spacing.xl, marginBottom: Spacing.sm }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+            <Text style={styles.title}>
+              Keuntungan Anggota Resmi
+            </Text>
+            <Text style={{ fontSize: 11, color: '#A1A1AA' }}>Geser kartu ➔</Text>
+          </View>
+          <Text style={{ fontSize: 12, color: Colors.text.tertiary, marginBottom: Spacing.sm }}>
+            Akses langsung ke ekosistem layanan & privilese resmi ber-MID
+          </Text>
+        </View>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.horizontalBenefitScroll}
+        >
+          {[
+            {
+              icon: 'ribbon-outline',
+              title: 'KTA Digital',
+              desc: 'QR Code verifikasi resmi & chip MID di Beranda',
+              badge: 'KTA RESMI',
+              badgeColor: '#FBBF24',
+              route: '/(main)/dashboard',
+            },
+            {
+              icon: 'calendar-outline',
+              title: 'Akses Event',
+              desc: 'Prioritas daftar touring & gathering nasional',
+              badge: 'AGENDA KLUB',
+              badgeColor: '#60A5FA',
+              route: '/(main)/event',
+            },
+            {
+              icon: 'pricetag-outline',
+              title: 'Diskon Mitra',
+              desc: 'Potongan harga bengkel, asuransi, & merchant',
+              badge: 'REKANAN MBCI',
+              badgeColor: '#34D399',
+              route: '/(main)/sponsorship',
+            },
+            {
+              isLogo: true,
+              title: 'Koperasi',
+              desc: 'Tabungan sukarela likuid & e-passbook mutasi',
+              badge: 'SIMPANAN',
+              badgeColor: '#F59E0B',
+              route: '/(main)/koperasi',
+            },
+            {
+              icon: 'storefront-outline',
+              title: 'Toko Resmi',
+              desc: 'Katalog merchandise, OEM spare parts, & lapak',
+              badge: 'MARKETPLACE',
+              badgeColor: '#C084FC',
+              route: '/(main)/toko',
+            },
+          ].map((benefit) => (
+            <Pressable
+              key={benefit.title}
+              onPress={() => router.push(benefit.route as any)}
+              style={({ pressed }) => [
+                styles.horizontalBenefitCard,
+                pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
+              ]}
+            >
+              <View style={styles.horizontalBenefitHeader}>
+                <View style={styles.horizontalBenefitIconWrap}>
+                  {(benefit as any).isLogo ? (
+                    <Image source={KOPERASI_LOGO} style={{ width: 22, height: 22, borderRadius: 11 }} resizeMode="contain" />
+                  ) : (
+                    <Ionicons name={(benefit as any).icon as any} size={20} color={benefit.badgeColor} />
+                  )}
+                </View>
+                <View style={[styles.horizontalBenefitBadge, { backgroundColor: `${benefit.badgeColor}20`, borderColor: `${benefit.badgeColor}40` }]}>
+                  <Text style={[styles.horizontalBenefitBadgeText, { color: benefit.badgeColor }]}>
+                    {benefit.badge}
+                  </Text>
+                </View>
               </View>
-              <View style={styles.benefitText}>
-                <Text style={styles.benefitTitle}>{benefit.title}</Text>
-                <Text style={styles.benefitDesc}>{benefit.desc}</Text>
+
+              <Text style={styles.horizontalBenefitTitle} numberOfLines={1}>
+                {benefit.title}
+              </Text>
+              <Text style={styles.horizontalBenefitDesc} numberOfLines={2}>
+                {benefit.desc}
+              </Text>
+
+              <View style={styles.horizontalBenefitActionRow}>
+                <Text style={[styles.horizontalBenefitActionText, { color: benefit.badgeColor }]}>Buka Layanan</Text>
+                <Ionicons name="arrow-forward-circle" size={16} color={benefit.badgeColor} />
               </View>
-            </View>
-          </LuxuryCard>
-        ))}
+            </Pressable>
+          ))}
+        </ScrollView>
 
         <View style={{ height: Spacing['3xl'] }} />
       </ScrollView>
@@ -557,34 +627,72 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
 
-  // Benefit List
-  benefitCard: {
-    marginBottom: Spacing.sm,
+  // Horizontal Benefit Cards
+  horizontalBenefitScroll: {
+    paddingRight: Spacing.base,
+    gap: 12,
+    paddingVertical: 4,
   },
-  benefitRow: {
+  horizontalBenefitCard: {
+    width: 210,
+    backgroundColor: '#121214',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    padding: 14,
+    justifyContent: 'space-between',
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' as any } : {}),
+  },
+  horizontalBenefitHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
   },
-  benefitIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: 'rgba(201,168,76,0.12)',
+  horizontalBenefitIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: Spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
-  benefitText: {
-    flex: 1,
+  horizontalBenefitBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: 6,
+    borderWidth: 1,
   },
-  benefitTitle: {
-    fontSize: Typography.base,
-    fontWeight: Typography.weight.semibold,
-    color: Colors.text.primary,
+  horizontalBenefitBadgeText: {
+    fontSize: 8.5,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
-  benefitDesc: {
-    fontSize: Typography.sm,
-    color: Colors.text.tertiary,
-    marginTop: 2,
+  horizontalBenefitTitle: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: '#FAFAFA',
+    marginBottom: 4,
+  },
+  horizontalBenefitDesc: {
+    fontSize: 11,
+    color: '#A1A1AA',
+    lineHeight: 15,
+    height: 30,
+    marginBottom: 12,
+  },
+  horizontalBenefitActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  horizontalBenefitActionText: {
+    fontSize: 11,
+    fontWeight: '700',
   },
 });
