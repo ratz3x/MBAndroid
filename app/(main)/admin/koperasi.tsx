@@ -231,6 +231,13 @@ export default function AdminKoperasiScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<string>('ALL');
 
+  // Member Table States (Search, Filter, Pagination, Detail Modal)
+  const [memberSearchQuery, setMemberSearchQuery] = useState('');
+  const [memberFilterStatus, setMemberFilterStatus] = useState<'ALL' | 'ACTIVE' | 'PENDING' | 'UNPAID_WAJIB'>('ALL');
+  const [memberPage, setMemberPage] = useState(1);
+  const [selectedDetailMember, setSelectedDetailMember] = useState<MemberKopItem | null>(null);
+  const MEMBER_PAGE_SIZE = 10;
+
   // Modals
   const [showTxModal, setShowTxModal] = useState(false);
   const [showLoanDetailModal, setShowLoanDetailModal] = useState<LoanRequest | null>(null);
@@ -931,6 +938,36 @@ export default function AdminKoperasiScreen() {
     return loanRequests.filter((r) => !dummyIds.has(r.id) && !dummyMids.has(r.mid));
   }, [loanRequests]);
 
+  // Filtered & Paginated Members for Scalable Table View
+  const filteredMembers = useMemo(() => {
+    let result = members;
+    if (memberSearchQuery.trim()) {
+      const q = memberSearchQuery.toLowerCase().trim();
+      result = result.filter((m) =>
+        m.nama.toLowerCase().includes(q) ||
+        m.mid.toLowerCase().includes(q) ||
+        (m.kopMemberId && m.kopMemberId.toLowerCase().includes(q)) ||
+        m.chapter.toLowerCase().includes(q)
+      );
+    }
+    if (memberFilterStatus === 'ACTIVE') {
+      result = result.filter((m) => m.status === 'active');
+    } else if (memberFilterStatus === 'PENDING') {
+      result = result.filter((m) => m.status === 'pending');
+    } else if (memberFilterStatus === 'UNPAID_WAJIB') {
+      result = result.filter((m) =>
+        m.status === 'active' && m.lastPaidWajibMonth !== currentMonthKey && m.simpananWajib < 50000
+      );
+    }
+    return result;
+  }, [members, memberSearchQuery, memberFilterStatus]);
+
+  const totalMemberPages = Math.max(1, Math.ceil(filteredMembers.length / MEMBER_PAGE_SIZE));
+  const paginatedMembers = useMemo(() => {
+    const start = (memberPage - 1) * MEMBER_PAGE_SIZE;
+    return filteredMembers.slice(start, start + MEMBER_PAGE_SIZE);
+  }, [filteredMembers, memberPage]);
+
   // Statistik & Metrics
   const pendingLoansCount = activeLoans.filter((r) => r.status === 'pending').length;
   const pendingMembersCount = members.filter((m) => m.status === 'pending').length;
@@ -1489,318 +1526,285 @@ export default function AdminKoperasiScreen() {
               </View>
             </View>
 
-            {members.map((mem) => {
-              const totalSimpanan = mem.simpananPokok + mem.simpananWajib + mem.tabunganSukarela;
-              return (
-                <View key={mem.id} style={styles.memberCard}>
-                  <View style={styles.memberCardHeader}>
-                    <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                        <Text style={styles.memberName}>{mem.nama}</Text>
-                        <View style={{ backgroundColor: 'rgba(251, 191, 36, 0.18)', borderWidth: 1, borderColor: '#FBBF24', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4 }}>
-                          <Text style={{ fontSize: 9.5, fontWeight: '800', color: '#FBBF24' }}>
-                            {mem.kopMemberId || (mem.status === 'active' ? generateKopMemberId(mem.mid) : 'PENDING KOP ID')}
-                          </Text>
-                        </View>
-                        <Text style={styles.memberMidChip}>{mem.mid}</Text>
-                      </View>
-                      <Text style={styles.memberChapter}>{mem.chapter}</Text>
-                    </View>
-                    <View
+            {/* Pencarian & Filter Status Anggota */}
+            <View style={styles.tableControlCard}>
+              <View style={styles.memberSearchBar}>
+                <Ionicons name="search" size={16} color="#71717A" />
+                <TextInput
+                  style={styles.memberSearchInput}
+                  placeholder="Cari nama, MID, KOP ID, atau Chapter..."
+                  placeholderTextColor="#71717A"
+                  value={memberSearchQuery}
+                  onChangeText={(t) => {
+                    setMemberSearchQuery(t);
+                    setMemberPage(1);
+                  }}
+                />
+                {memberSearchQuery ? (
+                  <Pressable onPress={() => { setMemberSearchQuery(''); setMemberPage(1); }}>
+                    <Ionicons name="close-circle" size={16} color="#A1A1AA" />
+                  </Pressable>
+                ) : null}
+              </View>
+
+              {/* Filter Tabs Status */}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 10 }}>
+                <View style={{ flexDirection: 'row', gap: 6 }}>
+                  {[
+                    { key: 'ALL', label: `Semua (${members.length})` },
+                    { key: 'ACTIVE', label: `Aktif (${members.filter(m => m.status === 'active').length})` },
+                    { key: 'PENDING', label: `Menunggu Verifikasi (${members.filter(m => m.status === 'pending').length})` },
+                    { key: 'UNPAID_WAJIB', label: `Belum Bayar Iuran (${members.filter(m => m.status === 'active' && m.lastPaidWajibMonth !== currentMonthKey && m.simpananWajib < 50000).length})` },
+                  ].map((filter) => (
+                    <Pressable
+                      key={filter.key}
+                      onPress={() => {
+                        setMemberFilterStatus(filter.key as any);
+                        setMemberPage(1);
+                      }}
                       style={[
-                        styles.memberStatusBadge,
-                        mem.status === 'active'
-                          ? styles.memberStatusActive
-                          : mem.status === 'rejected'
-                          ? styles.memberStatusRejected
-                          : styles.memberStatusPending,
+                        styles.memberFilterChip,
+                        memberFilterStatus === filter.key && styles.memberFilterChipActive,
                       ]}
                     >
                       <Text
                         style={[
-                          styles.memberStatusText,
-                          mem.status === 'rejected' && { color: '#EF4444' },
+                          styles.memberFilterChipText,
+                          memberFilterStatus === filter.key && styles.memberFilterChipTextActive,
                         ]}
                       >
-                        {mem.status === 'active'
-                          ? 'AKTIF'
-                          : mem.status === 'rejected'
-                          ? 'DITOLAK'
-                          : 'MENUNGGU VERIFIKASI'}
+                        {filter.label}
                       </Text>
-                    </View>
-                  </View>
+                    </Pressable>
+                  ))}
+                </View>
+              </ScrollView>
+            </View>
 
-                  <View style={styles.memberBalanceGrid}>
-                    <View style={styles.memBalItem}>
-                      <Text style={styles.memBalLabel}>Simpanan Pokok</Text>
-                      <Text style={styles.memBalVal}>{formatRupiah(mem.simpananPokok)}</Text>
-                    </View>
-                    <View style={styles.memBalItem}>
-                      <Text style={styles.memBalLabel}>Simpanan Wajib</Text>
-                      <Text style={styles.memBalVal}>{formatRupiah(mem.simpananWajib)}</Text>
-                    </View>
-                    <View style={styles.memBalItem}>
-                      <Text style={styles.memBalLabel}>Tabungan Sukarela</Text>
-                      <Text style={styles.memBalVal}>{formatRupiah(mem.tabunganSukarela)}</Text>
-                    </View>
-                    <View style={styles.memBalItem}>
-                      <Text style={styles.memBalLabel}>Total Simpanan</Text>
-                      <Text style={[styles.memBalVal, { color: '#FBBF24', fontWeight: '700' }]}>
-                        {formatRupiah(totalSimpanan)}
-                      </Text>
-                    </View>
-                  </View>
+            {/* Tabel Data Anggota Skalabel (Horizontal Scroll) */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={true} style={styles.tableWrapperScroll}>
+              <View style={styles.memberTableContainer}>
+                {/* Table Header Row */}
+                <View style={styles.tableHeaderRow}>
+                  <Text style={[styles.thCell, { width: 36, textAlign: 'center' }]}>No</Text>
+                  <Text style={[styles.thCell, { width: 175 }]}>No. KOP & MID</Text>
+                  <Text style={[styles.thCell, { width: 180 }]}>Nama & Chapter</Text>
+                  <Text style={[styles.thCell, { width: 110, textAlign: 'right' }]}>Simp. Pokok</Text>
+                  <Text style={[styles.thCell, { width: 110, textAlign: 'right' }]}>Simp. Wajib</Text>
+                  <Text style={[styles.thCell, { width: 120, textAlign: 'right' }]}>Tab. Sukarela</Text>
+                  <Text style={[styles.thCell, { width: 125, textAlign: 'right' }]}>Total Simpanan</Text>
+                  <Text style={[styles.thCell, { width: 130, textAlign: 'center' }]}>Iuran Bulanan</Text>
+                  <Text style={[styles.thCell, { width: 110, textAlign: 'center' }]}>Status Akun</Text>
+                  <Text style={[styles.thCell, { width: 190, textAlign: 'center' }]}>Aksi Pengelola</Text>
+                </View>
 
-                  {/* Status Iuran Wajib Bulanan */}
-                  {(() => {
+                {/* Table Rows */}
+                {paginatedMembers.length === 0 ? (
+                  <View style={styles.emptyTableRow}>
+                    <Ionicons name="search-outline" size={24} color="#71717A" />
+                    <Text style={{ fontSize: 12, color: '#A1A1AA', marginTop: 4 }}>
+                      Tidak ada data anggota yang sesuai dengan filter pencarian.
+                    </Text>
+                  </View>
+                ) : (
+                  paginatedMembers.map((mem, idx) => {
+                    const rowNumber = (memberPage - 1) * MEMBER_PAGE_SIZE + idx + 1;
+                    const totalSimpanan = mem.simpananPokok + mem.simpananWajib + mem.tabunganSukarela;
                     const isWajibPaid = mem.lastPaidWajibMonth === currentMonthKey || (mem.status === 'active' && mem.simpananWajib >= 50000);
-                    const currentMonthLabel = getMonthNameIndo(currentMonthKey);
+                    const isEven = idx % 2 === 0;
 
                     return (
-                      <View style={styles.monthlyDuesBox}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                            <Ionicons
-                              name={isWajibPaid ? 'checkmark-circle' : 'alert-circle'}
-                              size={15}
-                              color={isWajibPaid ? '#34D399' : '#FBBF24'}
-                            />
-                            <Text style={[styles.monthlyDuesTitle, { color: isWajibPaid ? '#34D399' : '#FDE68A' }]}>
-                              Iuran Wajib {currentMonthLabel}: {isWajibPaid ? 'LUNAS (Rp 50rb)' : 'BELUM DIBAYAR (Rp 50rb)'}
+                      <View
+                        key={mem.id}
+                        style={[
+                          styles.tableRow,
+                          isEven ? styles.tableRowEven : styles.tableRowOdd,
+                        ]}
+                      >
+                        {/* No */}
+                        <Text style={[styles.tdCell, { width: 36, textAlign: 'center', color: '#71717A' }]}>
+                          {rowNumber}
+                        </Text>
+
+                        {/* No. KOP & MID */}
+                        <View style={[styles.tdCell, { width: 175, gap: 2 }]}>
+                          <View style={{ backgroundColor: 'rgba(251, 191, 36, 0.15)', borderWidth: 1, borderColor: '#FBBF24', paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4, alignSelf: 'flex-start' }}>
+                            <Text style={{ fontSize: 9, fontWeight: '800', color: '#FBBF24' }}>
+                              {mem.kopMemberId || (mem.status === 'active' ? generateKopMemberId(mem.mid) : 'PENDING ID')}
                             </Text>
                           </View>
+                          <Text style={{ fontSize: 10, color: '#D4D4D8' }}>{mem.mid}</Text>
+                        </View>
+
+                        {/* Nama & Chapter */}
+                        <View style={[styles.tdCell, { width: 180 }]}>
+                          <Text style={{ fontSize: 11.5, fontWeight: '700', color: '#FAFAFA' }} numberOfLines={1}>
+                            {mem.nama}
+                          </Text>
+                          <Text style={{ fontSize: 10, color: '#A1A1AA' }} numberOfLines={1}>
+                            {mem.chapter}
+                          </Text>
+                        </View>
+
+                        {/* Pokok */}
+                        <Text style={[styles.tdCell, { width: 110, textAlign: 'right', color: '#E4E4E7' }]}>
+                          {formatRupiah(mem.simpananPokok)}
+                        </Text>
+
+                        {/* Wajib */}
+                        <Text style={[styles.tdCell, { width: 110, textAlign: 'right', color: '#E4E4E7' }]}>
+                          {formatRupiah(mem.simpananWajib)}
+                        </Text>
+
+                        {/* Sukarela */}
+                        <Text style={[styles.tdCell, { width: 120, textAlign: 'right', color: '#E4E4E7' }]}>
+                          {formatRupiah(mem.tabunganSukarela)}
+                        </Text>
+
+                        {/* Total Simpanan */}
+                        <Text style={[styles.tdCell, { width: 125, textAlign: 'right', fontWeight: '800', color: '#FBBF24' }]}>
+                          {formatRupiah(totalSimpanan)}
+                        </Text>
+
+                        {/* Iuran Bulanan */}
+                        <View style={[styles.tdCell, { width: 130, alignItems: 'center' }]}>
                           <View
                             style={[
-                              styles.monthlyDuesBadge,
+                              styles.tableStatusBadge,
                               {
                                 backgroundColor: isWajibPaid ? 'rgba(52, 211, 153, 0.15)' : 'rgba(239, 68, 68, 0.15)',
                                 borderColor: isWajibPaid ? '#34D399' : '#EF4444',
                               }
                             ]}
                           >
-                            <Text
-                              style={[
-                                styles.monthlyDuesBadgeText,
-                                { color: isWajibPaid ? '#34D399' : '#F87171' }
-                              ]}
-                            >
-                              {isWajibPaid ? 'LUNAS' : 'MENUNGGU IURAN'}
+                            <Ionicons
+                              name={isWajibPaid ? 'checkmark-circle' : 'alert-circle'}
+                              size={10}
+                              color={isWajibPaid ? '#34D399' : '#F87171'}
+                            />
+                            <Text style={[styles.tableStatusBadgeText, { color: isWajibPaid ? '#34D399' : '#F87171' }]}>
+                              {isWajibPaid ? 'LUNAS (SEP)' : 'BELUM BAYAR'}
                             </Text>
                           </View>
                         </View>
 
-                        {!isWajibPaid && mem.status === 'active' && (
-                          <View style={{ flexDirection: 'row', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
-                            <Pressable
-                              onPress={() => handleSendWaReminder(mem)}
-                              style={styles.waReminderBtn}
-                            >
-                              <Ionicons name="logo-whatsapp" size={13} color="#25D366" />
-                              <Text style={styles.waReminderBtnText}>Ingatkan via WA</Text>
-                            </Pressable>
-
-                            {mem.tabunganSukarela >= 50000 && (
-                              <Pressable
-                                onPress={() => handleAutoDebitWajib(mem)}
-                                style={styles.autodebitBtn}
-                              >
-                                <Ionicons name="swap-horizontal" size={13} color="#FBBF24" />
-                                <Text style={styles.autodebitBtnText}>Potong Sukarela (Rp 50rb)</Text>
-                              </Pressable>
-                            )}
-
-                            <Pressable
-                              onPress={() => handleMarkWajibPaid(mem)}
-                              style={styles.markPaidBtn}
-                            >
-                              <Ionicons name="checkmark" size={13} color="#34D399" />
-                              <Text style={styles.markPaidBtnText}>Tandai Lunas</Text>
-                            </Pressable>
-                          </View>
-                        )}
-                      </View>
-                    );
-                  })()}
-
-                  {/* Bukti Transfer Setoran Awal Card Section */}
-                  {(mem.buktiTransferUri || mem.bankPengirim || mem.status === 'pending' || mem.status === 'rejected') && (
-                    <View style={styles.memberProofBox}>
-                      <View style={styles.memberProofHeader}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                          <Ionicons name="receipt" size={13} color="#FBBF24" />
-                          <Text style={styles.memberProofTitle}>Bukti Transfer Setoran Awal</Text>
-                        </View>
-                        <View
-                          style={[
-                            styles.proofVerifiedBadge,
-                            mem.status === 'active'
-                              ? styles.proofVerifiedActive
-                              : mem.status === 'rejected'
-                              ? styles.proofVerifiedRejected
-                              : styles.proofVerifiedPending,
-                          ]}
-                        >
-                          <Ionicons
-                            name={
-                              mem.status === 'active'
-                                ? 'checkmark-circle'
-                                : mem.status === 'rejected'
-                                ? 'close-circle'
-                                : 'alert-circle'
-                            }
-                            size={11}
-                            color={
-                              mem.status === 'active'
-                                ? '#34D399'
-                                : mem.status === 'rejected'
-                                ? '#EF4444'
-                                : '#FBBF24'
-                            }
-                          />
-                          <Text
+                        {/* Status Akun */}
+                        <View style={[styles.tdCell, { width: 110, alignItems: 'center' }]}>
+                          <View
                             style={[
-                              styles.proofVerifiedText,
-                              {
-                                color:
-                                  mem.status === 'active'
-                                    ? '#34D399'
-                                    : mem.status === 'rejected'
-                                    ? '#EF4444'
-                                    : '#FBBF24',
-                              },
+                              styles.tableStatusBadge,
+                              mem.status === 'active'
+                                ? styles.memberStatusActive
+                                : mem.status === 'rejected'
+                                ? styles.memberStatusRejected
+                                : styles.memberStatusPending,
                             ]}
                           >
-                            {mem.status === 'active'
-                              ? 'Terverifikasi'
-                              : mem.status === 'rejected'
-                              ? 'Ditolak'
-                              : 'Perlu Verifikasi'}
-                          </Text>
-                        </View>
-                      </View>
-
-                      <View style={styles.memberProofBody}>
-                        {mem.buktiTransferUri ? (
-                          <Pressable
-                            onPress={() => setSelectedProofMember(mem)}
-                            style={styles.memberProofThumbContainer}
-                          >
-                            <Image
-                              source={{ uri: mem.buktiTransferUri }}
-                              style={styles.memberProofThumb}
-                              resizeMode="cover"
-                            />
-                            <View style={styles.memberProofZoomBadge}>
-                              <Ionicons name="scan" size={12} color="#FFF" />
-                            </View>
-                          </Pressable>
-                        ) : (
-                          <View style={styles.memberProofNoThumb}>
-                            <Ionicons name="image-outline" size={24} color="#71717A" />
-                            <Text style={{ fontSize: 9, color: '#71717A', marginTop: 2 }}>Tanpa Foto</Text>
-                          </View>
-                        )}
-
-                        <View style={{ flex: 1, justifyContent: 'center' }}>
-                          <View style={styles.proofFieldRow}>
-                            <Text style={styles.proofFieldLabel}>Bank Pengirim:</Text>
-                            <Text style={styles.proofFieldVal}>{mem.bankPengirim || 'Bank Mandiri'}</Text>
-                          </View>
-                          <View style={styles.proofFieldRow}>
-                            <Text style={styles.proofFieldLabel}>Pengirim:</Text>
-                            <Text style={styles.proofFieldVal} numberOfLines={1}>
-                              {mem.namaPengirim || mem.nama}
+                            <Text
+                              style={[
+                                styles.tableStatusBadgeText,
+                                {
+                                  color:
+                                    mem.status === 'active'
+                                      ? '#34D399'
+                                      : mem.status === 'rejected'
+                                      ? '#EF4444'
+                                      : '#FBBF24',
+                                }
+                              ]}
+                            >
+                              {mem.status === 'active' ? 'AKTIF' : mem.status === 'rejected' ? 'DITOLAK' : 'PENDING'}
                             </Text>
                           </View>
-                          {mem.rekeningPengirim && (
-                            <View style={styles.proofFieldRow}>
-                              <Text style={styles.proofFieldLabel}>Rekening:</Text>
-                              <Text style={styles.proofFieldVal}>{mem.rekeningPengirim}</Text>
-                            </View>
+                        </View>
+
+                        {/* Aksi */}
+                        <View style={[styles.tdCell, { width: 190, flexDirection: 'row', gap: 4, justifyContent: 'center' }]}>
+                          <Pressable
+                            onPress={() => setSelectedDetailMember(mem)}
+                            style={styles.tableActionBtn}
+                          >
+                            <Ionicons name="eye-outline" size={12} color="#FBBF24" />
+                            <Text style={styles.tableActionBtnText}>Detail</Text>
+                          </Pressable>
+
+                          {!isWajibPaid && mem.status === 'active' && (
+                            <Pressable
+                              onPress={() => handleSendWaReminder(mem)}
+                              style={[styles.tableActionBtn, { backgroundColor: 'rgba(37, 211, 102, 0.15)', borderColor: '#25D366' }]}
+                              hitSlop={4}
+                            >
+                              <Ionicons name="logo-whatsapp" size={11} color="#25D366" />
+                            </Pressable>
                           )}
 
-                          <Pressable
-                            onPress={() => setSelectedProofMember(mem)}
-                            style={styles.viewProofBtn}
-                          >
-                            <Ionicons name="eye-outline" size={13} color="#FBBF24" />
-                            <Text style={styles.viewProofBtnText}>Lihat Bukti Lengkap</Text>
-                          </Pressable>
+                          {!isWajibPaid && mem.status === 'active' && mem.tabunganSukarela >= 50000 && (
+                            <Pressable
+                              onPress={() => handleAutoDebitWajib(mem)}
+                              style={[styles.tableActionBtn, { backgroundColor: 'rgba(251, 191, 36, 0.15)', borderColor: '#FBBF24' }]}
+                              hitSlop={4}
+                            >
+                              <Ionicons name="swap-horizontal" size={11} color="#FBBF24" />
+                              <Text style={[styles.tableActionBtnText, { color: '#FBBF24' }]}>Debet</Text>
+                            </Pressable>
+                          )}
+
+                          {mem.status === 'pending' && (
+                            <Pressable
+                              onPress={() => handleApproveMember(mem)}
+                              style={[styles.tableActionBtn, { backgroundColor: 'rgba(52, 211, 153, 0.2)', borderColor: '#34D399' }]}
+                            >
+                              <Ionicons name="checkmark" size={11} color="#34D399" />
+                              <Text style={[styles.tableActionBtnText, { color: '#34D399' }]}>Verif</Text>
+                            </Pressable>
+                          )}
+
+                          {mem.status === 'active' && (
+                            <Pressable
+                              onPress={() => {
+                                setTxMemberMid(mem.mid);
+                                setTxMemberName(mem.nama);
+                                setShowTxModal(true);
+                              }}
+                              style={[styles.tableActionBtn, { backgroundColor: 'rgba(255, 255, 255, 0.06)', borderColor: 'rgba(255, 255, 255, 0.15)' }]}
+                            >
+                              <Ionicons name="add" size={11} color="#E4E4E7" />
+                              <Text style={[styles.tableActionBtnText, { color: '#E4E4E7' }]}>Setor</Text>
+                            </Pressable>
+                          )}
                         </View>
                       </View>
+                    );
+                  })
+                )}
+              </View>
+            </ScrollView>
 
-                      {mem.status === 'rejected' && (
-                        <View style={styles.rejectReasonBox}>
-                          <Ionicons name="alert-circle" size={13} color="#EF4444" />
-                          <Text style={styles.rejectReasonText}>
-                            Alasan Penolakan: {mem.catatanAdmin || 'Bukti transfer tidak valid atau belum masuk ke rekening kas koperasi.'}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                  )}
+            {/* Pagination Controls */}
+            <View style={styles.paginationRow}>
+              <Text style={styles.paginationInfo}>
+                Menampilkan {paginatedMembers.length} dari {filteredMembers.length} Anggota (Hal. {memberPage} / {totalMemberPages})
+              </Text>
+              <View style={{ flexDirection: 'row', gap: 6 }}>
+                <Pressable
+                  onPress={() => setMemberPage((prev) => Math.max(1, prev - 1))}
+                  disabled={memberPage <= 1}
+                  style={[styles.paginationBtn, memberPage <= 1 && { opacity: 0.4 }]}
+                >
+                  <Ionicons name="chevron-back" size={13} color="#FFF" />
+                  <Text style={styles.paginationBtnText}>Sebelumnya</Text>
+                </Pressable>
 
-                  <View style={styles.memberFooterRow}>
-                    <Text style={styles.memberJoinDate}>Terdaftar sejak {formatDate(mem.tanggalDaftar)}</Text>
-                    {mem.status === 'pending' ? (
-                      <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
-                        <Pressable
-                          onPress={() => setSelectedProofMember(mem)}
-                          style={styles.checkProofBtn}
-                        >
-                          <Ionicons name="eye" size={12} color="#FBBF24" />
-                          <Text style={styles.checkProofBtnText}>Cek Bukti</Text>
-                        </Pressable>
-                        <Pressable
-                          onPress={() => handleRejectMember(mem)}
-                          style={styles.rejectMemberBtn}
-                        >
-                          <Ionicons name="close" size={13} color="#EF4444" />
-                          <Text style={styles.rejectMemberBtnText}>Tolak</Text>
-                        </Pressable>
-                        <Pressable
-                          onPress={() => handleApproveMember(mem)}
-                          style={styles.verifyMemberBtn}
-                        >
-                          <Ionicons name="checkmark-done" size={14} color="#000" />
-                          <Text style={styles.verifyMemberBtnText}>Verifikasi & Bukukan</Text>
-                        </Pressable>
-                      </View>
-                    ) : mem.status === 'rejected' ? (
-                      <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
-                        <Pressable
-                          onPress={() => setSelectedProofMember(mem)}
-                          style={styles.checkProofBtn}
-                        >
-                          <Ionicons name="eye" size={12} color="#A1A1AA" />
-                          <Text style={[styles.checkProofBtnText, { color: '#A1A1AA' }]}>Cek Bukti</Text>
-                        </Pressable>
-                        <Pressable
-                          onPress={() => handleApproveMember(mem)}
-                          style={[styles.verifyMemberBtn, { backgroundColor: 'rgba(52, 211, 153, 0.18)', borderWidth: 1, borderColor: '#34D399' }]}
-                        >
-                          <Ionicons name="refresh" size={12} color="#34D399" />
-                          <Text style={[styles.verifyMemberBtnText, { color: '#34D399' }]}>Verifikasi Ulang</Text>
-                        </Pressable>
-                      </View>
-                    ) : (
-                      <Pressable
-                        onPress={() => {
-                          setTxMemberMid(mem.mid);
-                          setTxMemberName(mem.nama);
-                          setShowTxModal(true);
-                        }}
-                        style={styles.addDepositBtn}
-                      >
-                        <Ionicons name="add" size={12} color="#C5A059" />
-                        <Text style={styles.addDepositBtnText}>Input Setoran</Text>
-                      </Pressable>
-                    )}
-                  </View>
-                </View>
-              );
-            })}
+                <Pressable
+                  onPress={() => setMemberPage((prev) => Math.min(totalMemberPages, prev + 1))}
+                  disabled={memberPage >= totalMemberPages}
+                  style={[styles.paginationBtn, memberPage >= totalMemberPages && { opacity: 0.4 }]}
+                >
+                  <Text style={styles.paginationBtnText}>Berikutnya</Text>
+                  <Ionicons name="chevron-forward" size={13} color="#FFF" />
+                </Pressable>
+              </View>
+            </View>
           </View>
         )}
 
@@ -2491,6 +2495,207 @@ export default function AdminKoperasiScreen() {
                           <Text style={styles.loanApproveText}>Verifikasi & Bukukan</Text>
                         </Pressable>
                       </>
+                    )}
+                  </View>
+                </ScrollView>
+              );
+            })()}
+          </View>
+        </View>
+      </Modal>
+
+      {/* ============================================================ */}
+      {/* MODAL: DETAIL PROFIL & REKENING ANGGOTA (DATA TABLE POPUP)   */}
+      {/* ============================================================ */}
+      <Modal
+        visible={!!selectedDetailMember}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelectedDetailMember(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { maxHeight: '90%' }]}>
+            <View style={styles.modalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="person-circle" size={22} color="#FBBF24" />
+                <Text style={styles.modalTitle}>Rincian Anggota Koperasi</Text>
+              </View>
+              <Pressable onPress={() => setSelectedDetailMember(null)} hitSlop={8}>
+                <Ionicons name="close" size={22} color="#A1A1AA" />
+              </Pressable>
+            </View>
+
+            {selectedDetailMember && (() => {
+              const mem = selectedDetailMember;
+              const totalSimp = (mem.simpananPokok ?? 0) + (mem.simpananWajib ?? 0) + (mem.tabunganSukarela ?? 0);
+              const isWajibPaid = mem.lastPaidWajibMonth === currentMonthKey || (mem.status === 'active' && mem.simpananWajib >= 50000);
+              const kopId = mem.kopMemberId || (mem.status === 'active' ? generateKopMemberId(mem.mid) : 'PENDING');
+
+              return (
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  {/* Member ID & Name Box */}
+                  <View style={styles.loanDetailHeaderBox}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                      <View style={{ backgroundColor: 'rgba(251, 191, 36, 0.2)', borderWidth: 1, borderColor: '#FBBF24', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 5 }}>
+                        <Text style={{ fontSize: 11, fontWeight: '800', color: '#FBBF24' }}>{kopId}</Text>
+                      </View>
+                      <View style={[
+                        styles.tableStatusBadge,
+                        mem.status === 'active' ? styles.memberStatusActive : mem.status === 'rejected' ? styles.memberStatusRejected : styles.memberStatusPending
+                      ]}>
+                        <Text style={[
+                          styles.tableStatusBadgeText,
+                          { color: mem.status === 'active' ? '#34D399' : mem.status === 'rejected' ? '#EF4444' : '#FBBF24' }
+                        ]}>
+                          {mem.status === 'active' ? 'ANGGOTA AKTIF' : mem.status === 'rejected' ? 'DITOLAK' : 'MENUNGGU VERIFIKASI'}
+                        </Text>
+                      </View>
+                    </View>
+                    <Text style={styles.loanDetailHeaderName}>{mem.nama}</Text>
+                    <Text style={styles.loanDetailHeaderMid}>MID: {mem.mid} • {mem.chapter}</Text>
+                  </View>
+
+                  {/* Kontak & Registrasi */}
+                  <View style={[styles.loanBreakdownBox, { marginTop: 10 }]}>
+                    <View style={styles.loanDetailRow}>
+                      <Text style={styles.loanDetailLabel}>No. Handphone / WA:</Text>
+                      <Text style={[styles.loanDetailValue, { color: '#FAFAFA' }]}>{mem.phone || '-'}</Text>
+                    </View>
+                    <View style={styles.loanDetailRow}>
+                      <Text style={styles.loanDetailLabel}>Email Terdaftar:</Text>
+                      <Text style={[styles.loanDetailValue, { color: '#A1A1AA' }]}>{mem.email || '-'}</Text>
+                    </View>
+                    <View style={styles.loanDetailRow}>
+                      <Text style={styles.loanDetailLabel}>Tanggal Bergabung:</Text>
+                      <Text style={styles.loanDetailValue}>{formatDateTime(mem.tanggalDaftar)}</Text>
+                    </View>
+                  </View>
+
+                  {/* Rekening Bank Member */}
+                  <View style={[styles.loanBreakdownBox, { marginTop: 10, borderColor: 'rgba(52, 211, 153, 0.35)', backgroundColor: 'rgba(52, 211, 153, 0.06)' }]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                      <Ionicons name="card" size={16} color="#34D399" />
+                      <Text style={{ fontSize: 11, fontWeight: '800', color: '#34D399', letterSpacing: 0.5 }}>
+                        REKENING BANK PENERIMA MEMBER:
+                      </Text>
+                    </View>
+                    <View style={styles.loanDetailRow}>
+                      <Text style={styles.loanDetailLabel}>Bank:</Text>
+                      <Text style={[styles.loanDetailValue, { color: '#FFF', fontWeight: '700' }]}>{mem.bankPengirim || 'Bank Mandiri'}</Text>
+                    </View>
+                    <View style={styles.loanDetailRow}>
+                      <Text style={styles.loanDetailLabel}>No. Rekening:</Text>
+                      <Text style={[styles.loanDetailValue, { color: '#34D399', fontWeight: '800', fontSize: 14 }]}>{mem.rekeningPengirim || '-'}</Text>
+                    </View>
+                    <View style={styles.loanDetailRow}>
+                      <Text style={styles.loanDetailLabel}>Atas Nama:</Text>
+                      <Text style={[styles.loanDetailValue, { color: '#FAFAFA' }]}>{mem.namaPengirim || mem.nama}</Text>
+                    </View>
+                  </View>
+
+                  {/* Rincian Posisi Simpanan */}
+                  <View style={[styles.loanBreakdownBox, { marginTop: 10 }]}>
+                    <Text style={{ fontSize: 11, fontWeight: '800', color: '#FBBF24', marginBottom: 8 }}>
+                      POSISI BUKU SIMPANAN ANGGOTA:
+                    </Text>
+                    <View style={styles.loanDetailRow}>
+                      <Text style={styles.loanDetailLabel}>Simpanan Pokok (1x diawal):</Text>
+                      <Text style={styles.loanDetailValue}>{formatRupiah(mem.simpananPokok)}</Text>
+                    </View>
+                    <View style={styles.loanDetailRow}>
+                      <Text style={styles.loanDetailLabel}>Simpanan Wajib (Rp 50rb/bln):</Text>
+                      <Text style={styles.loanDetailValue}>{formatRupiah(mem.simpananWajib)}</Text>
+                    </View>
+                    <View style={styles.loanDetailRow}>
+                      <Text style={styles.loanDetailLabel}>Status Iuran Bulan Berjalan:</Text>
+                      <Text style={[styles.loanDetailValue, { color: isWajibPaid ? '#34D399' : '#F87171', fontWeight: '700' }]}>
+                        {isWajibPaid ? 'LUNAS (SEP 2026)' : 'BELUM DIBAYAR'}
+                      </Text>
+                    </View>
+                    <View style={styles.loanDetailRow}>
+                      <Text style={styles.loanDetailLabel}>Tabungan Sukarela:</Text>
+                      <Text style={styles.loanDetailValue}>{formatRupiah(mem.tabunganSukarela)}</Text>
+                    </View>
+                    <View style={[styles.loanDetailRow, { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)', paddingTop: 6, marginTop: 4 }]}>
+                      <Text style={[styles.loanDetailLabel, { color: '#FFF', fontWeight: '800' }]}>Total Akumulasi Simpanan:</Text>
+                      <Text style={[styles.loanDetailValue, { color: '#FBBF24', fontSize: 15, fontWeight: '800' }]}>
+                        {formatRupiah(totalSimp)}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Bukti Transfer Setoran Awal (Jika Ada) */}
+                  {mem.buktiTransferUri && (
+                    <View style={{ marginTop: 12 }}>
+                      <Text style={[styles.loanDetailLabel, { marginBottom: 6 }]}>Bukti Transfer Pembayaran:</Text>
+                      <View style={styles.proofModalImageWrapper}>
+                        <Image
+                          source={{ uri: mem.buktiTransferUri }}
+                          style={styles.proofModalImage}
+                          resizeMode="contain"
+                        />
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Action Buttons */}
+                  <View style={{ flexDirection: 'row', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
+                    <Pressable
+                      onPress={() => setSelectedDetailMember(null)}
+                      style={[styles.loanRejectBtn, { flex: 1, paddingVertical: 12, backgroundColor: 'rgba(255, 255, 255, 0.06)', borderColor: 'rgba(255, 255, 255, 0.1)' }]}
+                    >
+                      <Text style={[styles.loanRejectText, { color: '#A1A1AA' }]}>Tutup</Text>
+                    </Pressable>
+
+                    {mem.status === 'pending' && (
+                      <>
+                        <Pressable
+                          onPress={() => {
+                            setSelectedDetailMember(null);
+                            handleRejectMember(mem);
+                          }}
+                          style={[styles.loanRejectBtn, { flex: 1, paddingVertical: 12 }]}
+                        >
+                          <Ionicons name="close-circle" size={16} color="#EF4444" />
+                          <Text style={styles.loanRejectText}>Tolak</Text>
+                        </Pressable>
+                        <Pressable
+                          onPress={() => {
+                            setSelectedDetailMember(null);
+                            handleApproveMember(mem);
+                          }}
+                          style={[styles.loanApproveBtn, { flex: 1.5, paddingVertical: 12 }]}
+                        >
+                          <Ionicons name="checkmark-done-circle" size={18} color="#000" />
+                          <Text style={styles.loanApproveText}>Verifikasi</Text>
+                        </Pressable>
+                      </>
+                    )}
+
+                    {mem.status === 'active' && !isWajibPaid && (
+                      <Pressable
+                        onPress={() => {
+                          setSelectedDetailMember(null);
+                          handleSendWaReminder(mem);
+                        }}
+                        style={[styles.loanRejectBtn, { flex: 1.2, paddingVertical: 12, backgroundColor: 'rgba(37, 211, 102, 0.15)', borderColor: '#25D366' }]}
+                      >
+                        <Ionicons name="logo-whatsapp" size={16} color="#25D366" />
+                        <Text style={[styles.loanRejectText, { color: '#25D366' }]}>Kirim WA</Text>
+                      </Pressable>
+                    )}
+
+                    {mem.status === 'active' && !isWajibPaid && mem.tabunganSukarela >= 50000 && (
+                      <Pressable
+                        onPress={() => {
+                          setSelectedDetailMember(null);
+                          handleAutoDebitWajib(mem);
+                        }}
+                        style={[styles.loanRejectBtn, { flex: 1.2, paddingVertical: 12, backgroundColor: 'rgba(251, 191, 36, 0.15)', borderColor: '#FBBF24' }]}
+                      >
+                        <Ionicons name="swap-horizontal" size={16} color="#FBBF24" />
+                        <Text style={[styles.loanRejectText, { color: '#FBBF24' }]}>Autodebet</Text>
+                      </Pressable>
                     )}
                   </View>
                 </ScrollView>
@@ -3747,5 +3952,176 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     color: '#34D399',
+  },
+
+  // Table Controls & Search
+  tableControlCard: {
+    backgroundColor: '#121216',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  memberSearchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    height: 40,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    gap: 8,
+  },
+  memberSearchInput: {
+    flex: 1,
+    fontSize: 13,
+    color: '#FAFAFA',
+    paddingVertical: 0,
+  },
+  memberFilterChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' as any } : {}),
+  },
+  memberFilterChipActive: {
+    backgroundColor: 'rgba(251, 191, 36, 0.18)',
+    borderColor: '#FBBF24',
+  },
+  memberFilterChipText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#A1A1AA',
+  },
+  memberFilterChipTextActive: {
+    color: '#FBBF24',
+    fontWeight: '700',
+  },
+
+  // Table Structure
+  tableWrapperScroll: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: '#101014',
+    overflow: 'hidden',
+  },
+  memberTableContainer: {
+    minWidth: 1200,
+  },
+  tableHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#18181D',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.12)',
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+  },
+  thCell: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#FBBF24',
+    letterSpacing: 0.3,
+    paddingHorizontal: 6,
+  },
+  tableRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  tableRowEven: {
+    backgroundColor: '#101014',
+  },
+  tableRowOdd: {
+    backgroundColor: 'rgba(255, 255, 255, 0.015)',
+  },
+  tdCell: {
+    fontSize: 11,
+    color: '#D4D4D8',
+    paddingHorizontal: 6,
+    justifyContent: 'center',
+  },
+  emptyTableRow: {
+    paddingVertical: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+  },
+
+  // Status Badges
+  tableStatusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 5,
+    borderWidth: 1,
+  },
+  tableStatusBadgeText: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+
+  // Table Action Buttons
+  tableActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: 'rgba(251, 191, 36, 0.4)',
+    backgroundColor: 'rgba(251, 191, 36, 0.1)',
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' as any } : {}),
+  },
+  tableActionBtnText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#FBBF24',
+  },
+
+  // Pagination Controls
+  paginationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    marginTop: 8,
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  paginationInfo: {
+    fontSize: 11,
+    color: '#A1A1AA',
+  },
+  paginationBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' as any } : {}),
+  },
+  paginationBtnText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#FAFAFA',
   },
 });

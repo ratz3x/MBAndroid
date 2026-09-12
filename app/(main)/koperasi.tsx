@@ -156,6 +156,7 @@ export default function KoperasiScreen() {
   const [showMidModal, setShowMidModal] = useState(false);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [showPayWajibBankModal, setShowPayWajibBankModal] = useState(false);
+  const [showBukuRekeningModal, setShowBukuRekeningModal] = useState(false);
   const [wajibTransferProofUri, setWajibTransferProofUri] = useState<string | null>(null);
   const [wajibBankSender, setWajibBankSender] = useState('Bank Mandiri');
   const [wajibRekSender, setWajibRekSender] = useState('');
@@ -1295,10 +1296,21 @@ export default function KoperasiScreen() {
             {/* Saldo Simpan Pinjam Card */}
             <LuxuryCard variant="gold" style={styles.balanceCard}>
               <View style={styles.balanceHeader}>
-                <Ionicons name="wallet-outline" size={22} color={Colors.brand.gold} />
-                <Text style={styles.balanceTitle}>
-                  {isKopManager ? 'Total Likuiditas Kas Simpan Pinjam' : 'Saldo Simpan Pinjam Anda'}
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, flex: 1 }}>
+                  <Ionicons name="wallet-outline" size={22} color={Colors.brand.gold} />
+                  <Text style={styles.balanceTitle}>
+                    {isKopManager ? 'Total Likuiditas Kas Simpan Pinjam' : 'Saldo Simpan Pinjam Anda'}
+                  </Text>
+                </View>
+                {!isKopManager && membershipStatus === 'active' && (
+                  <Pressable
+                    onPress={() => setShowBukuRekeningModal(true)}
+                    style={styles.openBukuBtn}
+                  >
+                    <Ionicons name="book-outline" size={13} color="#000" />
+                    <Text style={styles.openBukuBtnText}>Buku Tabungan</Text>
+                  </Pressable>
+                )}
               </View>
 
               <Text style={styles.totalBalance}>{formatRupiah(balance?.total_balance ?? 0)}</Text>
@@ -1329,6 +1341,30 @@ export default function KoperasiScreen() {
                 </View>
               </View>
             </LuxuryCard>
+
+            {/* Akses Cepat Buku Rekening Koperasi Digital */}
+            {!isKopManager && membershipStatus === 'active' && (
+              <Pressable
+                onPress={() => setShowBukuRekeningModal(true)}
+                style={styles.bukuBannerCard}
+              >
+                <View style={styles.bukuBannerIconBox}>
+                  <Ionicons name="book" size={22} color="#FBBF24" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text style={styles.bukuBannerTitle}>Buku Rekening Simpan Pinjam</Text>
+                    <View style={styles.bukuPassbookTag}>
+                      <Text style={styles.bukuPassbookTagText}>E-PASSBOOK</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.bukuBannerSub}>
+                    No. Rek: {memberKopData?.kopMemberId || (memberKopData?.mid ? generateKopMemberId(memberKopData.mid) : 'KOP-JBR-2026-000002')} • Cek mutasi buku tabungan
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color="#FBBF24" />
+              </Pressable>
+            )}
 
             {/* Status & Notifikasi Tagihan Simpanan Wajib Bulanan */}
             {!isKopManager && membershipStatus === 'active' && (() => {
@@ -2296,6 +2332,185 @@ export default function KoperasiScreen() {
               <MetallicButton
                 label="Batal"
                 onPress={() => setShowPayWajibBankModal(false)}
+                variant="silver"
+                size="md"
+              />
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ============================================================ */}
+      {/* MODAL: BUKU REKENING SIMPAN PINJAM KOPERASI DIGITAL           */}
+      {/* ============================================================ */}
+      <Modal
+        visible={showBukuRekeningModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowBukuRekeningModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { maxHeight: '92%', backgroundColor: '#0B0B0E' }]}>
+            <View style={styles.modalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="book" size={20} color="#FBBF24" />
+                <View>
+                  <Text style={styles.modalTitle}>Buku Tabungan Koperasi Digital</Text>
+                  <Text style={{ fontSize: 10, color: '#A1A1AA' }}>E-Passbook Resmi Anggota Koperasi Bersama Satu Bintang</Text>
+                </View>
+              </View>
+              <Pressable onPress={() => setShowBukuRekeningModal(false)} hitSlop={8}>
+                <Ionicons name="close" size={22} color="#A1A1AA" />
+              </Pressable>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {/* Passbook Hardcover Style Card */}
+              <View style={styles.passbookCover}>
+                <View style={styles.passbookCoverHeader}>
+                  <Image source={KOPERASI_LOGO} style={styles.passbookLogo} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.passbookKopName}>KOPERASI BERSAMA SATU BINTANG</Text>
+                    <Text style={styles.passbookKopSub}>MERCEDES-BENZ CLUB INDONESIA</Text>
+                    <Text style={styles.passbookLegal}>Badan Hukum: AHU-0001234.AH.01.29.TAHUN 2026</Text>
+                  </View>
+                  <View style={styles.passbookTypeChip}>
+                    <Text style={styles.passbookTypeChipText}>BUKU SIMPANAN</Text>
+                  </View>
+                </View>
+
+                {/* Garis Pembatas Emas */}
+                <View style={styles.passbookGoldLine} />
+
+                {/* Identitas Pemilik Buku */}
+                <View style={styles.passbookGrid}>
+                  <View style={styles.passbookRow}>
+                    <Text style={styles.passbookLabel}>No. Rekening Koperasi</Text>
+                    <Text style={[styles.passbookVal, { color: '#FBBF24', fontWeight: '800' }]}>
+                      {memberKopData?.kopMemberId || (memberKopData?.mid ? generateKopMemberId(memberKopData.mid) : 'KOP-JBR-2026-000002')}
+                    </Text>
+                  </View>
+                  <View style={styles.passbookRow}>
+                    <Text style={styles.passbookLabel}>Nomor MID MBCI</Text>
+                    <Text style={styles.passbookVal}>{memberKopData?.mid || currentMember?.member_number || '-'}</Text>
+                  </View>
+                  <View style={styles.passbookRow}>
+                    <Text style={styles.passbookLabel}>Nama Pemilik Rekening</Text>
+                    <Text style={[styles.passbookVal, { color: '#FAFAFA', fontWeight: '700' }]}>
+                      {memberKopData?.nama || profile?.full_name || 'Ayesha Fairuz Fajr'}
+                    </Text>
+                  </View>
+                  <View style={styles.passbookRow}>
+                    <Text style={styles.passbookLabel}>Klub / Chapter</Text>
+                    <Text style={styles.passbookVal}>{memberKopData?.chapter || currentMember?.chapter || 'MBC Bandung'}</Text>
+                  </View>
+                  <View style={styles.passbookRow}>
+                    <Text style={styles.passbookLabel}>Tanggal Buka Buku</Text>
+                    <Text style={styles.passbookVal}>{formatDateTime(memberKopData?.tanggalDaftar || '2026-09-12')}</Text>
+                  </View>
+                  <View style={styles.passbookRow}>
+                    <Text style={styles.passbookLabel}>Rekening Bank Penerima</Text>
+                    <Text style={styles.passbookVal}>
+                      {memberKopData?.bankPengirim || 'Bank Mandiri'} — {memberKopData?.rekeningPengirim || '137-00-1234567-8'}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Saldo Akun di Buku Rekening */}
+              <View style={styles.passbookBalanceBox}>
+                <Text style={styles.passbookSectionTitle}>POSISI SALDO SIMPANAN ANGGOTA:</Text>
+                <View style={styles.passbookBalGrid}>
+                  <View style={styles.passbookBalCol}>
+                    <Text style={styles.passbookBalLabel}>Simpanan Pokok</Text>
+                    <Text style={styles.passbookBalNum}>{formatRupiah(memberKopData?.simpananPokok ?? 100000)}</Text>
+                    <Text style={styles.passbookBalSub}>1x diawal</Text>
+                  </View>
+                  <View style={styles.passbookBalCol}>
+                    <Text style={styles.passbookBalLabel}>Simpanan Wajib</Text>
+                    <Text style={styles.passbookBalNum}>{formatRupiah(memberKopData?.simpananWajib ?? 50000)}</Text>
+                    <Text style={styles.passbookBalSub}>Rp 50.000 / bln</Text>
+                  </View>
+                  <View style={styles.passbookBalCol}>
+                    <Text style={styles.passbookBalLabel}>Tabungan Sukarela</Text>
+                    <Text style={styles.passbookBalNum}>{formatRupiah(memberKopData?.tabunganSukarela ?? 225000)}</Text>
+                    <Text style={styles.passbookBalSub}>Bebas setor/tarik</Text>
+                  </View>
+                </View>
+
+                <View style={styles.passbookTotalRow}>
+                  <Text style={styles.passbookTotalLabel}>TOTAL SALDO BUKU TABUNGAN:</Text>
+                  <Text style={styles.passbookTotalVal}>
+                    {formatRupiah((memberKopData?.simpananPokok ?? 100000) + (memberKopData?.simpananWajib ?? 50000) + (memberKopData?.tabunganSukarela ?? 225000))}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Lembaran Catatan Mutasi Buku Tabungan */}
+              <View style={styles.passbookSheet}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <Text style={styles.passbookSheetTitle}>LEMBAR TRANSAKSI BUKU TABUNGAN</Text>
+                  <Text style={styles.passbookSheetHalaman}>Halaman 1 / 1</Text>
+                </View>
+
+                {/* Tabel Header Lembar Buku */}
+                <View style={styles.passbookTableHead}>
+                  <Text style={[styles.passbookTh, { width: 68 }]}>Tgl</Text>
+                  <Text style={[styles.passbookTh, { flex: 1 }]}>Sandi / Keterangan</Text>
+                  <Text style={[styles.passbookTh, { width: 76, textAlign: 'right' }]}>Kredit (+)</Text>
+                  <Text style={[styles.passbookTh, { width: 84, textAlign: 'right' }]}>Saldo</Text>
+                </View>
+
+                {/* Baris Buku Tabungan */}
+                <View style={styles.passbookTableRow}>
+                  <Text style={[styles.passbookTd, { width: 68 }]}>12/09/26</Text>
+                  <Text style={[styles.passbookTd, { flex: 1 }]} numberOfLines={1}>Setoran Pokok Awal</Text>
+                  <Text style={[styles.passbookTd, { width: 76, textAlign: 'right', color: '#34D399' }]}>100.000</Text>
+                  <Text style={[styles.passbookTd, { width: 84, textAlign: 'right', fontWeight: '700' }]}>100.000</Text>
+                </View>
+                <View style={[styles.passbookTableRow, { backgroundColor: 'rgba(255,255,255,0.02)' }]}>
+                  <Text style={[styles.passbookTd, { width: 68 }]}>12/09/26</Text>
+                  <Text style={[styles.passbookTd, { flex: 1 }]} numberOfLines={1}>Iuran Wajib Sep 2026</Text>
+                  <Text style={[styles.passbookTd, { width: 76, textAlign: 'right', color: '#34D399' }]}>50.000</Text>
+                  <Text style={[styles.passbookTd, { width: 84, textAlign: 'right', fontWeight: '700' }]}>150.000</Text>
+                </View>
+                <View style={styles.passbookTableRow}>
+                  <Text style={[styles.passbookTd, { width: 68 }]}>12/09/26</Text>
+                  <Text style={[styles.passbookTd, { flex: 1 }]} numberOfLines={1}>Setoran Sukarela Awal</Text>
+                  <Text style={[styles.passbookTd, { width: 76, textAlign: 'right', color: '#34D399' }]}>225.000</Text>
+                  <Text style={[styles.passbookTd, { width: 84, textAlign: 'right', fontWeight: '700', color: '#FBBF24' }]}>375.000</Text>
+                </View>
+
+                {/* Tanda Tangan & Stempel Pengesahan */}
+                <View style={styles.passbookStampSection}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 9.5, color: '#71717A' }}>Dicetak Elektronik:</Text>
+                    <Text style={{ fontSize: 10, color: '#A1A1AA', fontWeight: '600' }}>Sistem Core Koperasi v4.0</Text>
+                    <Text style={{ fontSize: 9.5, color: '#71717A' }}>Sah tanpa tanda tangan basah</Text>
+                  </View>
+                  <View style={styles.passbookStampBadge}>
+                    <Ionicons name="shield-checkmark" size={16} color="#34D399" />
+                    <Text style={styles.passbookStampText}>TERVERIFIKASI SISTEM{'\n'}KOPERASI SATU BINTANG</Text>
+                  </View>
+                </View>
+              </View>
+
+              <View style={{ height: 16 }} />
+              <MetallicButton
+                label="Cetak / Simpan E-Passbook (PDF)"
+                onPress={() => {
+                  showAlertDialog(
+                    'Cetak Buku Tabungan',
+                    `Buku Rekening Koperasi No. ${memberKopData?.kopMemberId || 'KOP-JBR-2026-000002'} a.n. ${memberKopData?.nama || 'Ayesha Fairuz Fajr'} siap diunduh dalam format E-Statement PDF resmi.`
+                  );
+                }}
+                variant="gold"
+                size="md"
+              />
+              <View style={{ height: 8 }} />
+              <MetallicButton
+                label="Tutup Buku"
+                onPress={() => setShowBukuRekeningModal(false)}
                 variant="silver"
                 size="md"
               />
@@ -3561,5 +3776,271 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 6,
     ...(Platform.OS === 'web' ? { cursor: 'pointer' as any } : {}),
+  },
+  openBukuBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#FBBF24',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 7,
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' as any } : {}),
+  },
+  openBukuBtnText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#000',
+  },
+  bukuBannerCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: 'rgba(251, 191, 36, 0.1)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(251, 191, 36, 0.4)',
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 16,
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' as any } : {}),
+  },
+  bukuBannerIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: 'rgba(251, 191, 36, 0.15)',
+    borderWidth: 1,
+    borderColor: '#FBBF24',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bukuBannerTitle: {
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: '#FAFAFA',
+  },
+  bukuPassbookTag: {
+    backgroundColor: 'rgba(251, 191, 36, 0.2)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#FBBF24',
+  },
+  bukuPassbookTagText: {
+    fontSize: 8.5,
+    fontWeight: '900',
+    color: '#FBBF24',
+    letterSpacing: 0.5,
+  },
+  bukuBannerSub: {
+    fontSize: 11,
+    color: '#D4D4D8',
+    marginTop: 2,
+  },
+  passbookCover: {
+    backgroundColor: '#18130B',
+    borderWidth: 2,
+    borderColor: '#C5A059',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 14,
+  },
+  passbookCoverHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  passbookLogo: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1.5,
+    borderColor: '#C5A059',
+  },
+  passbookKopName: {
+    fontSize: 12.5,
+    fontWeight: '900',
+    color: '#FBBF24',
+    letterSpacing: 0.5,
+  },
+  passbookKopSub: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#E4E4E7',
+    marginTop: 1,
+  },
+  passbookLegal: {
+    fontSize: 8.5,
+    color: '#A1A1AA',
+    marginTop: 2,
+  },
+  passbookTypeChip: {
+    backgroundColor: 'rgba(251, 191, 36, 0.18)',
+    borderWidth: 1,
+    borderColor: '#FBBF24',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 5,
+    alignSelf: 'flex-start',
+  },
+  passbookTypeChipText: {
+    fontSize: 8,
+    fontWeight: '800',
+    color: '#FBBF24',
+  },
+  passbookGoldLine: {
+    height: 1,
+    backgroundColor: 'rgba(197, 160, 89, 0.35)',
+    marginVertical: 12,
+  },
+  passbookGrid: {
+    gap: 6,
+  },
+  passbookRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 2,
+  },
+  passbookLabel: {
+    fontSize: 11,
+    color: '#A1A1AA',
+  },
+  passbookVal: {
+    fontSize: 11.5,
+    color: '#FAFAFA',
+    fontWeight: '600',
+    textAlign: 'right',
+  },
+  passbookBalanceBox: {
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    marginBottom: 14,
+  },
+  passbookSectionTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#FBBF24',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  passbookBalGrid: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  passbookBalCol: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    padding: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  passbookBalLabel: {
+    fontSize: 9.5,
+    color: '#A1A1AA',
+  },
+  passbookBalNum: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FAFAFA',
+    marginTop: 2,
+  },
+  passbookBalSub: {
+    fontSize: 8.5,
+    color: '#71717A',
+    marginTop: 2,
+  },
+  passbookTotalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 10,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  passbookTotalLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FAFAFA',
+  },
+  passbookTotalVal: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#FBBF24',
+  },
+  passbookSheet: {
+    backgroundColor: '#0F1115',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  passbookSheetTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#E4E4E7',
+    letterSpacing: 0.5,
+  },
+  passbookSheetHalaman: {
+    fontSize: 9.5,
+    color: '#71717A',
+  },
+  passbookTableHead: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(251, 191, 36, 0.12)',
+    paddingVertical: 6,
+    paddingHorizontal: 6,
+    borderRadius: 6,
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  passbookTh: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: '#FBBF24',
+  },
+  passbookTableRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 7,
+    paddingHorizontal: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.04)',
+  },
+  passbookTd: {
+    fontSize: 10,
+    color: '#D4D4D8',
+  },
+  passbookStampSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 14,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  passbookStampBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1.5,
+    borderColor: '#34D399',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    backgroundColor: 'rgba(52, 211, 153, 0.08)',
+  },
+  passbookStampText: {
+    fontSize: 8,
+    fontWeight: '800',
+    color: '#34D399',
+    lineHeight: 11,
   },
 });
