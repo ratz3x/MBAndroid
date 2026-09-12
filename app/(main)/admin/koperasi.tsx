@@ -219,10 +219,10 @@ export default function AdminKoperasiScreen() {
   const [balance, setBalance] = useState<KoperasiBalance>({
     id: 'bal_kop_central',
     member_id: KOP_USER_ID,
-    simpanan_pokok: 400000,
-    simpanan_wajib: 1150000,
-    simpanan_sukarela: 23450000,
-    total_balance: 25000000,
+    simpanan_pokok: 200000,
+    simpanan_wajib: 100000,
+    simpanan_sukarela: 1550000,
+    total_balance: 1850000,
     active_loan: 0,
     loan_remaining: 0,
     updated_at: new Date().toISOString(),
@@ -267,27 +267,7 @@ export default function AdminKoperasiScreen() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      // 1. Balance
-      const rawBal = await AsyncStorage.getItem(KOP_STORAGE_BAL);
-      if (rawBal) {
-        setBalance(JSON.parse(rawBal));
-      } else {
-        const initBal: KoperasiBalance = {
-          id: 'bal_kop_central',
-          member_id: KOP_USER_ID,
-          simpanan_pokok: 400000,
-          simpanan_wajib: 1150000,
-          simpanan_sukarela: 23225000,
-          total_balance: 24775000,
-          active_loan: 0,
-          loan_remaining: 0,
-          updated_at: new Date().toISOString(),
-        };
-        setBalance(initBal);
-        await AsyncStorage.setItem(KOP_STORAGE_BAL, JSON.stringify(initBal));
-      }
-
-      // 2. Transactions
+      // 1. Transactions
       const rawTx = await AsyncStorage.getItem(KOP_STORAGE_TX);
       if (rawTx) {
         setTransactions(JSON.parse(rawTx));
@@ -308,57 +288,45 @@ export default function AdminKoperasiScreen() {
             updated_at: '2026-01-01T08:00:00Z',
           },
           {
-            id: 'tx_init_002',
-            member_id: KOP_USER_ID,
+            id: 'tx_init_ayesha_001',
+            member_id: '2089ee31-71e8-43d7-bb76-d218c10f932d',
             type: 'simpanan',
-            amount: 3800000,
+            amount: 500000,
             status: 'completed',
-            description: '[Simpanan Sukarela] MID: MBINA-JKT-042 — Tabungan Sukarela Perawatan Unit W124',
-            reference_number: 'TX-KOP-2026-1002',
+            description: '[Transfer Bank Mandiri] Total Rp 500.000 (Wajib Rp 50.000, Sukarela Rp 450.000) — MID: MBINA-JBR-2026-000002 (Ayesha Fairuz Fajr)',
+            reference_number: 'TX-SETOR-2026-5001',
             due_date: null,
             processed_by: KOP_USER_ID,
-            processed_at: '2026-03-15T09:30:00Z',
-            created_at: '2026-03-15T09:30:00Z',
-            updated_at: '2026-03-15T09:30:00Z',
-          },
-          {
-            id: 'tx_init_003',
-            member_id: KOP_USER_ID,
-            type: 'simpanan',
-            amount: 6150000,
-            status: 'completed',
-            description: '[Simpanan Sukarela] MID: MBINA-BDG-019 — Tabungan Sukarela Operasional Touring',
-            reference_number: 'TX-KOP-2026-0410',
-            due_date: null,
-            processed_by: KOP_USER_ID,
-            processed_at: '2026-04-10T11:00:00Z',
-            created_at: '2026-04-10T11:00:00Z',
-            updated_at: '2026-04-10T11:00:00Z',
+            processed_at: new Date().toISOString(),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
           },
         ];
         setTransactions(initTxs);
         await AsyncStorage.setItem(KOP_STORAGE_TX, JSON.stringify(initTxs));
       }
 
-      // 3. Loans: Bersihkan data dummy lama dan mulai dengan antrean bersih
+      // 2. Loans: Bersihkan data dummy lama dan mulai dengan antrean bersih
       try {
         await AsyncStorage.removeItem('@mbclub_koperasi_loan_requests_v2');
         await AsyncStorage.removeItem('@mbclub_koperasi_loan_requests');
       } catch {}
+      let currentLoans: LoanRequest[] = [];
       const rawLoans = await AsyncStorage.getItem(KOP_STORAGE_LOANS);
       if (rawLoans) {
         const parsedLoans: LoanRequest[] = JSON.parse(rawLoans);
         const dummyIds = new Set(['req_001', 'req_002', 'req_003']);
         const dummyMids = new Set(['MBINA-JKT-042', 'MBINA-BDG-019', 'MBINA-SBY-088']);
-        const cleaned = parsedLoans.filter((r) => !dummyIds.has(r.id) && !dummyMids.has(r.mid));
-        setLoanRequests(cleaned);
-        await AsyncStorage.setItem(KOP_STORAGE_LOANS, JSON.stringify(cleaned));
+        currentLoans = parsedLoans.filter((r) => !dummyIds.has(r.id) && !dummyMids.has(r.mid));
+        setLoanRequests(currentLoans);
+        await AsyncStorage.setItem(KOP_STORAGE_LOANS, JSON.stringify(currentLoans));
       } else {
         setLoanRequests([]);
         await AsyncStorage.setItem(KOP_STORAGE_LOANS, JSON.stringify([]));
       }
 
-      // 4. Members (Purge any legacy dummy members & Deduplicate by MID)
+      // 3. Members (Purge any legacy dummy members & Deduplicate by MID)
+      let currentMembers: MemberKopItem[] = [];
       const rawMembers = await AsyncStorage.getItem(KOP_STORAGE_MEMBERS);
       const dummyMids = new Set(['MBINA-JKT-042', 'MBINA-BDG-019', 'MBINA-SBY-088']);
       if (rawMembers) {
@@ -421,13 +389,40 @@ export default function AdminKoperasiScreen() {
         const dedupedList = Array.from(midMap.values());
         const existingMids = new Set(dedupedList.map((m) => m.mid.trim().toUpperCase()));
         const missing = INITIAL_MEMBERS.filter((m) => !existingMids.has(m.mid.trim().toUpperCase()) && !dummyMids.has(m.mid.trim().toUpperCase()));
-        const merged = [...dedupedList, ...missing];
-        setMembers(merged);
-        await AsyncStorage.setItem(KOP_STORAGE_MEMBERS, JSON.stringify(merged));
+        currentMembers = [...dedupedList, ...missing];
+        setMembers(currentMembers);
+        await AsyncStorage.setItem(KOP_STORAGE_MEMBERS, JSON.stringify(currentMembers));
       } else {
-        setMembers(INITIAL_MEMBERS);
-        await AsyncStorage.setItem(KOP_STORAGE_MEMBERS, JSON.stringify(INITIAL_MEMBERS));
+        currentMembers = INITIAL_MEMBERS;
+        setMembers(currentMembers);
+        await AsyncStorage.setItem(KOP_STORAGE_MEMBERS, JSON.stringify(currentMembers));
       }
+
+      // 4. Rekonsiliasi Otomatis Saldo Kas Likuid Koperasi (100% Klop dengan Buku Anggota & Pinjaman)
+      const activeMems = currentMembers.filter((m) => m.status === 'active');
+      const sumPokok = activeMems.reduce((sum, m) => sum + (m.simpananPokok || 0), 0);
+      const sumWajib = activeMems.reduce((sum, m) => sum + (m.simpananWajib || 0), 0);
+      const sumSukarela = activeMems.reduce((sum, m) => sum + (m.tabunganSukarela || 0), 0);
+
+      const activeDisbursedLoans = currentLoans.filter(
+        (l) => l.status === 'confirmed_active' || l.status === 'disbursed_waiting_confirmation'
+      );
+      const sumLoans = activeDisbursedLoans.reduce((sum, l) => sum + (l.nominal || 0), 0);
+      const totalKasLikuid = Math.max(0, (sumPokok + sumWajib + sumSukarela) - sumLoans);
+
+      const reconciledBal: KoperasiBalance = {
+        id: 'bal_kop_central',
+        member_id: KOP_USER_ID,
+        simpanan_pokok: sumPokok,
+        simpanan_wajib: sumWajib,
+        simpanan_sukarela: sumSukarela,
+        total_balance: totalKasLikuid,
+        active_loan: sumLoans,
+        loan_remaining: sumLoans,
+        updated_at: new Date().toISOString(),
+      };
+      setBalance(reconciledBal);
+      await AsyncStorage.setItem(KOP_STORAGE_BAL, JSON.stringify(reconciledBal));
     } catch (err) {
       console.error('Error loading koperasi admin data:', err);
     } finally {
