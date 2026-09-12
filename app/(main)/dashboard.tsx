@@ -237,7 +237,7 @@ export default function DashboardScreen() {
           <View style={styles.actionList}>
             {/* SOS & Roadside Assistance */}
             <Pressable
-              onPress={() => router.push('/(main)/sos')}
+              onPress={() => router.push('/(main)/sos' as any)}
               style={[styles.actionCard, styles.actionCardSos]}
               android_ripple={{ color: 'rgba(239, 68, 68, 0.15)' }}
             >

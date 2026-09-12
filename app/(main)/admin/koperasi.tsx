@@ -57,9 +57,15 @@ interface LoanRequest {
   nilaiAgunan: number;
   rekamJejakSimpanan: number;
   tanggalPengajuan: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'approved' | 'disbursed_waiting_confirmation' | 'confirmed_active' | 'rejected';
   catatanAdmin?: string;
   approvedAt?: string;
+  bankPenerima?: string;
+  rekeningPenerima?: string;
+  namaPenerima?: string;
+  disbursementProofUri?: string | null;
+  disbursedAt?: string;
+  confirmedByMemberAt?: string;
 }
 
 interface MemberKopItem {
@@ -474,9 +480,13 @@ export default function AdminKoperasiScreen() {
       return;
     }
 
+    const destBank = request.bankPenerima || members.find((m) => m.mid === request.mid)?.bankPengirim || 'Bank Mandiri';
+    const destRek = request.rekeningPenerima || members.find((m) => m.mid === request.mid)?.rekeningPengirim || '-';
+    const destName = request.namaPenerima || members.find((m) => m.mid === request.mid)?.namaPengirim || request.nama;
+
     showConfirmDialog(
-      'Konfirmasi Persetujuan Pinjaman',
-      `Setujui pencairan pinjaman sebesar ${formatRupiah(request.nominal)} untuk ${request.nama} (${request.mid})?\n\n• Suku Bunga: 6% p.a. (PMK 49/2025)\n• Tenor: ${request.tenorBulan} Bulan\n• Grace Period: ${request.gracePeriodBulan} Bulan\n• Agunan: ${request.agunan}`,
+      'Konfirmasi Pencairan Pinjaman ke Rekening Member',
+      `Setujui dan transfer pencairan pinjaman sebesar ${formatRupiah(request.nominal)} ke rekening bank anggota?\n\n• Penerima: ${request.nama} (${request.mid})\n• Rekening Tujuan: ${destBank} — ${destRek}\n• Atas Nama: ${destName}\n• Suku Bunga: 6% p.a. (PMK 49/2025)\n• Tenor: ${request.tenorBulan} Bulan\n• Grace Period: ${request.gracePeriodBulan} Bulan\n• Agunan: ${request.agunan}`,
       async () => {
         try {
           // 1. Update request status
@@ -484,9 +494,14 @@ export default function AdminKoperasiScreen() {
             r.id === request.id
               ? {
                   ...r,
-                  status: 'approved' as const,
+                  status: 'disbursed_waiting_confirmation' as const,
                   approvedAt: new Date().toISOString(),
-                  catatanAdmin: 'Disetujui sesuai ketentuan PMK No. 49 Tahun 2025 (Bunga 6% flat p.a.)',
+                  disbursedAt: new Date().toISOString(),
+                  bankPenerima: destBank,
+                  rekeningPenerima: destRek,
+                  namaPenerima: destName,
+                  disbursementProofUri: request.disbursementProofUri || 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=600&auto=format&fit=crop&q=80',
+                  catatanAdmin: `Disetujui & ditransfer ke ${destBank} ${destRek} a.n ${destName}`,
                 }
               : r
           );
@@ -513,7 +528,7 @@ export default function AdminKoperasiScreen() {
             type: 'pinjaman',
             amount: request.nominal,
             status: 'completed',
-            description: `[Pencairan Pinjaman 6% PMK 49] MID: ${request.mid} (${request.nama}) — Tenor: ${request.tenorBulan} Bln, Grace: ${request.gracePeriodBulan} Bln. Agunan: ${request.agunan}`,
+            description: `[Pencairan Pinjaman 6% PMK 49] Transfer ke ${destBank} ${destRek} a.n ${destName} — MID: ${request.mid} (${request.nama}) — Tenor: ${request.tenorBulan} Bln, Grace: ${request.gracePeriodBulan} Bln. Agunan: ${request.agunan}`,
             reference_number: `TX-DISB-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
             due_date: null,
             processed_by: KOP_USER_ID,
@@ -527,8 +542,8 @@ export default function AdminKoperasiScreen() {
 
           setShowLoanDetailModal(null);
           showAlertDialog(
-            'Pencairan Disetujui',
-            `Pinjaman ${formatRupiah(request.nominal)} telah dicairkan ke anggota ${request.nama} dan dicatat dalam buku kas.`
+            'Pencairan Telah Ditransfer ke Rekening',
+            `Pinjaman ${formatRupiah(request.nominal)} telah ditransfer ke rekening ${destBank} ${destRek} a.n ${destName}.\n\nStatus saat ini 'Menunggu Konfirmasi Member'. Member akan memverifikasi bukti transfer di aplikasinya.`
           );
         } catch (err) {
           showAlertDialog('Gagal', 'Gagal memproses persetujuan pinjaman.');
@@ -995,6 +1010,8 @@ export default function AdminKoperasiScreen() {
                     style={[
                       styles.loanCard,
                       req.status === 'approved' && { borderColor: 'rgba(16, 185, 129, 0.4)' },
+                      req.status === 'disbursed_waiting_confirmation' && { borderColor: 'rgba(59, 130, 246, 0.4)' },
+                      req.status === 'confirmed_active' && { borderColor: 'rgba(16, 185, 129, 0.5)' },
                       req.status === 'rejected' && { borderColor: 'rgba(239, 68, 68, 0.4)' },
                     ]}
                   >
@@ -1010,12 +1027,26 @@ export default function AdminKoperasiScreen() {
                         style={[
                           styles.loanStatusBadge,
                           req.status === 'approved' && styles.loanStatusApproved,
+                          req.status === 'disbursed_waiting_confirmation' && { backgroundColor: 'rgba(59, 130, 246, 0.15)' },
+                          req.status === 'confirmed_active' && styles.loanStatusApproved,
                           req.status === 'rejected' && styles.loanStatusRejected,
                         ]}
                       >
-                        <Text style={styles.loanStatusText}>
+                        <Text
+                          style={[
+                            styles.loanStatusText,
+                            req.status === 'disbursed_waiting_confirmation' && { color: '#60A5FA' },
+                            req.status === 'confirmed_active' && { color: '#34D399' },
+                            req.status === 'approved' && { color: '#10B981' },
+                            req.status === 'rejected' && { color: '#EF4444' },
+                          ]}
+                        >
                           {req.status === 'pending'
                             ? 'MENUNGGU APPROVAL'
+                            : req.status === 'disbursed_waiting_confirmation'
+                            ? 'DICAIRKAN (MENUNGGU KONFIRMASI MEMBER)'
+                            : req.status === 'confirmed_active'
+                            ? 'AKTIF BERJALAN'
                             : req.status === 'approved'
                             ? 'DISETUJUI'
                             : 'DITOLAK'}
@@ -1810,6 +1841,68 @@ export default function AdminKoperasiScreen() {
                       {formatRupiah(showLoanDetailModal.rekamJejakSimpanan)}
                     </Text>
                   </View>
+
+                  {/* Rekening Tujuan Pencairan Member */}
+                  {(() => {
+                    const destBank = showLoanDetailModal.bankPenerima || members.find((m) => m.mid === showLoanDetailModal.mid)?.bankPengirim || 'Bank Mandiri';
+                    const destRek = showLoanDetailModal.rekeningPenerima || members.find((m) => m.mid === showLoanDetailModal.mid)?.rekeningPengirim || '-';
+                    const destName = showLoanDetailModal.namaPenerima || members.find((m) => m.mid === showLoanDetailModal.mid)?.namaPengirim || showLoanDetailModal.nama;
+
+                    return (
+                      <View style={[styles.loanBreakdownBox, { marginTop: 10, borderColor: 'rgba(52, 211, 153, 0.35)', backgroundColor: 'rgba(52, 211, 153, 0.06)' }]}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                          <Ionicons name="card" size={16} color="#34D399" />
+                          <Text style={{ fontSize: 11, fontWeight: '800', color: '#34D399', letterSpacing: 0.5 }}>
+                            REKENING TUJUAN PENCAIRAN (MEMBER):
+                          </Text>
+                        </View>
+                        <View style={styles.loanDetailRow}>
+                          <Text style={styles.loanDetailLabel}>Bank Penerima:</Text>
+                          <Text style={[styles.loanDetailValue, { color: '#FFF', fontWeight: '700' }]}>{destBank}</Text>
+                        </View>
+                        <View style={styles.loanDetailRow}>
+                          <Text style={styles.loanDetailLabel}>Nomor Rekening:</Text>
+                          <Text style={[styles.loanDetailValue, { color: '#34D399', fontWeight: '800', fontSize: 14 }]}>{destRek}</Text>
+                        </View>
+                        <View style={styles.loanDetailRow}>
+                          <Text style={styles.loanDetailLabel}>Atas Nama:</Text>
+                          <Text style={[styles.loanDetailValue, { color: '#FAFAFA' }]}>{destName}</Text>
+                        </View>
+                        <Text style={{ fontSize: 10, color: '#A1A1AA', marginTop: 4 }}>
+                          * Pencairan dana wajib ditransfer ke rekening bank resmi yang didaftarkan oleh anggota ber-MID.
+                        </Text>
+                      </View>
+                    );
+                  })()}
+
+                  {/* Status Verifikasi Member jika sudah ditransfer */}
+                  {showLoanDetailModal.status === 'disbursed_waiting_confirmation' && (
+                    <View style={[styles.loanBreakdownBox, { marginTop: 10, borderColor: 'rgba(59, 130, 246, 0.4)', backgroundColor: 'rgba(59, 130, 246, 0.08)' }]}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                        <Ionicons name="time" size={16} color="#60A5FA" />
+                        <Text style={{ fontSize: 11, fontWeight: '800', color: '#60A5FA' }}>
+                          DICAIRKAN — MENUNGGU VERIFIKASI ANGGOTA
+                        </Text>
+                      </View>
+                      <Text style={{ fontSize: 11, color: '#BFDBFE', lineHeight: 16 }}>
+                        Dana pinjaman telah ditransfer oleh bendahara koperasi. Anggota sedang memverifikasi bukti transfer dan saldo di aplikasinya.
+                      </Text>
+                    </View>
+                  )}
+
+                  {showLoanDetailModal.status === 'confirmed_active' && (
+                    <View style={[styles.loanBreakdownBox, { marginTop: 10, borderColor: 'rgba(52, 211, 153, 0.4)', backgroundColor: 'rgba(52, 211, 153, 0.08)' }]}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                        <Ionicons name="checkmark-circle" size={16} color="#34D399" />
+                        <Text style={{ fontSize: 11, fontWeight: '800', color: '#34D399' }}>
+                          PINJAMAN RESMI AKTIF & DIVERIFIKASI ANGGOTA
+                        </Text>
+                      </View>
+                      <Text style={{ fontSize: 11, color: '#D1FAE5', lineHeight: 16 }}>
+                        Anggota telah mengonfirmasi penerimaan dana ke rekeningnya. Jadwal angsuran bunga 6% resmi berjalan.
+                      </Text>
+                    </View>
+                  )}
 
                   {showLoanDetailModal.status === 'pending' && (
                     <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>

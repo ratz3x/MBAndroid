@@ -39,6 +39,7 @@ const KOPERASI_LOGO = require('../../assets/images/logo-koperasi.jpg');
 const KOP_STORAGE_TX = '@mbclub_koperasi_real_txs_v4_zero';
 const KOP_STORAGE_BAL = '@mbclub_koperasi_real_bal_v4_zero';
 const KOP_STORAGE_MEMBERS = '@mbclub_koperasi_members_v2';
+const KOP_STORAGE_LOANS = '@mbclub_koperasi_loan_requests_v3_clean';
 
 // Data Awal Murni Nol
 const ZERO_KOP_BALANCE: KoperasiBalance = {
@@ -155,6 +156,19 @@ export default function KoperasiScreen() {
   const [txMemberMid, setTxMemberMid] = useState('');
   const [txSubmitting, setTxSubmitting] = useState(false);
 
+  // Loan Application & Disbursement Verification State
+  const [memberLoans, setMemberLoans] = useState<any[]>([]);
+  const [showApplyLoanModal, setShowApplyLoanModal] = useState(false);
+  const [showMemberProofLoanModal, setShowMemberProofLoanModal] = useState<any>(null);
+
+  // Form State for Apply Loan
+  const [loanNominal, setLoanNominal] = useState('15000000');
+  const [loanTenor, setLoanTenor] = useState(12);
+  const [loanAgunan, setLoanAgunan] = useState('BPKB Mercedes-Benz');
+  const [loanNilaiAgunan, setLoanNilaiAgunan] = useState('85000000');
+  const [loanTujuan, setLoanTujuan] = useState('Perawatan Servis & Kaki-kaki Unit Mercedes-Benz');
+  const [loanSubmitting, setLoanSubmitting] = useState(false);
+
   const openRegisterModal = () => {
     setRegMid(currentMember?.member_number || '');
     setRegName(profile?.full_name || '');
@@ -247,6 +261,21 @@ export default function KoperasiScreen() {
       showAlertDialog('Perhatian', 'Tabungan Sukarela minimal Rp 25.000.');
       return;
     }
+    if (!bankPengirim.trim()) {
+      showAlertDialog('Perhatian', 'Nama bank rekening anggota wajib diisi.');
+      return;
+    }
+    if (!rekeningPengirim.trim()) {
+      showAlertDialog(
+        'Nomor Rekening Wajib Diisi',
+        'Nomor rekening bank wajib diisi sebagai rekening resmi penerima pencairan pinjaman dari koperasi dan bagi hasil SHU tahunan.'
+      );
+      return;
+    }
+    if (!namaPengirim.trim()) {
+      showAlertDialog('Perhatian', 'Nama pemilik rekening bank wajib diisi.');
+      return;
+    }
     if (!transferProofUri) {
       showAlertDialog(
         'Bukti Transfer Belum Dilampirkan',
@@ -298,6 +327,110 @@ export default function KoperasiScreen() {
     }
   };
 
+  const handleApplyLoanSubmit = async () => {
+    const numNominal = parseInt(loanNominal.replace(/[^0-9]/g, ''), 10) || 0;
+    if (numNominal < 1000000) {
+      showAlertDialog('Perhatian', 'Nominal pengajuan pinjaman minimal Rp 1.000.000.');
+      return;
+    }
+    if (!loanTujuan.trim()) {
+      showAlertDialog('Perhatian', 'Peruntukan / keperluan pinjaman wajib diisi.');
+      return;
+    }
+    if (!loanAgunan.trim()) {
+      showAlertDialog('Perhatian', 'Agunan / jaminan pinjaman wajib dicantumkan.');
+      return;
+    }
+
+    setLoanSubmitting(true);
+    try {
+      const rawLoans = await AsyncStorage.getItem(KOP_STORAGE_LOANS);
+      const allLoans = rawLoans ? JSON.parse(rawLoans) : [];
+
+      const newLoanItem = {
+        id: `loan_${Date.now()}`,
+        mid: memberKopData?.mid || currentMember?.member_number || 'MBINA-NEW',
+        nama: memberKopData?.nama || profile?.full_name || 'Anggota Koperasi',
+        chapter: memberKopData?.chapter || currentMember?.chapter || 'MB Club Indonesia',
+        email: user?.email || '',
+        phone: memberKopData?.phone || profile?.phone || '',
+        nominal: numNominal,
+        tenorBulan: loanTenor,
+        gracePeriodBulan: 6,
+        tujuan: loanTujuan.trim(),
+        agunan: loanAgunan.trim(),
+        nilaiAgunan: parseInt(loanNilaiAgunan.replace(/[^0-9]/g, ''), 10) || 50000000,
+        rekamJejakSimpanan: (memberKopData?.simpananPokok || 100000) + (memberKopData?.simpananWajib || 50000) + (memberKopData?.tabunganSukarela || 25000),
+        tanggalPengajuan: new Date().toISOString().split('T')[0],
+        status: 'pending' as const,
+        bankPenerima: memberKopData?.bankPengirim || 'Bank Mandiri',
+        rekeningPenerima: memberKopData?.rekeningPengirim || '-',
+        namaPenerima: memberKopData?.namaPengirim || memberKopData?.nama || profile?.full_name || '-',
+      };
+
+      const updatedLoans = [newLoanItem, ...allLoans];
+      await AsyncStorage.setItem(KOP_STORAGE_LOANS, JSON.stringify(updatedLoans));
+
+      setMemberLoans([newLoanItem, ...memberLoans]);
+      setShowApplyLoanModal(false);
+
+      showAlertDialog(
+        'Pengajuan Pinjaman Terkirim! 📋',
+        `Pengajuan pinjaman sebesar ${formatRupiah(numNominal)} (Tenor ${loanTenor} bulan, Grace Period 6 bulan, Bunga 6% PMK 49/2025) telah diajukan ke Pengelola Keuangan Koperasi.\n\nRekening Tujuan Pencairan:\n${newLoanItem.bankPenerima} — ${newLoanItem.rekeningPenerima}\na.n. ${newLoanItem.namaPenerima}\n\nSetelah disetujui, dana akan dikirimkan ke rekening tersebut dan bukti transfer pencairan dari koperasi akan dikirimkan ke aplikasi untuk Anda verifikasi.`
+      );
+    } catch {
+      showAlertDialog('Gagal', 'Terjadi kesalahan sistem saat mengirim pengajuan pinjaman.');
+    } finally {
+      setLoanSubmitting(false);
+    }
+  };
+
+  const handleConfirmDisbursement = (loan: any) => {
+    showConfirmDialog(
+      'Konfirmasi Penerimaan Dana Pinjaman',
+      `Apakah Anda mengonfirmasi bahwa dana pencairan pinjaman sebesar ${formatRupiah(loan.nominal)} telah efektif masuk ke rekening Anda:\n\n• Bank: ${loan.bankPenerima || memberKopData?.bankPengirim}\n• No Rekening: ${loan.rekeningPenerima || memberKopData?.rekeningPengirim}\n• Atas Nama: ${loan.namaPenerima || memberKopData?.namaPengirim}\n\nSetelah konfirmasi, pinjaman bunga 6% resmi aktif dan jadwal angsuran diaktifkan dengan masa tenggang (grace period) ${loan.gracePeriodBulan || 6} bulan.`,
+      async () => {
+        try {
+          const rawLoans = await AsyncStorage.getItem(KOP_STORAGE_LOANS);
+          if (rawLoans) {
+            const allLoans = JSON.parse(rawLoans);
+            const updated = allLoans.map((l: any) =>
+              l.id === loan.id
+                ? {
+                    ...l,
+                    status: 'confirmed_active',
+                    confirmedByMemberAt: new Date().toISOString(),
+                  }
+                : l
+            );
+            await AsyncStorage.setItem(KOP_STORAGE_LOANS, JSON.stringify(updated));
+            setMemberLoans(updated.filter((l: any) => l.mid === loan.mid));
+
+            // Update balance active_loan
+            if (balance) {
+              const newBal = {
+                ...balance,
+                active_loan: (balance.active_loan || 0) + loan.nominal,
+                loan_remaining: (balance.loan_remaining || 0) + loan.nominal,
+              };
+              setBalance(newBal);
+            }
+
+            setShowMemberProofLoanModal(null);
+            showAlertDialog(
+              'Penerimaan Dana Terverifikasi! 🎉',
+              `Terima kasih! Anda telah memverifikasi penerimaan dana pinjaman sebesar ${formatRupiah(loan.nominal)}. Pinjaman bunga 6% Anda kini resmi AKTIF.`
+            );
+          }
+        } catch {
+          showAlertDialog('Gagal', 'Terjadi kesalahan saat memverifikasi penerimaan dana.');
+        }
+      },
+      'Ya, Dana Sudah Masuk',
+      'Batal'
+    );
+  };
+
   const loadData = async () => {
     if (!user) return;
 
@@ -332,6 +465,7 @@ export default function KoperasiScreen() {
     // Regular member: check KOP_STORAGE_MEMBERS
     try {
       const rawMem = await AsyncStorage.getItem(KOP_STORAGE_MEMBERS);
+      let activeMemBal: KoperasiBalance | null = null;
       if (rawMem) {
         const memList = JSON.parse(rawMem);
         const userMid = currentMember?.member_number?.toUpperCase();
@@ -344,7 +478,7 @@ export default function KoperasiScreen() {
         if (found) {
           setMembershipStatus(found.status);
           setMemberKopData(found);
-          const memBal: KoperasiBalance = {
+          activeMemBal = {
             id: `bal_${found.id}`,
             member_id: found.id,
             simpanan_pokok: found.simpananPokok || 100000,
@@ -355,7 +489,7 @@ export default function KoperasiScreen() {
             loan_remaining: 0,
             updated_at: new Date().toISOString(),
           };
-          setBalance(memBal);
+          setBalance(activeMemBal);
         } else {
           setMembershipStatus('unregistered');
           setBalance(ZERO_KOP_BALANCE);
@@ -364,6 +498,35 @@ export default function KoperasiScreen() {
         setMembershipStatus('unregistered');
         setBalance(ZERO_KOP_BALANCE);
       }
+
+      // Check loans for member
+      try {
+        const rawLoans = await AsyncStorage.getItem(KOP_STORAGE_LOANS);
+        if (rawLoans) {
+          const allLoans = JSON.parse(rawLoans);
+          const userMid = currentMember?.member_number?.toUpperCase();
+          const userEmail = user?.email?.toLowerCase();
+          const myLoans = allLoans.filter((l: any) =>
+            (userMid && l.mid && l.mid.toUpperCase() === userMid) ||
+            (userEmail && l.email && l.email.toLowerCase() === userEmail) ||
+            (l.id && l.id === user.id)
+          );
+          setMemberLoans(myLoans);
+
+          // Calculate active loan total for balance card
+          const activeLoanSum = myLoans
+            .filter((l: any) => l.status === 'confirmed_active' || l.status === 'active')
+            .reduce((sum: number, l: any) => sum + (l.nominal || 0), 0);
+
+          if (activeMemBal) {
+            activeMemBal.active_loan = activeLoanSum;
+            activeMemBal.loan_remaining = activeLoanSum;
+            setBalance({ ...activeMemBal });
+          }
+        } else {
+          setMemberLoans([]);
+        }
+      } catch {}
 
       // Check transactions
       const rawTx = await AsyncStorage.getItem(KOP_STORAGE_TX);
@@ -773,6 +936,71 @@ export default function KoperasiScreen() {
               </View>
             )}
 
+            {/* Verifikasi Pencairan Pinjaman dari Koperasi */}
+            {!isKopManager && memberLoans.some((l) => l.status === 'disbursed_waiting_confirmation') && (
+              memberLoans.filter((l) => l.status === 'disbursed_waiting_confirmation').map((loan) => (
+                <View key={loan.id} style={styles.disbursedCard}>
+                  <View style={styles.disbursedCardHeader}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Ionicons name="cash" size={24} color="#34D399" />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.disbursedTitle}>Dana Pinjaman Telah Ditransfer Koperasi! 💰</Text>
+                        <Text style={styles.disbursedSubtitle}>
+                          Pengelola koperasi telah mentransfer pencairan dana ke rekening bank Anda.
+                        </Text>
+                      </View>
+                      <View style={styles.disbursedBadge}>
+                        <Text style={styles.disbursedBadgeText}>PERLU VERIFIKASI</Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  <View style={styles.disbursedDetailBox}>
+                    <View style={styles.disbursedRow}>
+                      <Text style={styles.disbursedRowLabel}>Nominal Ditransfer:</Text>
+                      <Text style={[styles.disbursedRowVal, { color: '#34D399', fontSize: 16, fontWeight: '800' }]}>
+                        {formatRupiah(loan.nominal)}
+                      </Text>
+                    </View>
+                    <View style={styles.disbursedRow}>
+                      <Text style={styles.disbursedRowLabel}>Rekening Tujuan:</Text>
+                      <Text style={[styles.disbursedRowVal, { color: '#FAFAFA', fontWeight: '700' }]}>
+                        {loan.bankPenerima || memberKopData?.bankPengirim} — {loan.rekeningPenerima || memberKopData?.rekeningPengirim}
+                      </Text>
+                    </View>
+                    <View style={styles.disbursedRow}>
+                      <Text style={styles.disbursedRowLabel}>Atas Nama:</Text>
+                      <Text style={styles.disbursedRowVal}>
+                        {loan.namaPenerima || memberKopData?.namaPengirim || memberKopData?.nama}
+                      </Text>
+                    </View>
+                    <View style={styles.disbursedRow}>
+                      <Text style={styles.disbursedRowLabel}>Skema Suku Bunga:</Text>
+                      <Text style={styles.disbursedRowVal}>6% Flat p.a. (PMK 49/2025) • Tenor {loan.tenorBulan} Bln</Text>
+                    </View>
+                  </View>
+
+                  <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+                    <Pressable
+                      onPress={() => setShowMemberProofLoanModal(loan)}
+                      style={styles.checkDisbursementProofBtn}
+                    >
+                      <Ionicons name="receipt" size={14} color="#FBBF24" />
+                      <Text style={styles.checkDisbursementProofBtnText}>Lihat Bukti Transfer</Text>
+                    </Pressable>
+
+                    <Pressable
+                      onPress={() => handleConfirmDisbursement(loan)}
+                      style={styles.confirmDisbursementBtn}
+                    >
+                      <Ionicons name="checkmark-done-circle" size={16} color="#000" />
+                      <Text style={styles.confirmDisbursementBtnText}>Konfirmasi Dana Diterima</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ))
+            )}
+
             {/* Saldo Simpan Pinjam Card */}
             <LuxuryCard variant="gold" style={styles.balanceCard}>
               <View style={styles.balanceHeader}>
@@ -956,10 +1184,17 @@ export default function KoperasiScreen() {
                   )}
 
                   <LuxuryCard
-                    onPress={() => Alert.alert(
-                      'Dana Talangan Darurat Touring & Servis',
-                      'Fasilitas dana talangan darurat untuk kebutuhan servis unit Mercedes-Benz atau touring resmi MBCI.\n\n• Suku Bunga: 6% flat p.a. (PMK 49/2025)\n• Grace Period: 6–8 bulan\n• Hubungi Bendahara Koperasi untuk pencairan.'
-                    )}
+                    onPress={() => {
+                      if (membershipStatus !== 'active') {
+                        showAlertDialog(
+                          'Khusus Anggota Aktif',
+                          'Pengajuan Dana Talangan Darurat hanya dapat diajukan oleh Anggota Koperasi yang telah aktif dan terverifikasi.'
+                        );
+                        return;
+                      }
+                      setLoanTujuan('Dana Talangan Darurat Servis / Touring MBCI');
+                      setShowApplyLoanModal(true);
+                    }}
                     style={styles.actionCard}
                     padding={12}
                   >
@@ -970,10 +1205,17 @@ export default function KoperasiScreen() {
                   </LuxuryCard>
 
                   <LuxuryCard
-                    onPress={() => Alert.alert(
-                      'Pembiayaan & Pinjaman Lunak Anggota',
-                      'Ketentuan Pinjaman (PMK No. 49 Tahun 2025):\n• Suku Bunga: 6% per tahun (flat p.a.)\n• Tenor: Maksimal 6 tahun (72 bulan)\n• Masa Tenggang (Grace Period): 6 hingga 8 bulan\n• Plafon Anggota: Disesuaikan dengan nilai agunan unit & rekam jejak simpanan\n• Penyalur: Bank Himbara\n• Member mendapatkan bunga 1% dari SHU tahunan.'
-                    )}
+                    onPress={() => {
+                      if (membershipStatus !== 'active') {
+                        showAlertDialog(
+                          'Khusus Anggota Aktif',
+                          'Pengajuan Pinjaman Lunak 6% PMK 49 hanya dapat diajukan oleh Anggota Koperasi yang telah aktif dan terverifikasi.'
+                        );
+                        return;
+                      }
+                      setLoanTujuan('Perawatan Servis & Kaki-kaki Unit Mercedes-Benz');
+                      setShowApplyLoanModal(true);
+                    }}
                     style={styles.actionCard}
                     padding={12}
                   >
@@ -1499,15 +1741,18 @@ export default function KoperasiScreen() {
                   placeholderTextColor="#71717A"
                 />
 
-                <Text style={styles.inputLabel}>Nomor Rekening Pengirim (Opsional)</Text>
+                <Text style={styles.inputLabel}>Nomor Rekening Bank Anggota (Wajib) *</Text>
                 <TextInput
                   style={styles.modalInput}
                   value={rekeningPengirim}
                   onChangeText={setRekeningPengirim}
-                  placeholder="Contoh: 0123-456-789"
+                  placeholder="Contoh: 1370012345678"
                   placeholderTextColor="#71717A"
                   keyboardType="numeric"
                 />
+                <Text style={{ fontSize: 10, color: '#A1A1AA', marginTop: 3 }}>
+                  💡 Rekening bank ini wajib dicantumkan sebagai rekening resmi penerimaan pencairan pinjaman koperasi dan pembagian hasil SHU tahunan.
+                </Text>
               </View>
 
               {/* Upload Bukti Transfer Box */}
@@ -1568,6 +1813,255 @@ export default function KoperasiScreen() {
                 size="md"
               />
             </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ============================================================ */}
+      {/* MODAL: FORMULIR PENGAJUAN PINJAMAN ANGGOTA                    */}
+      {/* ============================================================ */}
+      <Modal
+        visible={showApplyLoanModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowApplyLoanModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { maxHeight: '90%' }]}>
+            <View style={styles.modalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="cash" size={20} color="#FBBF24" />
+                <Text style={styles.modalTitle}>Pengajuan Pinjaman Koperasi</Text>
+              </View>
+              <Pressable onPress={() => setShowApplyLoanModal(false)} hitSlop={8}>
+                <Ionicons name="close" size={22} color="#A1A1AA" />
+              </Pressable>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {/* Syarat & Bunga Banner */}
+              <View style={styles.midInfoBox}>
+                <Ionicons name="information-circle" size={22} color="#FBBF24" />
+                <Text style={styles.midInfoText}>
+                  Ketentuan Pembiayaan (PMK No. 49 Tahun 2025):{'\n'}
+                  • Bunga Flat 6% per tahun (0.5% per bulan){'\n'}
+                  • Masa Tenggang (Grace Period): 6 Bulan{'\n'}
+                  • Pencairan langsung ke Rekening Bank Terdaftar Anda
+                </Text>
+              </View>
+
+              {/* Rekening Tujuan Pencairan */}
+              <View style={[styles.regBankBox, { marginTop: 10, borderColor: 'rgba(52, 211, 153, 0.35)', backgroundColor: 'rgba(52, 211, 153, 0.08)' }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Ionicons name="card" size={16} color="#34D399" />
+                  <Text style={[styles.regBankTitle, { color: '#34D399' }]}>REKENING PENERIMA PENCAIRAN (TERDAFTAR):</Text>
+                </View>
+                <Text style={[styles.regBankAcc, { color: '#FFF' }]}>
+                  {memberKopData?.bankPengirim || 'Bank Mandiri'}: {memberKopData?.rekeningPengirim || '-'}
+                </Text>
+                <Text style={[styles.regBankNote, { color: '#D1FAE5' }]}>
+                  a.n. {memberKopData?.namaPengirim || memberKopData?.nama || profile?.full_name}
+                </Text>
+              </View>
+
+              {/* Input Nominal */}
+              <Text style={styles.inputLabel}>Nominal Pengajuan Pinjaman (Rp) *</Text>
+              <TextInput
+                style={styles.modalInput}
+                keyboardType="numeric"
+                value={loanNominal}
+                onChangeText={(text) => {
+                  const cleaned = text.replace(/[^0-9]/g, '');
+                  setLoanNominal(cleaned);
+                }}
+                placeholder="Contoh: 15000000"
+                placeholderTextColor="#71717A"
+              />
+
+              {/* Pilihan Tenor */}
+              <Text style={styles.inputLabel}>Jangka Waktu / Tenor Pinjaman *</Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+                {[12, 24, 36, 48, 60].map((t) => (
+                  <Pressable
+                    key={t}
+                    onPress={() => setLoanTenor(t)}
+                    style={{
+                      flex: 1,
+                      paddingVertical: 8,
+                      borderRadius: 8,
+                      backgroundColor: loanTenor === t ? 'rgba(251, 191, 36, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                      borderWidth: 1,
+                      borderColor: loanTenor === t ? '#FBBF24' : 'rgba(255, 255, 255, 0.1)',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: loanTenor === t ? '#FBBF24' : '#A1A1AA' }}>
+                      {t} Bln
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+
+              {/* Simulasi Angsuran */}
+              {(() => {
+                const numNom = parseInt(loanNominal.replace(/[^0-9]/g, ''), 10) || 0;
+                const pokokBln = loanTenor > 0 ? Math.round(numNom / loanTenor) : 0;
+                const bungaBln = Math.round((numNom * 0.06) / 12);
+                const totalAngsuran = pokokBln + bungaBln;
+                return (
+                  <View style={[styles.regSummaryBox, { marginTop: 12 }]}>
+                    <Text style={styles.regSummaryTitle}>ESTIMASI ANGSURAN PER BULAN (6% FLAT P.A.):</Text>
+                    <View style={styles.reportRow}>
+                      <Text style={styles.reportRowLabel}>• Cicilan Pokok:</Text>
+                      <Text style={styles.reportRowVal}>{formatRupiah(pokokBln)} / bln</Text>
+                    </View>
+                    <View style={styles.reportRow}>
+                      <Text style={styles.reportRowLabel}>• Bunga 6% p.a. (0.5% / bln):</Text>
+                      <Text style={styles.reportRowVal}>{formatRupiah(bungaBln)} / bln</Text>
+                    </View>
+                    <View style={[styles.reportRow, { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)', paddingTop: 6, marginTop: 4 }]}>
+                      <Text style={[styles.reportRowLabel, { color: '#FFF', fontWeight: '700' }]}>Total Angsuran:</Text>
+                      <Text style={[styles.reportRowVal, { color: '#34D399', fontSize: 15, fontWeight: '800' }]}>
+                        {formatRupiah(totalAngsuran)} / bulan
+                      </Text>
+                    </View>
+                    <Text style={{ fontSize: 10, color: '#A1A1AA', marginTop: 4 }}>
+                      * Masa Tenggang (Grace Period) 6 bulan pertama: Anggota hanya membayar bunga ringan atau penyesuaian cashflow.
+                    </Text>
+                  </View>
+                );
+              })()}
+
+              {/* Peruntukan Dana */}
+              <Text style={styles.inputLabel}>Peruntukan / Keperluan Dana Pinjaman *</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={loanTujuan}
+                onChangeText={setLoanTujuan}
+                placeholder="Contoh: Overhaul mesin & penggantian suspensi W124"
+                placeholderTextColor="#71717A"
+              />
+
+              {/* Agunan */}
+              <Text style={styles.inputLabel}>Agunan / Jaminan Penjamin *</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={loanAgunan}
+                onChangeText={setLoanAgunan}
+                placeholder="Contoh: BPKB Mercedes-Benz W124 E320 Tahun 1995"
+                placeholderTextColor="#71717A"
+              />
+
+              {/* Nilai Taksasi Agunan */}
+              <Text style={styles.inputLabel}>Estimasi Nilai Taksasi Agunan (Rp) *</Text>
+              <TextInput
+                style={styles.modalInput}
+                keyboardType="numeric"
+                value={loanNilaiAgunan}
+                onChangeText={(text) => {
+                  const cleaned = text.replace(/[^0-9]/g, '');
+                  setLoanNilaiAgunan(cleaned);
+                }}
+                placeholder="85000000"
+                placeholderTextColor="#71717A"
+              />
+
+              <View style={{ height: 16 }} />
+              <MetallicButton
+                label={loanSubmitting ? "Mengirim Pengajuan..." : "Kirim Permohonan Pinjaman"}
+                onPress={handleApplyLoanSubmit}
+                variant="gold"
+                size="lg"
+                disabled={loanSubmitting}
+              />
+              <View style={{ height: 8 }} />
+              <MetallicButton
+                label="Batal"
+                onPress={() => setShowApplyLoanModal(false)}
+                variant="silver"
+                size="md"
+              />
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ============================================================ */}
+      {/* MODAL: VERIFIKASI BUKTI TRANSFER PENCAIRAN DARI KOPERASI      */}
+      {/* ============================================================ */}
+      <Modal
+        visible={!!showMemberProofLoanModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowMemberProofLoanModal(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { maxHeight: '90%' }]}>
+            <View style={styles.modalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="receipt" size={20} color="#34D399" />
+                <Text style={styles.modalTitle}>Bukti Transfer Pencairan Koperasi</Text>
+              </View>
+              <Pressable onPress={() => setShowMemberProofLoanModal(null)} hitSlop={8}>
+                <Ionicons name="close" size={22} color="#A1A1AA" />
+              </Pressable>
+            </View>
+
+            {showMemberProofLoanModal && (
+              <ScrollView showsVerticalScrollIndicator={false}>
+                <View style={[styles.proofPreviewContainer, { height: 220, marginBottom: 12 }]}>
+                  <Image
+                    source={{
+                      uri: showMemberProofLoanModal.disbursementProofUri ||
+                        'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=600&auto=format&fit=crop&q=80',
+                    }}
+                    style={{ width: '100%', height: '100%' }}
+                    resizeMode="contain"
+                  />
+                </View>
+
+                <View style={styles.disbursedDetailBox}>
+                  <View style={styles.disbursedRow}>
+                    <Text style={styles.disbursedRowLabel}>Nominal Pencairan:</Text>
+                    <Text style={[styles.disbursedRowVal, { color: '#34D399', fontSize: 16, fontWeight: '800' }]}>
+                      {formatRupiah(showMemberProofLoanModal.nominal)}
+                    </Text>
+                  </View>
+                  <View style={styles.disbursedRow}>
+                    <Text style={styles.disbursedRowLabel}>Rekening Pengirim:</Text>
+                    <Text style={styles.disbursedRowVal}>Bank Mandiri 137-00-1234567-8 (Koperasi)</Text>
+                  </View>
+                  <View style={styles.disbursedRow}>
+                    <Text style={styles.disbursedRowLabel}>Rekening Penerima Anda:</Text>
+                    <Text style={[styles.disbursedRowVal, { color: '#FAFAFA', fontWeight: '700' }]}>
+                      {showMemberProofLoanModal.bankPenerima || memberKopData?.bankPengirim} — {showMemberProofLoanModal.rekeningPenerima || memberKopData?.rekeningPengirim}
+                    </Text>
+                  </View>
+                  <View style={styles.disbursedRow}>
+                    <Text style={styles.disbursedRowLabel}>Atas Nama:</Text>
+                    <Text style={styles.disbursedRowVal}>
+                      {showMemberProofLoanModal.namaPenerima || memberKopData?.namaPengirim || memberKopData?.nama}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
+                  <Pressable
+                    onPress={() => setShowMemberProofLoanModal(null)}
+                    style={{ flex: 1, paddingVertical: 12, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center' }}
+                  >
+                    <Text style={{ color: '#A1A1AA', fontWeight: '600', fontSize: 13 }}>Tutup</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => handleConfirmDisbursement(showMemberProofLoanModal)}
+                    style={{ flex: 2, paddingVertical: 12, borderRadius: 8, backgroundColor: '#34D399', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                  >
+                    <Ionicons name="checkmark-done-circle" size={18} color="#000" />
+                    <Text style={{ color: '#000', fontWeight: '800', fontSize: 13 }}>Konfirmasi Dana Diterima</Text>
+                  </Pressable>
+                </View>
+              </ScrollView>
+            )}
           </View>
         </View>
       </Modal>
@@ -2375,5 +2869,108 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  modalCard: {
+    backgroundColor: '#121214',
+    borderRadius: 20,
+    padding: Spacing.lg,
+    maxHeight: '85%',
+    width: '100%',
+    maxWidth: 540,
+    alignSelf: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(201,168,76,0.3)',
+  },
+  disbursedCard: {
+    backgroundColor: 'rgba(16, 185, 129, 0.08)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(52, 211, 153, 0.4)',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 16,
+  },
+  disbursedCardHeader: {
+    marginBottom: 10,
+  },
+  disbursedTitle: {
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: '#34D399',
+  },
+  disbursedSubtitle: {
+    fontSize: 11,
+    color: '#D1FAE5',
+    marginTop: 2,
+  },
+  disbursedBadge: {
+    backgroundColor: 'rgba(52, 211, 153, 0.2)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(52, 211, 153, 0.4)',
+  },
+  disbursedBadgeText: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: '#34D399',
+  },
+  disbursedDetailBox: {
+    backgroundColor: 'rgba(0, 0, 0, 0.35)',
+    borderRadius: 10,
+    padding: 12,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  disbursedRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  disbursedRowLabel: {
+    fontSize: 11,
+    color: '#A1A1AA',
+  },
+  disbursedRowVal: {
+    fontSize: 12,
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  checkDisbursementProofBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: 'rgba(251, 191, 36, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(251, 191, 36, 0.4)',
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' as any } : {}),
+  },
+  checkDisbursementProofBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FBBF24',
+  },
+  confirmDisbursementBtn: {
+    flex: 1.3,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: '#34D399',
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' as any } : {}),
+  },
+  confirmDisbursementBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#000000',
   },
 });
