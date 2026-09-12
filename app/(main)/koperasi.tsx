@@ -67,6 +67,35 @@ const DEWAN_PENDIRI = [
   'Wendi Kuswandi',
 ];
 
+// Cross-platform Dialog Helpers (Web + Native)
+const showConfirmDialog = (
+  title: string,
+  message: string,
+  onConfirm: () => void | Promise<void>,
+  confirmText = 'Ya, Lanjutkan',
+  cancelText = 'Batal'
+) => {
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    const ok = window.confirm(`${title}\n\n${message}`);
+    if (ok) {
+      onConfirm();
+    }
+  } else {
+    Alert.alert(title, message, [
+      { text: cancelText, style: 'cancel' },
+      { text: confirmText, onPress: onConfirm },
+    ]);
+  }
+};
+
+const showAlertDialog = (title: string, message: string) => {
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    window.alert(`${title}\n\n${message}`);
+  } else {
+    Alert.alert(title, message);
+  }
+};
+
 export default function KoperasiScreen() {
   const router = useRouter();
   const { user, profile, isKoperasiAdmin } = useAuth();
@@ -156,26 +185,26 @@ export default function KoperasiScreen() {
         setTransferProofUri(result.assets[0].uri);
       }
     } catch (err: any) {
-      Alert.alert('Gagal Memilih Foto', err.message || 'Terjadi kesalahan saat memilih berkas.');
+      showAlertDialog('Gagal Memilih Foto', err.message || 'Terjadi kesalahan saat memilih berkas.');
     }
   };
 
   const handleRegisterSubmit = async () => {
     if (!regMid.trim()) {
-      Alert.alert('Perhatian', 'Nomor Member ID (MID) wajib diisi.');
+      showAlertDialog('Perhatian', 'Nomor Member ID (MID) wajib diisi.');
       return;
     }
     if (!regName.trim()) {
-      Alert.alert('Perhatian', 'Nama lengkap wajib diisi.');
+      showAlertDialog('Perhatian', 'Nama lengkap wajib diisi.');
       return;
     }
     const numSukarela = parseInt(regSukarela.replace(/[^0-9]/g, ''), 10) || 0;
     if (numSukarela < 25000) {
-      Alert.alert('Perhatian', 'Tabungan Sukarela minimal Rp 25.000.');
+      showAlertDialog('Perhatian', 'Tabungan Sukarela minimal Rp 25.000.');
       return;
     }
     if (!transferProofUri) {
-      Alert.alert(
+      showAlertDialog(
         'Bukti Transfer Belum Dilampirkan',
         'Mohon unggah foto / screenshot bukti transfer pembayaran setoran awal agar pengelola koperasi dapat memverifikasi mutasi kas masuk.'
       );
@@ -214,12 +243,12 @@ export default function KoperasiScreen() {
       setShowRegisterModal(false);
 
       const totalInitial = 100000 + 50000 + numSukarela;
-      Alert.alert(
+      showAlertDialog(
         'Pendaftaran Berhasil Terkirim! 🎉',
         `Pendaftaran keanggotaan Koperasi Bersama Satu Bintang telah dicatat.\n\nRincian Setoran Awal:\n• Simpanan Pokok: Rp 100.000\n• Iuran Wajib: Rp 50.000\n• Tabungan Sukarela: ${formatRupiah(numSukarela)}\n• Total Setoran: ${formatRupiah(totalInitial)}\n\nSilakan transfer ke Rekening Bank Mandiri 137-00-1234567-8 a.n. Koperasi Bersama Satu Bintang. Pengelola Keuangan akan memverifikasi mutasi bank dan mengaktifkan akun Anda.`
       );
     } catch {
-      Alert.alert('Gagal', 'Terjadi kesalahan saat memproses pendaftaran.');
+      showAlertDialog('Gagal', 'Terjadi kesalahan saat memproses pendaftaran.');
     } finally {
       setRegSubmitting(false);
     }
@@ -326,23 +355,18 @@ export default function KoperasiScreen() {
 
   // Reset Semua Data ke Nol (Sesuai Permintaan User)
   const handleResetToZero = () => {
-    Alert.alert(
+    showConfirmDialog(
       'Konfirmasi Reset Nol',
       'Apakah Anda yakin ingin mengosongkan seluruh saldo kas dan riwayat transaksi koperasi kembali ke Rp 0?',
-      [
-        { text: 'Batal', style: 'cancel' },
-        {
-          text: 'Reset ke Nol',
-          style: 'destructive',
-          onPress: async () => {
-            setBalance(ZERO_KOP_BALANCE);
-            setTransactions([]);
-            await AsyncStorage.setItem(KOP_STORAGE_BAL, JSON.stringify(ZERO_KOP_BALANCE));
-            await AsyncStorage.setItem(KOP_STORAGE_TX, JSON.stringify([]));
-            Alert.alert('Berhasil', 'Seluruh data kas dan mutasi simpan pinjam koperasi telah di-reset ke Nol.');
-          },
-        },
-      ]
+      async () => {
+        setBalance(ZERO_KOP_BALANCE);
+        setTransactions([]);
+        await AsyncStorage.setItem(KOP_STORAGE_BAL, JSON.stringify(ZERO_KOP_BALANCE));
+        await AsyncStorage.setItem(KOP_STORAGE_TX, JSON.stringify([]));
+        showAlertDialog('Berhasil', 'Seluruh data kas dan mutasi simpan pinjam koperasi telah di-reset ke Nol.');
+      },
+      'Reset ke Nol',
+      'Batal'
     );
   };
 
@@ -350,11 +374,11 @@ export default function KoperasiScreen() {
   const handleSaveTransaction = async () => {
     const numAmount = parseInt(txAmount.replace(/[^0-9]/g, ''), 10);
     if (isNaN(numAmount) || numAmount <= 0) {
-      Alert.alert('Perhatian', 'Masukkan nominal transaksi yang valid.');
+      showAlertDialog('Perhatian', 'Masukkan nominal transaksi yang valid.');
       return;
     }
     if (!txDesc.trim()) {
-      Alert.alert('Perhatian', 'Keterangan transaksi harus diisi.');
+      showAlertDialog('Perhatian', 'Keterangan transaksi harus diisi.');
       return;
     }
 
@@ -439,9 +463,9 @@ export default function KoperasiScreen() {
       setTxAmount('');
       setTxDesc('');
       setTxMemberMid('');
-      Alert.alert('Sukses', `Transaksi ${labelMap[txSubtype]} senilai ${formatRupiah(numAmount)} berhasil dicatat.`);
+      showAlertDialog('Sukses', `Transaksi ${labelMap[txSubtype]} senilai ${formatRupiah(numAmount)} berhasil dicatat.`);
     } catch (err) {
-      Alert.alert('Gagal', 'Terjadi kesalahan saat menyimpan transaksi.');
+      showAlertDialog('Gagal', 'Terjadi kesalahan saat menyimpan transaksi.');
     } finally {
       setTxSubmitting(false);
     }

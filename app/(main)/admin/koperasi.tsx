@@ -80,54 +80,37 @@ interface MemberKopItem {
   namaPengirim?: string | null;
 }
 
-// Initial Sample Data for Loans & Members if empty
-const INITIAL_LOAN_REQUESTS: LoanRequest[] = [
-  {
-    id: 'req_001',
-    mid: 'MBINA-JKT-042',
-    nama: 'Bambang Soedarmono',
-    chapter: 'W124 MBCI Jakarta',
-    nominal: 15000000,
-    tenorBulan: 12,
-    gracePeriodBulan: 6,
-    tujuan: 'Dana Talangan Overhaul Transmisi & Kaki-kaki W124 E320 Masterpiece',
-    agunan: 'BPKB Mercedes-Benz W124 300E (Tahun 1991)',
-    nilaiAgunan: 85000000,
-    rekamJejakSimpanan: 4200000,
-    tanggalPengajuan: '2026-09-08',
-    status: 'pending',
-  },
-  {
-    id: 'req_002',
-    mid: 'MBINA-BDG-019',
-    nama: 'Hendra Gunawan',
-    chapter: 'W210 MBCI Bandung',
-    nominal: 25000000,
-    tenorBulan: 24,
-    gracePeriodBulan: 6,
-    tujuan: 'Persiapan Touring Akbar MBCI Lintas Jawa-Bali & Restorasi AC',
-    agunan: 'BPKB Mercedes-Benz W210 E230 (Tahun 1997)',
-    nilaiAgunan: 110000000,
-    rekamJejakSimpanan: 6500000,
-    tanggalPengajuan: '2026-09-09',
-    status: 'pending',
-  },
-  {
-    id: 'req_003',
-    mid: 'MBINA-SBY-088',
-    nama: 'Arya Pratama',
-    chapter: 'MBCI Chapter Surabaya',
-    nominal: 50000000,
-    tenorBulan: 36,
-    gracePeriodBulan: 8,
-    tujuan: 'Pengembangan Usaha Bengkel Spesialis Mercy Rekanan MBCI Surabaya',
-    agunan: 'Sertifikat Tanah/Kios Usaha Bengkel No. 4921',
-    nilaiAgunan: 350000000,
-    rekamJejakSimpanan: 12800000,
-    tanggalPengajuan: '2026-09-10',
-    status: 'pending',
-  },
-];
+// Cross-platform Dialog Helpers (Web + Native)
+const showConfirmDialog = (
+  title: string,
+  message: string,
+  onConfirm: () => void | Promise<void>,
+  confirmText = 'Ya, Lanjutkan',
+  cancelText = 'Batal'
+) => {
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    const ok = window.confirm(`${title}\n\n${message}`);
+    if (ok) {
+      onConfirm();
+    }
+  } else {
+    Alert.alert(title, message, [
+      { text: cancelText, style: 'cancel' },
+      { text: confirmText, onPress: onConfirm },
+    ]);
+  }
+};
+
+const showAlertDialog = (title: string, message: string) => {
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    window.alert(`${title}\n\n${message}`);
+  } else {
+    Alert.alert(title, message);
+  }
+};
+
+// Initial Sample Data for Loans (Empty, data dummy telah dihapus sesuai permintaan)
+const INITIAL_LOAN_REQUESTS: LoanRequest[] = [];
 
 const INITIAL_MEMBERS: MemberKopItem[] = [
   {
@@ -345,13 +328,18 @@ export default function AdminKoperasiScreen() {
         await AsyncStorage.setItem(KOP_STORAGE_TX, JSON.stringify(initTxs));
       }
 
-      // 3. Loans
+      // 3. Loans (Bersihkan data dummy yang diminta user)
       const rawLoans = await AsyncStorage.getItem(KOP_STORAGE_LOANS);
       if (rawLoans) {
-        setLoanRequests(JSON.parse(rawLoans));
+        const parsedLoans: LoanRequest[] = JSON.parse(rawLoans);
+        const dummyIds = new Set(['req_001', 'req_002', 'req_003']);
+        const dummyMids = new Set(['MBINA-JKT-042', 'MBINA-BDG-019', 'MBINA-SBY-088']);
+        const cleaned = parsedLoans.filter((r) => !dummyIds.has(r.id) && !dummyMids.has(r.mid));
+        setLoanRequests(cleaned);
+        await AsyncStorage.setItem(KOP_STORAGE_LOANS, JSON.stringify(cleaned));
       } else {
-        setLoanRequests(INITIAL_LOAN_REQUESTS);
-        await AsyncStorage.setItem(KOP_STORAGE_LOANS, JSON.stringify(INITIAL_LOAN_REQUESTS));
+        setLoanRequests([]);
+        await AsyncStorage.setItem(KOP_STORAGE_LOANS, JSON.stringify([]));
       }
 
       // 4. Members
@@ -390,11 +378,11 @@ export default function AdminKoperasiScreen() {
   const handleSaveTransaction = async () => {
     const numAmount = parseInt(txAmount.replace(/[^0-9]/g, ''), 10);
     if (isNaN(numAmount) || numAmount <= 0) {
-      Alert.alert('Perhatian', 'Masukkan nominal transaksi yang valid.');
+      showAlertDialog('Perhatian', 'Masukkan nominal transaksi yang valid.');
       return;
     }
     if (!txDesc.trim()) {
-      Alert.alert('Perhatian', 'Keterangan transaksi harus diisi.');
+      showAlertDialog('Perhatian', 'Keterangan transaksi harus diisi.');
       return;
     }
 
@@ -454,7 +442,7 @@ export default function AdminKoperasiScreen() {
         newTotal += numAmount;
       } else if (txSubtype === 'pinjaman' || txSubtype === 'talangan') {
         if (newTotal < numAmount) {
-          Alert.alert('Peringatan Likuiditas', 'Saldo kas likuid koperasi tidak mencukupi untuk pencairan pinjaman ini.');
+          showAlertDialog('Peringatan Likuiditas', 'Saldo kas likuid koperasi tidak mencukupi untuk pencairan pinjaman ini.');
           setTxSubmitting(false);
           return;
         }
@@ -502,9 +490,9 @@ export default function AdminKoperasiScreen() {
       setTxDesc('');
       setTxMemberMid('');
       setTxMemberName('');
-      Alert.alert('Transaksi Berhasil Dicatat', `${labelMap[txSubtype]} senilai ${formatRupiah(numAmount)} telah dibukukan.`);
+      showAlertDialog('Transaksi Berhasil Dicatat', `${labelMap[txSubtype]} senilai ${formatRupiah(numAmount)} telah dibukukan.`);
     } catch {
-      Alert.alert('Gagal', 'Terjadi kesalahan sistem saat menyimpan mutasi.');
+      showAlertDialog('Gagal', 'Terjadi kesalahan sistem saat menyimpan mutasi.');
     } finally {
       setTxSubmitting(false);
     }
@@ -513,110 +501,96 @@ export default function AdminKoperasiScreen() {
   // Setujui Pengajuan Pinjaman (Disbursement)
   const handleApproveLoan = async (request: LoanRequest) => {
     if (balance.total_balance < request.nominal) {
-      Alert.alert(
+      showAlertDialog(
         'Likuiditas Kas Kurang',
         `Saldo kas saat ini (${formatRupiah(balance.total_balance)}) tidak mencukupi untuk mencairkan pinjaman sebesar ${formatRupiah(request.nominal)}.`
       );
       return;
     }
 
-    Alert.alert(
+    showConfirmDialog(
       'Konfirmasi Persetujuan Pinjaman',
       `Setujui pencairan pinjaman sebesar ${formatRupiah(request.nominal)} untuk ${request.nama} (${request.mid})?\n\n• Suku Bunga: 6% p.a. (PMK 49/2025)\n• Tenor: ${request.tenorBulan} Bulan\n• Grace Period: ${request.gracePeriodBulan} Bulan\n• Agunan: ${request.agunan}`,
-      [
-        { text: 'Batal', style: 'cancel' },
-        {
-          text: 'Setujui & Cairkan',
-          style: 'default',
-          onPress: async () => {
-            try {
-              // 1. Update request status
-              const updatedRequests = loanRequests.map((r) =>
-                r.id === request.id
-                  ? {
-                      ...r,
-                      status: 'approved' as const,
-                      approvedAt: new Date().toISOString(),
-                      catatanAdmin: 'Disetujui sesuai ketentuan PMK No. 49 Tahun 2025 (Bunga 6% flat p.a.)',
-                    }
-                  : r
-              );
-              setLoanRequests(updatedRequests);
-              await AsyncStorage.setItem(KOP_STORAGE_LOANS, JSON.stringify(updatedRequests));
+      async () => {
+        try {
+          // 1. Update request status
+          const updatedRequests = loanRequests.map((r) =>
+            r.id === request.id
+              ? {
+                  ...r,
+                  status: 'approved' as const,
+                  approvedAt: new Date().toISOString(),
+                  catatanAdmin: 'Disetujui sesuai ketentuan PMK No. 49 Tahun 2025 (Bunga 6% flat p.a.)',
+                }
+              : r
+          );
+          setLoanRequests(updatedRequests);
+          await AsyncStorage.setItem(KOP_STORAGE_LOANS, JSON.stringify(updatedRequests));
 
-              // 2. Potong kas & tambah active_loan
-              const newTotal = balance.total_balance - request.nominal;
-              const newLoan = (balance.active_loan || 0) + request.nominal;
-              const updatedBal: KoperasiBalance = {
-                ...balance,
-                total_balance: newTotal,
-                active_loan: newLoan,
-                loan_remaining: newLoan,
-                updated_at: new Date().toISOString(),
-              };
-              setBalance(updatedBal);
-              await AsyncStorage.setItem(KOP_STORAGE_BAL, JSON.stringify(updatedBal));
+          // 2. Potong kas & tambah active_loan
+          const newTotal = balance.total_balance - request.nominal;
+          const newLoan = (balance.active_loan || 0) + request.nominal;
+          const updatedBal: KoperasiBalance = {
+            ...balance,
+            total_balance: newTotal,
+            active_loan: newLoan,
+            loan_remaining: newLoan,
+            updated_at: new Date().toISOString(),
+          };
+          setBalance(updatedBal);
+          await AsyncStorage.setItem(KOP_STORAGE_BAL, JSON.stringify(updatedBal));
 
-              // 3. Catat di transaksi jurnal
-              const newTx: KoperasiTransaction = {
-                id: `tx_loan_disburse_${Date.now()}`,
-                member_id: KOP_USER_ID,
-                type: 'pinjaman',
-                amount: request.nominal,
-                status: 'completed',
-                description: `[Pencairan Pinjaman 6% PMK 49] MID: ${request.mid} (${request.nama}) — Tenor: ${request.tenorBulan} Bln, Grace: ${request.gracePeriodBulan} Bln. Agunan: ${request.agunan}`,
-                reference_number: `TX-DISB-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
-                due_date: null,
-                processed_by: KOP_USER_ID,
-                processed_at: new Date().toISOString(),
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-              };
-              const updatedTxs = [newTx, ...transactions];
-              setTransactions(updatedTxs);
-              await AsyncStorage.setItem(KOP_STORAGE_TX, JSON.stringify(updatedTxs));
+          // 3. Catat di transaksi jurnal
+          const newTx: KoperasiTransaction = {
+            id: `tx_loan_disburse_${Date.now()}`,
+            member_id: KOP_USER_ID,
+            type: 'pinjaman',
+            amount: request.nominal,
+            status: 'completed',
+            description: `[Pencairan Pinjaman 6% PMK 49] MID: ${request.mid} (${request.nama}) — Tenor: ${request.tenorBulan} Bln, Grace: ${request.gracePeriodBulan} Bln. Agunan: ${request.agunan}`,
+            reference_number: `TX-DISB-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+            due_date: null,
+            processed_by: KOP_USER_ID,
+            processed_at: new Date().toISOString(),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+          const updatedTxs = [newTx, ...transactions];
+          setTransactions(updatedTxs);
+          await AsyncStorage.setItem(KOP_STORAGE_TX, JSON.stringify(updatedTxs));
 
-              setShowLoanDetailModal(null);
-              Alert.alert(
-                'Pencairan Disetujui',
-                `Pinjaman ${formatRupiah(request.nominal)} telah dicairkan ke anggota ${request.nama} dan dicatat dalam buku kas.`
-              );
-            } catch (err) {
-              Alert.alert('Gagal', 'Gagal memproses persetujuan pinjaman.');
-            }
-          },
-        },
-      ]
+          setShowLoanDetailModal(null);
+          showAlertDialog(
+            'Pencairan Disetujui',
+            `Pinjaman ${formatRupiah(request.nominal)} telah dicairkan ke anggota ${request.nama} dan dicatat dalam buku kas.`
+          );
+        } catch (err) {
+          showAlertDialog('Gagal', 'Gagal memproses persetujuan pinjaman.');
+        }
+      }
     );
   };
 
   // Tolak Pengajuan Pinjaman
   const handleRejectLoan = (request: LoanRequest) => {
-    Alert.alert(
+    showConfirmDialog(
       'Konfirmasi Penolakan',
       `Tolak pengajuan pinjaman ${request.nama} (${request.mid})?`,
-      [
-        { text: 'Batal', style: 'cancel' },
-        {
-          text: 'Tolak',
-          style: 'destructive',
-          onPress: async () => {
-            const updatedRequests = loanRequests.map((r) =>
-              r.id === request.id
-                ? {
-                    ...r,
-                    status: 'rejected' as const,
-                    catatanAdmin: 'Nilai agunan atau rekam jejak simpanan belum memenuhi batas minimum plafon per anggota.',
-                  }
-                : r
-            );
-            setLoanRequests(updatedRequests);
-            await AsyncStorage.setItem(KOP_STORAGE_LOANS, JSON.stringify(updatedRequests));
-            setShowLoanDetailModal(null);
-            Alert.alert('Ditolak', 'Pengajuan pinjaman telah ditolak.');
-          },
-        },
-      ]
+      async () => {
+        const updatedRequests = loanRequests.map((r) =>
+          r.id === request.id
+            ? {
+                ...r,
+                status: 'rejected' as const,
+                catatanAdmin: 'Nilai agunan atau rekam jejak simpanan belum memenuhi batas minimum plafon per anggota.',
+              }
+            : r
+        );
+        setLoanRequests(updatedRequests);
+        await AsyncStorage.setItem(KOP_STORAGE_LOANS, JSON.stringify(updatedRequests));
+        setShowLoanDetailModal(null);
+        showAlertDialog('Ditolak', 'Pengajuan pinjaman telah ditolak.');
+      }
     );
   };
 
@@ -624,69 +598,62 @@ export default function AdminKoperasiScreen() {
   const handleApproveMember = async (targetMember: MemberKopItem) => {
     const totalSetoranAwal = targetMember.simpananPokok + targetMember.simpananWajib + targetMember.tabunganSukarela;
 
-    Alert.alert(
+    showConfirmDialog(
       'Verifikasi Anggota Baru',
       `Verifikasi keanggotaan ${targetMember.nama} (${targetMember.mid})?\n\nSyarat terpenuhi & Bukti Transfer Terverifikasi:\n✓ Memiliki MID Resmi MBCI\n✓ Akun Koperasi Terdaftar\n✓ Simpanan Pokok: ${formatRupiah(targetMember.simpananPokok)}\n✓ Iuran Wajib: ${formatRupiah(targetMember.simpananWajib)}\n✓ Tabungan Sukarela: ${formatRupiah(targetMember.tabunganSukarela)}\n✓ Total Kas Masuk: ${formatRupiah(totalSetoranAwal)}\n✓ Berhak atas Bunga 1% SHU`,
-      [
-        { text: 'Batal', style: 'cancel' },
-        {
-          text: 'Verifikasi & Bukukan Kas',
-          style: 'default',
-          onPress: async () => {
-            try {
-              // 1. Update status member
-              const updated = members.map((m) =>
-                m.id === targetMember.id ? { ...m, status: 'active' as const } : m
-              );
-              setMembers(updated);
-              await AsyncStorage.setItem(KOP_STORAGE_MEMBERS, JSON.stringify(updated));
+      async () => {
+        try {
+          // 1. Update status member
+          const updated = members.map((m) =>
+            m.id === targetMember.id ? { ...m, status: 'active' as const } : m
+          );
+          setMembers(updated);
+          await AsyncStorage.setItem(KOP_STORAGE_MEMBERS, JSON.stringify(updated));
 
-              // 2. Tambah kas likuid & alokasi simpanan
-              const newTotal = balance.total_balance + totalSetoranAwal;
-              const newPokok = balance.simpanan_pokok + targetMember.simpananPokok;
-              const newWajib = balance.simpanan_wajib + targetMember.simpananWajib;
-              const newSukarela = balance.simpanan_sukarela + targetMember.tabunganSukarela;
+          // 2. Tambah kas likuid & alokasi simpanan
+          const newTotal = balance.total_balance + totalSetoranAwal;
+          const newPokok = balance.simpanan_pokok + targetMember.simpananPokok;
+          const newWajib = balance.simpanan_wajib + targetMember.simpananWajib;
+          const newSukarela = balance.simpanan_sukarela + targetMember.tabunganSukarela;
 
-              const updatedBal: KoperasiBalance = {
-                ...balance,
-                total_balance: newTotal,
-                simpanan_pokok: newPokok,
-                simpanan_wajib: newWajib,
-                simpanan_sukarela: newSukarela,
-                updated_at: new Date().toISOString(),
-              };
-              setBalance(updatedBal);
-              await AsyncStorage.setItem(KOP_STORAGE_BAL, JSON.stringify(updatedBal));
+          const updatedBal: KoperasiBalance = {
+            ...balance,
+            total_balance: newTotal,
+            simpanan_pokok: newPokok,
+            simpanan_wajib: newWajib,
+            simpanan_sukarela: newSukarela,
+            updated_at: new Date().toISOString(),
+          };
+          setBalance(updatedBal);
+          await AsyncStorage.setItem(KOP_STORAGE_BAL, JSON.stringify(updatedBal));
 
-              // 3. Catat di Buku Kas / Jurnal Transaksi
-              const newTx: KoperasiTransaction = {
-                id: `tx_member_reg_${Date.now()}`,
-                member_id: KOP_USER_ID,
-                type: 'simpanan',
-                amount: totalSetoranAwal,
-                status: 'completed',
-                description: `[Aktivasi Anggota Baru] MID: ${targetMember.mid} (${targetMember.nama}) — Setoran Pokok (${formatRupiah(targetMember.simpananPokok)}) + Wajib (${formatRupiah(targetMember.simpananWajib)}) + Sukarela (${formatRupiah(targetMember.tabunganSukarela)})`,
-                reference_number: `TX-REG-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
-                due_date: null,
-                processed_by: KOP_USER_ID,
-                processed_at: new Date().toISOString(),
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-              };
-              const updatedTxs = [newTx, ...transactions];
-              setTransactions(updatedTxs);
-              await AsyncStorage.setItem(KOP_STORAGE_TX, JSON.stringify(updatedTxs));
+          // 3. Catat di Buku Kas / Jurnal Transaksi
+          const newTx: KoperasiTransaction = {
+            id: `tx_member_reg_${Date.now()}`,
+            member_id: KOP_USER_ID,
+            type: 'simpanan',
+            amount: totalSetoranAwal,
+            status: 'completed',
+            description: `[Aktivasi Anggota Baru] MID: ${targetMember.mid} (${targetMember.nama}) — Setoran Pokok (${formatRupiah(targetMember.simpananPokok)}) + Wajib (${formatRupiah(targetMember.simpananWajib)}) + Sukarela (${formatRupiah(targetMember.tabunganSukarela)})`,
+            reference_number: `TX-REG-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+            due_date: null,
+            processed_by: KOP_USER_ID,
+            processed_at: new Date().toISOString(),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+          const updatedTxs = [newTx, ...transactions];
+          setTransactions(updatedTxs);
+          await AsyncStorage.setItem(KOP_STORAGE_TX, JSON.stringify(updatedTxs));
 
-              Alert.alert(
-                'Keanggotaan Terverifikasi',
-                `Anggota ${targetMember.nama} (${targetMember.mid}) kini resmi AKTIF. Setoran awal ${formatRupiah(totalSetoranAwal)} berhasil dibukukan ke saldo kas likuid koperasi.`
-              );
-            } catch (err) {
-              Alert.alert('Gagal', 'Terjadi kesalahan saat memverifikasi anggota.');
-            }
-          },
-        },
-      ]
+          showAlertDialog(
+            'Keanggotaan Terverifikasi',
+            `Anggota ${targetMember.nama} (${targetMember.mid}) kini resmi AKTIF. Setoran awal ${formatRupiah(totalSetoranAwal)} berhasil dibukukan ke saldo kas likuid koperasi.`
+          );
+        } catch (err) {
+          showAlertDialog('Gagal', 'Terjadi kesalahan saat memverifikasi anggota.');
+        }
+      }
     );
   };
 
@@ -1010,17 +977,16 @@ export default function AdminKoperasiScreen() {
 
             {loanRequests.length === 0 ? (
               <View style={styles.emptyCard}>
-                <Ionicons name="checkmark-done-circle" size={42} color="#10B981" />
-                <Text style={styles.emptyTitle}>Semua Pengajuan Telah Diproses</Text>
-                <Text style={styles.emptySub}>Tidak ada antrean pinjaman atau talangan anggota yang tertunda.</Text>
+                <Ionicons name="shield-checkmark" size={48} color="#C5A059" />
+                <Text style={styles.emptyTitle}>Tidak Ada Antrean Pinjaman</Text>
+                <Text style={styles.emptySub}>Tidak ada permohonan pinjaman anggota yang tertunda saat ini.</Text>
               </View>
             ) : (
               loanRequests.map((req) => {
                 const calc = calculateLoanInstallment(req.nominal, req.tenorBulan);
                 return (
-                  <Pressable
+                  <View
                     key={req.id}
-                    onPress={() => setShowLoanDetailModal(req)}
                     style={[
                       styles.loanCard,
                       req.status === 'approved' && { borderColor: 'rgba(16, 185, 129, 0.4)' },
@@ -1091,25 +1057,41 @@ export default function AdminKoperasiScreen() {
                       </View>
                     </View>
 
-                    {req.status === 'pending' && (
-                      <View style={styles.loanCardActions}>
-                        <Pressable
-                          onPress={() => handleRejectLoan(req)}
-                          style={styles.loanRejectBtn}
-                        >
-                          <Ionicons name="close-circle-outline" size={16} color="#EF4444" />
-                          <Text style={styles.loanRejectText}>Tolak</Text>
-                        </Pressable>
-                        <Pressable
-                          onPress={() => handleApproveLoan(req)}
-                          style={styles.loanApproveBtn}
-                        >
-                          <Ionicons name="checkmark-circle-outline" size={16} color="#000" />
-                          <Text style={styles.loanApproveText}>Setujui & Cairkan</Text>
-                        </Pressable>
-                      </View>
-                    )}
-                  </Pressable>
+                    <View style={styles.loanCardActions}>
+                      <Pressable
+                        onPress={() => setShowLoanDetailModal(req)}
+                        style={styles.loanDetailBtn}
+                      >
+                        <Ionicons name="document-text-outline" size={15} color="#D4D4D8" />
+                        <Text style={styles.loanDetailBtnText}>Rincian</Text>
+                      </Pressable>
+
+                      {req.status === 'pending' && (
+                        <>
+                          <Pressable
+                            onPress={(e) => {
+                              (e as any)?.stopPropagation?.();
+                              handleRejectLoan(req);
+                            }}
+                            style={styles.loanRejectBtn}
+                          >
+                            <Ionicons name="close-circle-outline" size={16} color="#EF4444" />
+                            <Text style={styles.loanRejectText}>Tolak</Text>
+                          </Pressable>
+                          <Pressable
+                            onPress={(e) => {
+                              (e as any)?.stopPropagation?.();
+                              handleApproveLoan(req);
+                            }}
+                            style={styles.loanApproveBtn}
+                          >
+                            <Ionicons name="checkmark-circle-outline" size={16} color="#000" />
+                            <Text style={styles.loanApproveText}>Setujui & Cairkan</Text>
+                          </Pressable>
+                        </>
+                      )}
+                    </View>
+                  </View>
                 );
               })
             )}
@@ -2467,6 +2449,23 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
     color: '#000',
+  },
+  loanDetailBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+  },
+  loanDetailBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#E4E4E7',
   },
   searchBarBox: {
     flexDirection: 'row',
