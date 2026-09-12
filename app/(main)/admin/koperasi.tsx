@@ -69,6 +69,20 @@ interface LoanRequest {
   confirmedByMemberAt?: string;
 }
 
+export interface PendingDepositItem {
+  id: string;
+  nominal: number;
+  wajibPortion: number;
+  sukarelaPortion: number;
+  loanPortion: number;
+  buktiTransferUri: string;
+  tanggalTransfer: string;
+  bankPengirim?: string;
+  rekeningPengirim?: string;
+  namaPengirim?: string;
+  keterangan?: string;
+}
+
 interface MemberKopItem {
   id: string;
   altId?: string;
@@ -90,6 +104,7 @@ interface MemberKopItem {
   rekeningPengirim?: string | null;
   namaPengirim?: string | null;
   catatanAdmin?: string | null;
+  pendingDeposit?: PendingDepositItem | null;
 }
 
 export const generateKopMemberId = (mid: string): string => {
@@ -203,6 +218,19 @@ const INITIAL_MEMBERS: MemberKopItem[] = [
     namaPengirim: 'Ayesha Fairuz Fajr',
     rekeningPengirim: '137-00-1234567-8',
     buktiTransferUri: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=600&auto=format&fit=crop&q=80',
+    pendingDeposit: {
+      id: 'dep_ayesha_1000000',
+      nominal: 1000000,
+      wajibPortion: 0,
+      sukarelaPortion: 1000000,
+      loanPortion: 0,
+      buktiTransferUri: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=600&auto=format&fit=crop&q=80',
+      tanggalTransfer: '2026-09-12 14:30',
+      bankPengirim: 'Bank Mandiri',
+      rekeningPengirim: '137-00-1234567-8',
+      namaPengirim: 'Ayesha Fairuz Fajr',
+      keterangan: 'Setoran Tambahan Tabungan Sukarela Rp 1.000.000 via Transfer Mandiri',
+    },
   },
 ];
 
@@ -248,6 +276,8 @@ export default function AdminKoperasiScreen() {
   const [showShuModal, setShowShuModal] = useState(false);
   const [showEStatementModal, setShowEStatementModal] = useState(false);
   const [selectedProofMember, setSelectedProofMember] = useState<MemberKopItem | null>(null);
+  const [selectedDepositMember, setSelectedDepositMember] = useState<MemberKopItem | null>(null);
+  const [isProcessingDeposit, setIsProcessingDeposit] = useState(false);
 
   // Form State for Recording Mutasi
   const [txSubtype, setTxSubtype] = useState<'pokok' | 'wajib' | 'sukarela' | 'talangan' | 'pinjaman' | 'cicilan'>('wajib');
@@ -347,6 +377,9 @@ export default function AdminKoperasiScreen() {
             const normSukarela = isAyesha
               ? Math.max(450000, m.tabunganSukarela ?? 0)
               : (rawTotal > 0 ? Math.max(25000, rawTotal - normPokok - normWajib) : (m.tabunganSukarela || 25000));
+            const pendingDep = m.pendingDeposit !== undefined
+              ? m.pendingDeposit
+              : (isAyesha && (m.tabunganSukarela ?? 0) < 1450000 ? INITIAL_MEMBERS[2]?.pendingDeposit : null);
 
             midMap.set(key, {
               ...m,
@@ -355,6 +388,7 @@ export default function AdminKoperasiScreen() {
               tabunganSukarela: normSukarela,
               kopMemberId: m.kopMemberId || generateKopMemberId(key),
               lastPaidWajibMonth: m.lastPaidWajibMonth || (m.status === 'active' ? currentMonthKey : null),
+              pendingDeposit: pendingDep,
             });
           } else {
             const existing = midMap.get(key)!;
@@ -381,6 +415,7 @@ export default function AdminKoperasiScreen() {
               rekeningPengirim: existing.rekeningPengirim || m.rekeningPengirim,
               bankPengirim: existing.bankPengirim || m.bankPengirim,
               namaPengirim: existing.namaPengirim || m.namaPengirim,
+              pendingDeposit: existing.pendingDeposit ?? m.pendingDeposit ?? (isAyesha && normSukarela < 1450000 ? INITIAL_MEMBERS[2]?.pendingDeposit : null),
             };
             midMap.set(key, mergedItem);
           }
@@ -774,6 +809,145 @@ export default function AdminKoperasiScreen() {
     );
   };
 
+  // Verifikasi & Bukukan Setoran Kas Anggota Aktif (Pending Deposit)
+  const handleApproveDeposit = async (mem: MemberKopItem) => {
+    if (!mem || !mem.pendingDeposit) return;
+    const deposit = mem.pendingDeposit;
+
+    showConfirmDialog(
+      'Konfirmasi Verifikasi Setoran Kas',
+      `Setujui dan bukukan setoran transfer ${formatRupiah(deposit.nominal)} dari ${mem.nama} (${mem.mid})?\n\nAlokasi Dana Masuk:\n• Simpanan Wajib: ${formatRupiah(deposit.wajibPortion)}\n• Tabungan Sukarela: ${formatRupiah(deposit.sukarelaPortion)}${deposit.loanPortion > 0 ? `\n• Angsuran Pinjaman: ${formatRupiah(deposit.loanPortion)}` : ''}\n\nSaldo simpanan anggota dan kas likuid koperasi akan otomatis terupdate.`,
+      async () => {
+        setIsProcessingDeposit(true);
+        try {
+          const targetMid = mem.mid.trim().toUpperCase();
+          const updatedMembers = members.map((m) => {
+            if (m.id === mem.id || m.mid.trim().toUpperCase() === targetMid) {
+              const newSukarela = (m.tabunganSukarela || 0) + deposit.sukarelaPortion;
+              const newWajib = (m.simpananWajib || 0) + deposit.wajibPortion;
+              return {
+                ...m,
+                tabunganSukarela: newSukarela,
+                simpananWajib: newWajib,
+                lastPaidWajibMonth: deposit.wajibPortion >= 50000 ? currentMonthKey : m.lastPaidWajibMonth,
+                pendingDeposit: null,
+              };
+            }
+            return m;
+          });
+
+          setMembers(updatedMembers);
+          await AsyncStorage.setItem(KOP_STORAGE_MEMBERS, JSON.stringify(updatedMembers));
+
+          // Catat di Jurnal Mutasi Kas
+          const rawTx = await AsyncStorage.getItem(KOP_STORAGE_TX);
+          const allTxs = rawTx ? JSON.parse(rawTx) : [];
+          const refNum = `TX-SETOR-VERIF-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+          const descAllocations = [];
+          if (deposit.wajibPortion > 0) descAllocations.push(`Wajib ${formatRupiah(deposit.wajibPortion)}`);
+          if (deposit.sukarelaPortion > 0) descAllocations.push(`Sukarela ${formatRupiah(deposit.sukarelaPortion)}`);
+          if (deposit.loanPortion > 0) descAllocations.push(`Angsuran Pinjaman ${formatRupiah(deposit.loanPortion)}`);
+
+          const newTx: KoperasiTransaction = {
+            id: `tx_dep_approved_${Date.now()}`,
+            member_id: mem.id,
+            type: 'simpanan',
+            amount: deposit.nominal,
+            status: 'completed',
+            description: `[Verifikasi Setoran Kas] Total ${formatRupiah(deposit.nominal)} (${descAllocations.join(', ')}) — MID: ${mem.mid} (${mem.nama}) via ${deposit.bankPengirim || 'Bank Mandiri'}`,
+            reference_number: refNum,
+            due_date: null,
+            processed_by: user?.id || 'admin_koperasi',
+            processed_at: new Date().toISOString(),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+
+          const updatedTxs = [newTx, ...allTxs];
+          setTransactions(updatedTxs);
+          await AsyncStorage.setItem(KOP_STORAGE_TX, JSON.stringify(updatedTxs));
+
+          // Rekonsiliasi Otomatis Saldo Kas Likuid Koperasi
+          const activeMems = updatedMembers.filter((m) => m.status === 'active');
+          const sumPokok = activeMems.reduce((sum, m) => sum + (m.simpananPokok || 0), 0);
+          const sumWajib = activeMems.reduce((sum, m) => sum + (m.simpananWajib || 0), 0);
+          const sumSukarela = activeMems.reduce((sum, m) => sum + (m.tabunganSukarela || 0), 0);
+          const activeDisbursedLoans = loanRequests.filter(
+            (l) => l.status === 'confirmed_active' || l.status === 'disbursed_waiting_confirmation'
+          );
+          const sumLoans = activeDisbursedLoans.reduce((sum, l) => sum + (l.nominal || 0), 0);
+          const totalKasLikuid = Math.max(0, (sumPokok + sumWajib + sumSukarela) - sumLoans);
+
+          const reconciledBal: KoperasiBalance = {
+            ...balance,
+            simpanan_pokok: sumPokok,
+            simpanan_wajib: sumWajib,
+            simpanan_sukarela: sumSukarela,
+            total_balance: totalKasLikuid,
+            updated_at: new Date().toISOString(),
+          };
+          setBalance(reconciledBal);
+          await AsyncStorage.setItem(KOP_STORAGE_BAL, JSON.stringify(reconciledBal));
+
+          setSelectedDepositMember(null);
+          showAlertDialog(
+            'Setoran Berhasil Diverifikasi! 🎉',
+            `Setoran transfer kas sebesar ${formatRupiah(deposit.nominal)} dari ${mem.nama} (${mem.mid}) telah disetujui dan dibukukan resmi ke kas koperasi.\n\n• Saldo Tabungan Sukarela: ${formatRupiah((mem.tabunganSukarela || 0) + deposit.sukarelaPortion)}\n• Total Simpanan Anggota: ${formatRupiah(mem.simpananPokok + mem.simpananWajib + (mem.tabunganSukarela || 0) + deposit.nominal)}\n• Saldo Kas Likuid Koperasi: ${formatRupiah(totalKasLikuid)}`
+          );
+        } catch (err) {
+          console.error('Error approving deposit:', err);
+          showAlertDialog('Gagal', 'Terjadi kesalahan sistem saat memverifikasi setoran.');
+        } finally {
+          setIsProcessingDeposit(false);
+        }
+      },
+      'Ya, Setujui & Bukukan',
+      'Batal'
+    );
+  };
+
+  // Tolak Setoran Kas Anggota Aktif
+  const handleRejectDeposit = (mem: MemberKopItem) => {
+    if (!mem || !mem.pendingDeposit) return;
+    const deposit = mem.pendingDeposit;
+
+    showConfirmDialog(
+      'Konfirmasi Penolakan Setoran',
+      `Tolak setoran transfer ${formatRupiah(deposit.nominal)} dari ${mem.nama} (${mem.mid})?\n\nAlasan: Bukti transfer belum valid / mutasi rekening kas koperasi belum diterima.`,
+      async () => {
+        setIsProcessingDeposit(true);
+        try {
+          const targetMid = mem.mid.trim().toUpperCase();
+          const updatedMembers = members.map((m) => {
+            if (m.id === mem.id || m.mid.trim().toUpperCase() === targetMid) {
+              return {
+                ...m,
+                pendingDeposit: null,
+              };
+            }
+            return m;
+          });
+
+          setMembers(updatedMembers);
+          await AsyncStorage.setItem(KOP_STORAGE_MEMBERS, JSON.stringify(updatedMembers));
+          setSelectedDepositMember(null);
+          showAlertDialog(
+            'Setoran Ditolak',
+            `Setoran kas sebesar ${formatRupiah(deposit.nominal)} dari ${mem.nama} (${mem.mid}) telah ditolak.`
+          );
+        } catch (err) {
+          console.error('Error rejecting deposit:', err);
+          showAlertDialog('Gagal', 'Terjadi kesalahan saat memproses penolakan.');
+        } finally {
+          setIsProcessingDeposit(false);
+        }
+      },
+      'Ya, Tolak',
+      'Batal'
+    );
+  };
+
   const handleSendWaReminder = (mem: MemberKopItem) => {
     const cleanPhone = (mem.phone || '').replace(/[^0-9]/g, '');
     const waPhone = cleanPhone.startsWith('0') ? '62' + cleanPhone.slice(1) : cleanPhone;
@@ -987,7 +1161,7 @@ export default function AdminKoperasiScreen() {
     if (memberFilterStatus === 'ACTIVE') {
       result = result.filter((m) => m.status === 'active');
     } else if (memberFilterStatus === 'PENDING') {
-      result = result.filter((m) => m.status === 'pending');
+      result = result.filter((m) => m.status === 'pending' || !!m.pendingDeposit);
     } else if (memberFilterStatus === 'UNPAID_WAJIB') {
       result = result.filter((m) =>
         m.status === 'active' && m.lastPaidWajibMonth !== currentMonthKey && m.simpananWajib < 50000
@@ -1004,7 +1178,9 @@ export default function AdminKoperasiScreen() {
 
   // Statistik & Metrics
   const pendingLoansCount = activeLoans.filter((r) => r.status === 'pending').length;
-  const pendingMembersCount = members.filter((m) => m.status === 'pending').length;
+  const pendingRegistrationsCount = members.filter((m) => m.status === 'pending').length;
+  const pendingDepositsCount = members.filter((m) => !!m.pendingDeposit).length;
+  const pendingMembersCount = pendingRegistrationsCount + pendingDepositsCount;
   const totalSimpananSemua = balance.simpanan_pokok + balance.simpanan_wajib + balance.simpanan_sukarela;
 
   // Render Tab Navigation Buttons
@@ -1560,6 +1736,41 @@ export default function AdminKoperasiScreen() {
               </View>
             </View>
 
+            {/* Banner Notifikasi Setoran Masuk Menunggu Verifikasi */}
+            {(() => {
+              const pendingDepMember = members.find((m) => !!m.pendingDeposit);
+              if (!pendingDepMember || !pendingDepMember.pendingDeposit) return null;
+              return (
+                <View style={styles.depositAlertBanner}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                    <View style={styles.depositAlertIconBox}>
+                      <Ionicons name="wallet" size={18} color="#000" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={styles.depositAlertTitle}>
+                          {pendingDepositsCount} Setoran Kas Masuk Menunggu Verifikasi
+                        </Text>
+                        <View style={styles.pulseBadge}>
+                          <Text style={styles.pulseBadgeText}>PERLU AKSI</Text>
+                        </View>
+                      </View>
+                      <Text style={styles.depositAlertSub} numberOfLines={1}>
+                        {pendingDepMember.nama} • Transfer {formatRupiah(pendingDepMember.pendingDeposit.nominal)} via {pendingDepMember.pendingDeposit.bankPengirim || 'Bank Mandiri'}
+                      </Text>
+                    </View>
+                  </View>
+                  <Pressable
+                    onPress={() => setSelectedDepositMember(pendingDepMember)}
+                    style={styles.depositAlertBtn}
+                  >
+                    <Text style={styles.depositAlertBtnText}>Periksa & Verif</Text>
+                    <Ionicons name="arrow-forward" size={13} color="#000" />
+                  </Pressable>
+                </View>
+              );
+            })()}
+
             {/* Pencarian & Filter Status Anggota */}
             <View style={styles.tableControlCard}>
               <View style={styles.memberSearchBar}>
@@ -1587,7 +1798,7 @@ export default function AdminKoperasiScreen() {
                   {[
                     { key: 'ALL', label: `Semua (${members.length})` },
                     { key: 'ACTIVE', label: `Aktif (${members.filter(m => m.status === 'active').length})` },
-                    { key: 'PENDING', label: `Menunggu Verifikasi (${members.filter(m => m.status === 'pending').length})` },
+                    { key: 'PENDING', label: `Menunggu Verifikasi (${members.filter(m => m.status === 'pending' || !!m.pendingDeposit).length})` },
                     { key: 'UNPAID_WAJIB', label: `Belum Bayar Iuran (${members.filter(m => m.status === 'active' && m.lastPaidWajibMonth !== currentMonthKey && m.simpananWajib < 50000).length})` },
                   ].map((filter) => (
                     <Pressable
@@ -1629,7 +1840,7 @@ export default function AdminKoperasiScreen() {
                   <Text style={[styles.thCell, { width: 125, textAlign: 'right' }]}>Total Simpanan</Text>
                   <Text style={[styles.thCell, { width: 130, textAlign: 'center' }]}>Iuran Bulanan</Text>
                   <Text style={[styles.thCell, { width: 110, textAlign: 'center' }]}>Status Akun</Text>
-                  <Text style={[styles.thCell, { width: 190, textAlign: 'center' }]}>Aksi Pengelola</Text>
+                  <Text style={[styles.thCell, { width: 220, textAlign: 'center' }]}>Aksi Pengelola</Text>
                 </View>
 
                 {/* Table Rows */}
@@ -1691,9 +1902,18 @@ export default function AdminKoperasiScreen() {
                         </Text>
 
                         {/* Sukarela */}
-                        <Text style={[styles.tdCell, { width: 120, textAlign: 'right', color: '#E4E4E7' }]}>
-                          {formatRupiah(mem.tabunganSukarela)}
-                        </Text>
+                        <View style={[styles.tdCell, { width: 120, alignItems: 'flex-end', justifyContent: 'center' }]}>
+                          <Text style={{ textAlign: 'right', color: '#E4E4E7', fontSize: 11.5 }}>
+                            {formatRupiah(mem.tabunganSukarela)}
+                          </Text>
+                          {mem.pendingDeposit && mem.pendingDeposit.sukarelaPortion > 0 ? (
+                            <View style={{ backgroundColor: 'rgba(251, 191, 36, 0.15)', borderColor: '#FBBF24', borderWidth: 1, borderRadius: 3, paddingHorizontal: 3, paddingVertical: 1, marginTop: 2 }}>
+                              <Text style={{ fontSize: 8.5, color: '#FBBF24', fontWeight: '800' }}>
+                                +{formatRupiah(mem.pendingDeposit.sukarelaPortion)} (Verif)
+                              </Text>
+                            </View>
+                          ) : null}
+                        </View>
 
                         {/* Total Simpanan */}
                         <Text style={[styles.tdCell, { width: 125, textAlign: 'right', fontWeight: '800', color: '#FBBF24' }]}>
@@ -1753,7 +1973,7 @@ export default function AdminKoperasiScreen() {
                         </View>
 
                         {/* Aksi */}
-                        <View style={[styles.tdCell, { width: 190, flexDirection: 'row', gap: 4, justifyContent: 'center' }]}>
+                        <View style={[styles.tdCell, { width: 220, flexDirection: 'row', gap: 4, justifyContent: 'center', alignItems: 'center' }]}>
                           <Pressable
                             onPress={() => setSelectedDetailMember(mem)}
                             style={styles.tableActionBtn}
@@ -1762,7 +1982,26 @@ export default function AdminKoperasiScreen() {
                             <Text style={styles.tableActionBtnText}>Detail</Text>
                           </Pressable>
 
-                          {!isWajibPaid && mem.status === 'active' && (
+                          {mem.pendingDeposit ? (
+                            <Pressable
+                              onPress={() => setSelectedDepositMember(mem)}
+                              style={[
+                                styles.tableActionBtn,
+                                {
+                                  backgroundColor: 'rgba(251, 191, 36, 0.25)',
+                                  borderColor: '#FBBF24',
+                                  paddingHorizontal: 7,
+                                },
+                              ]}
+                            >
+                              <Ionicons name="checkmark-circle" size={11} color="#FBBF24" />
+                              <Text style={[styles.tableActionBtnText, { color: '#FBBF24', fontWeight: '800' }]}>
+                                Verif Setor
+                              </Text>
+                            </Pressable>
+                          ) : null}
+
+                          {!isWajibPaid && mem.status === 'active' && !mem.pendingDeposit && (
                             <Pressable
                               onPress={() => handleSendWaReminder(mem)}
                               style={[styles.tableActionBtn, { backgroundColor: 'rgba(37, 211, 102, 0.15)', borderColor: '#25D366' }]}
@@ -1772,7 +2011,7 @@ export default function AdminKoperasiScreen() {
                             </Pressable>
                           )}
 
-                          {!isWajibPaid && mem.status === 'active' && mem.tabunganSukarela >= 50000 && (
+                          {!isWajibPaid && mem.status === 'active' && mem.tabunganSukarela >= 50000 && !mem.pendingDeposit && (
                             <Pressable
                               onPress={() => handleAutoDebitWajib(mem)}
                               style={[styles.tableActionBtn, { backgroundColor: 'rgba(251, 191, 36, 0.15)', borderColor: '#FBBF24' }]}
@@ -1793,7 +2032,7 @@ export default function AdminKoperasiScreen() {
                             </Pressable>
                           )}
 
-                          {mem.status === 'active' && (
+                          {mem.status === 'active' && !mem.pendingDeposit && (
                             <Pressable
                               onPress={() => handleOpenSetorForMember(mem)}
                               style={[styles.tableActionBtn, { backgroundColor: 'rgba(255, 255, 255, 0.06)', borderColor: 'rgba(255, 255, 255, 0.15)' }]}
@@ -2801,72 +3040,301 @@ export default function AdminKoperasiScreen() {
                     </View>
                   )}
 
-                  {/* Action Buttons */}
-                  <View style={{ flexDirection: 'row', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
-                    <Pressable
-                      onPress={() => setSelectedDetailMember(null)}
-                      style={[styles.loanRejectBtn, { flex: 1, paddingVertical: 12, backgroundColor: 'rgba(255, 255, 255, 0.06)', borderColor: 'rgba(255, 255, 255, 0.1)' }]}
-                    >
-                      <Text style={[styles.loanRejectText, { color: '#A1A1AA' }]}>Tutup</Text>
-                    </Pressable>
+                    {/* Pending Deposit Notification Banner in Detail */}
+                    {mem.pendingDeposit && (
+                      <View style={[styles.proofModalInfoBox, { backgroundColor: 'rgba(251, 191, 36, 0.1)', borderColor: '#FBBF24', marginVertical: 10 }]}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Ionicons name="alert-circle" size={16} color="#FBBF24" />
+                          <Text style={{ fontSize: 12, fontWeight: '800', color: '#FBBF24' }}>
+                            Setoran Menunggu Verifikasi: {formatRupiah(mem.pendingDeposit.nominal)}
+                          </Text>
+                        </View>
+                        <Text style={{ fontSize: 11, color: '#D4D4D8', marginTop: 4 }}>
+                          Transfer via {mem.pendingDeposit.bankPengirim || 'Bank Mandiri'} pada {mem.pendingDeposit.tanggalTransfer}. Klik tombol Verif Setor di bawah untuk memeriksa struk dan menyetujui pembukuan.
+                        </Text>
+                      </View>
+                    )}
 
-                    {mem.status === 'pending' && (
-                      <>
+                    {/* Action Buttons */}
+                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
+                      <Pressable
+                        onPress={() => setSelectedDetailMember(null)}
+                        style={[styles.loanRejectBtn, { flex: 1, paddingVertical: 12, backgroundColor: 'rgba(255, 255, 255, 0.06)', borderColor: 'rgba(255, 255, 255, 0.1)' }]}
+                      >
+                        <Text style={[styles.loanRejectText, { color: '#A1A1AA' }]}>Tutup</Text>
+                      </Pressable>
+
+                      {mem.pendingDeposit && (
+                        <Pressable
+                          onPress={() => {
+                            const target = mem;
+                            setSelectedDetailMember(null);
+                            setSelectedDepositMember(target);
+                          }}
+                          style={[styles.loanApproveBtn, { flex: 2, paddingVertical: 12 }]}
+                        >
+                          <Ionicons name="checkmark-circle" size={16} color="#000" />
+                          <Text style={styles.loanApproveText}>
+                            Verif Setor ({formatRupiah(mem.pendingDeposit.nominal)})
+                          </Text>
+                        </Pressable>
+                      )}
+
+                      {mem.status === 'pending' && (
+                        <>
+                          <Pressable
+                            onPress={() => {
+                              setSelectedDetailMember(null);
+                              handleRejectMember(mem);
+                            }}
+                            style={[styles.loanRejectBtn, { flex: 1, paddingVertical: 12 }]}
+                          >
+                            <Ionicons name="close-circle" size={16} color="#EF4444" />
+                            <Text style={styles.loanRejectText}>Tolak</Text>
+                          </Pressable>
+                          <Pressable
+                            onPress={() => {
+                              setSelectedDetailMember(null);
+                              handleApproveMember(mem);
+                            }}
+                            style={[styles.loanApproveBtn, { flex: 1.5, paddingVertical: 12 }]}
+                          >
+                            <Ionicons name="checkmark-done-circle" size={18} color="#000" />
+                            <Text style={styles.loanApproveText}>Verifikasi</Text>
+                          </Pressable>
+                        </>
+                      )}
+
+                      {mem.status === 'active' && !isWajibPaid && !mem.pendingDeposit && (
                         <Pressable
                           onPress={() => {
                             setSelectedDetailMember(null);
-                            handleRejectMember(mem);
+                            handleSendWaReminder(mem);
                           }}
-                          style={[styles.loanRejectBtn, { flex: 1, paddingVertical: 12 }]}
+                          style={[styles.loanRejectBtn, { flex: 1.2, paddingVertical: 12, backgroundColor: 'rgba(37, 211, 102, 0.15)', borderColor: '#25D366' }]}
                         >
-                          <Ionicons name="close-circle" size={16} color="#EF4444" />
-                          <Text style={styles.loanRejectText}>Tolak</Text>
+                          <Ionicons name="logo-whatsapp" size={16} color="#25D366" />
+                          <Text style={[styles.loanRejectText, { color: '#25D366' }]}>Kirim WA</Text>
                         </Pressable>
+                      )}
+
+                      {mem.status === 'active' && !isWajibPaid && mem.tabunganSukarela >= 50000 && !mem.pendingDeposit && (
                         <Pressable
                           onPress={() => {
                             setSelectedDetailMember(null);
-                            handleApproveMember(mem);
+                            handleAutoDebitWajib(mem);
                           }}
-                          style={[styles.loanApproveBtn, { flex: 1.5, paddingVertical: 12 }]}
+                          style={[styles.loanRejectBtn, { flex: 1.2, paddingVertical: 12, backgroundColor: 'rgba(251, 191, 36, 0.15)', borderColor: '#FBBF24' }]}
                         >
-                          <Ionicons name="checkmark-done-circle" size={18} color="#000" />
-                          <Text style={styles.loanApproveText}>Verifikasi</Text>
+                          <Ionicons name="swap-horizontal" size={16} color="#FBBF24" />
+                          <Text style={[styles.loanRejectText, { color: '#FBBF24' }]}>Autodebet</Text>
                         </Pressable>
-                      </>
-                    )}
-
-                    {mem.status === 'active' && !isWajibPaid && (
-                      <Pressable
-                        onPress={() => {
-                          setSelectedDetailMember(null);
-                          handleSendWaReminder(mem);
-                        }}
-                        style={[styles.loanRejectBtn, { flex: 1.2, paddingVertical: 12, backgroundColor: 'rgba(37, 211, 102, 0.15)', borderColor: '#25D366' }]}
-                      >
-                        <Ionicons name="logo-whatsapp" size={16} color="#25D366" />
-                        <Text style={[styles.loanRejectText, { color: '#25D366' }]}>Kirim WA</Text>
-                      </Pressable>
-                    )}
-
-                    {mem.status === 'active' && !isWajibPaid && mem.tabunganSukarela >= 50000 && (
-                      <Pressable
-                        onPress={() => {
-                          setSelectedDetailMember(null);
-                          handleAutoDebitWajib(mem);
-                        }}
-                        style={[styles.loanRejectBtn, { flex: 1.2, paddingVertical: 12, backgroundColor: 'rgba(251, 191, 36, 0.15)', borderColor: '#FBBF24' }]}
-                      >
-                        <Ionicons name="swap-horizontal" size={16} color="#FBBF24" />
-                        <Text style={[styles.loanRejectText, { color: '#FBBF24' }]}>Autodebet</Text>
-                      </Pressable>
-                    )}
-                  </View>
-                </ScrollView>
-              );
-            })()}
+                      )}
+                    </View>
+                  </ScrollView>
+                );
+              })()}
+            </View>
           </View>
-        </View>
-      </Modal>
+        </Modal>
+
+        {/* ============================================================ */}
+        {/* MODAL: VERIFIKASI SETORAN KAS ANGGOTA (TRANSFER BANK)         */}
+        {/* ============================================================ */}
+        <Modal
+          visible={!!selectedDepositMember && !!selectedDepositMember.pendingDeposit}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setSelectedDepositMember(null)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalCard, { maxHeight: '92%' }]}>
+              <View style={styles.modalHeader}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Ionicons name="shield-checkmark" size={20} color="#FBBF24" />
+                  <View>
+                    <Text style={styles.modalTitle}>Verifikasi Setoran Kas</Text>
+                    <Text style={{ fontSize: 10, color: '#A1A1AA' }}>Mutasi Kas Masuk dari Anggota Aktif</Text>
+                  </View>
+                </View>
+                <Pressable onPress={() => setSelectedDepositMember(null)} hitSlop={8}>
+                  <Ionicons name="close" size={22} color="#A1A1AA" />
+                </Pressable>
+              </View>
+
+              {selectedDepositMember && selectedDepositMember.pendingDeposit && (() => {
+                const dep = selectedDepositMember.pendingDeposit;
+                const curSukarela = selectedDepositMember.tabunganSukarela || 0;
+                const curWajib = selectedDepositMember.simpananWajib || 0;
+                const nextSukarela = curSukarela + dep.sukarelaPortion;
+                const nextWajib = curWajib + dep.wajibPortion;
+                const curTotal = selectedDepositMember.simpananPokok + curWajib + curSukarela;
+                const nextTotal = curTotal + dep.nominal;
+
+                return (
+                  <ScrollView showsVerticalScrollIndicator={false}>
+                    {/* Member info header */}
+                    <View style={styles.proofModalInfoBox}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Text style={styles.proofModalName}>{selectedDepositMember.nama}</Text>
+                        <View style={{ backgroundColor: 'rgba(251, 191, 36, 0.15)', borderWidth: 1, borderColor: '#FBBF24', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                          <Text style={{ fontSize: 10, fontWeight: '800', color: '#FBBF24' }}>
+                            {selectedDepositMember.kopMemberId || selectedDepositMember.mid}
+                          </Text>
+                        </View>
+                      </View>
+                      <Text style={styles.proofModalSub}>
+                        {selectedDepositMember.chapter} • MID: {selectedDepositMember.mid} • {selectedDepositMember.phone}
+                      </Text>
+                    </View>
+
+                    {/* Transfer Proof Image */}
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: '#D4D4D8', marginTop: 12, marginBottom: 6 }}>
+                      Bukti Struk Transfer Bank (Mandiri):
+                    </Text>
+                    {dep.buktiTransferUri ? (
+                      <View style={styles.proofModalImageWrapper}>
+                        <Image
+                          source={{ uri: dep.buktiTransferUri }}
+                          style={styles.proofModalImage}
+                          resizeMode="contain"
+                        />
+                      </View>
+                    ) : (
+                      <View style={styles.proofModalNoImage}>
+                        <Ionicons name="image-outline" size={48} color="#71717A" />
+                        <Text style={{ color: '#71717A', marginTop: 8, fontSize: 12 }}>
+                          Belum ada lampiran struk transfer
+                        </Text>
+                      </View>
+                    )}
+
+                    {/* Detail Rekening Pengirim */}
+                    <View style={[styles.proofModalDetailBox, { marginTop: 12 }]}>
+                      <View style={styles.loanDetailRow}>
+                        <Text style={styles.loanDetailLabel}>Bank Pengirim:</Text>
+                        <Text style={styles.loanDetailValue}>{dep.bankPengirim || 'Bank Mandiri'}</Text>
+                      </View>
+                      <View style={styles.loanDetailRow}>
+                        <Text style={styles.loanDetailLabel}>No. Rekening Pengirim:</Text>
+                        <Text style={styles.loanDetailValue}>{dep.rekeningPengirim || '-'}</Text>
+                      </View>
+                      <View style={styles.loanDetailRow}>
+                        <Text style={styles.loanDetailLabel}>Atas Nama Pengirim:</Text>
+                        <Text style={styles.loanDetailValue}>{dep.namaPengirim || selectedDepositMember.nama}</Text>
+                      </View>
+                      <View style={styles.loanDetailRow}>
+                        <Text style={styles.loanDetailLabel}>Waktu Transfer:</Text>
+                        <Text style={styles.loanDetailValue}>{dep.tanggalTransfer}</Text>
+                      </View>
+                    </View>
+
+                    {/* Rincian Alokasi Dana Setoran */}
+                    <View style={[styles.proofModalDetailBox, { marginTop: 8, borderColor: 'rgba(251, 191, 36, 0.3)', borderWidth: 1 }]}>
+                      <Text style={{ fontSize: 11, fontWeight: '800', color: '#FBBF24', marginBottom: 4 }}>
+                        Rincian Alokasi Dana Kas Masuk:
+                      </Text>
+                      <View style={styles.loanDetailRow}>
+                        <Text style={styles.loanDetailLabel}>• Simpanan Wajib:</Text>
+                        <Text style={styles.loanDetailValue}>
+                          {dep.wajibPortion > 0 ? formatRupiah(dep.wajibPortion) : 'Rp 0 (Sudah Lunas)'}
+                        </Text>
+                      </View>
+                      <View style={styles.loanDetailRow}>
+                        <Text style={styles.loanDetailLabel}>• Tabungan Sukarela:</Text>
+                        <Text style={[styles.loanDetailValue, { color: '#34D399', fontWeight: '700' }]}>
+                          +{formatRupiah(dep.sukarelaPortion)}
+                        </Text>
+                      </View>
+                      {dep.loanPortion > 0 && (
+                        <View style={styles.loanDetailRow}>
+                          <Text style={styles.loanDetailLabel}>• Angsuran Pinjaman:</Text>
+                          <Text style={styles.loanDetailValue}>{formatRupiah(dep.loanPortion)}</Text>
+                        </View>
+                      )}
+                      <View
+                        style={[
+                          styles.loanDetailRow,
+                          {
+                            borderTopWidth: 1,
+                            borderTopColor: 'rgba(255,255,255,0.1)',
+                            paddingTop: 8,
+                            marginTop: 4,
+                          },
+                        ]}
+                      >
+                        <Text style={[styles.loanDetailLabel, { color: '#FFF', fontWeight: '800', fontSize: 12 }]}>
+                          Total Nominal Setoran:
+                        </Text>
+                        <Text style={[styles.loanDetailValue, { color: '#FBBF24', fontSize: 16, fontWeight: '800' }]}>
+                          {formatRupiah(dep.nominal)}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Ringkasan Perubahan Saldo Anggota */}
+                    <View style={[styles.proofModalInfoBox, { marginTop: 8, backgroundColor: 'rgba(52, 211, 153, 0.08)', borderColor: 'rgba(52, 211, 153, 0.25)' }]}>
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: '#34D399', marginBottom: 4 }}>
+                        Simulasi Saldo Setelah Disetujui:
+                      </Text>
+                      <View style={styles.loanDetailRow}>
+                        <Text style={styles.loanDetailLabel}>Saldo Tabungan Sukarela:</Text>
+                        <Text style={styles.loanDetailValue}>
+                          {formatRupiah(curSukarela)} ➔ <Text style={{ color: '#34D399', fontWeight: '800' }}>{formatRupiah(nextSukarela)}</Text>
+                        </Text>
+                      </View>
+                      <View style={styles.loanDetailRow}>
+                        <Text style={styles.loanDetailLabel}>Total Simpanan Anggota:</Text>
+                        <Text style={styles.loanDetailValue}>
+                          {formatRupiah(curTotal)} ➔ <Text style={{ color: '#FBBF24', fontWeight: '800' }}>{formatRupiah(nextTotal)}</Text>
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Actions */}
+                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>
+                      <Pressable
+                        onPress={() => setSelectedDepositMember(null)}
+                        disabled={isProcessingDeposit}
+                        style={[
+                          styles.loanRejectBtn,
+                          {
+                            flex: 1,
+                            paddingVertical: 12,
+                            backgroundColor: 'rgba(255, 255, 255, 0.06)',
+                            borderColor: 'rgba(255, 255, 255, 0.1)',
+                          },
+                        ]}
+                      >
+                        <Text style={[styles.loanRejectText, { color: '#A1A1AA' }]}>Tutup</Text>
+                      </Pressable>
+
+                      <Pressable
+                        onPress={() => handleRejectDeposit(selectedDepositMember)}
+                        disabled={isProcessingDeposit}
+                        style={[styles.loanRejectBtn, { flex: 1, paddingVertical: 12 }]}
+                      >
+                        <Ionicons name="close-circle" size={16} color="#EF4444" />
+                        <Text style={styles.loanRejectText}>Tolak</Text>
+                      </Pressable>
+
+                      <Pressable
+                        onPress={() => handleApproveDeposit(selectedDepositMember)}
+                        disabled={isProcessingDeposit}
+                        style={[styles.loanApproveBtn, { flex: 2, paddingVertical: 12, opacity: isProcessingDeposit ? 0.6 : 1 }]}
+                      >
+                        <Ionicons name="checkmark-done-circle" size={18} color="#000" />
+                        <Text style={styles.loanApproveText}>
+                          {isProcessingDeposit ? 'Memproses...' : `Setujui & Bukukan (${formatRupiah(dep.nominal)})`}
+                        </Text>
+                      </Pressable>
+                    </View>
+                  </ScrollView>
+                );
+              })()}
+            </View>
+          </View>
+        </Modal>
     </SafeAreaView>
   );
 }
@@ -4286,5 +4754,63 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     color: '#FAFAFA',
+  },
+
+  // Deposit Alert Banner Styles
+  depositAlertBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(251, 191, 36, 0.12)',
+    borderWidth: 1.5,
+    borderColor: '#FBBF24',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 12,
+    gap: 10,
+  },
+  depositAlertIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FBBF24',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  depositAlertTitle: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: '#FAFAFA',
+  },
+  depositAlertSub: {
+    fontSize: 10.5,
+    color: '#D4D4D8',
+    marginTop: 2,
+  },
+  depositAlertBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FBBF24',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 6,
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' as any } : {}),
+  },
+  depositAlertBtnText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#000',
+  },
+  pulseBadge: {
+    backgroundColor: '#EF4444',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 3,
+  },
+  pulseBadgeText: {
+    fontSize: 8.5,
+    fontWeight: '900',
+    color: '#FFF',
   },
 });
